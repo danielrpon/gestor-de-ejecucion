@@ -16,7 +16,7 @@
   body{background:var(--bg);color:var(--txt);font-family:var(--font);-webkit-font-smoothing:antialiased;padding:0 0 calc(24px + env(safe-area-inset-bottom));font-size:15px;line-height:1.4;overflow-x:hidden}
   .hd{background:var(--azul);color:#fff;padding-top:calc(env(safe-area-inset-top) + 12px);padding-bottom:12px}
   .hdin{max-width:640px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:0 calc(14px + env(safe-area-inset-right)) 0 calc(14px + env(safe-area-inset-left))}
-  .hd .logo{height:32px;max-width:60%;object-fit:contain;display:block}
+  .hd .logo{height:32px;max-width:60%;object-fit:contain;display:block;cursor:pointer}
   .hd .r{font-size:12px;color:#cfe0f5;text-align:right;flex:none} .hd .r a{color:#fff;text-decoration:none;font-weight:700;white-space:nowrap}
   .hd .r #who{cursor:pointer;text-decoration:underline;text-underline-offset:2px}
   .wrap{max-width:640px;margin:0 auto;padding:14px;padding-left:calc(14px + env(safe-area-inset-left));padding-right:calc(14px + env(safe-area-inset-right))}
@@ -347,6 +347,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   else show("home");                                       // URL base -> elegir rol
 });
 function pintarWho(){ $("who").textContent = operador ? (operador.nombre+" · "+operador.cedula) : ""; }
+$("brandLogo").addEventListener("click", ()=>show("home"));   // el logo lleva a la pantalla principal
+$("brandWord").addEventListener("click", ()=>show("home"));
 
 /* ---- EJECUTIVO ---- */
 $("ebtnReq").addEventListener("click", ()=>$("efileReq").click());
@@ -531,13 +533,27 @@ function adminMostrarPanel(){ $("adLogin").classList.add("hide"); $("adPanel").c
 async function adminCargarEventos(){
   const l=$("adLista"); l.innerHTML='<div class="mut">Cargando…</div>';
   try{
-    const r=await fetch(SB_URL+"/rest/v1/eventos?select=uid,consec,cl,ev,fe,n_items&order=consec.desc",{headers:adminHeaders()});
-    if(r.status===401){ adminSesExpirada(); return; }
-    adminEventos=await r.json();
+    const [rEv,rEvi]=await Promise.all([
+      fetch(SB_URL+"/rest/v1/eventos?select=uid,consec,cl,ev,fe,config,short_oper,short_exec&order=consec.desc",{headers:adminHeaders()}),
+      fetch(SB_URL+"/rest/v1/evidencias?select=evento_uid,item",{headers:adminHeaders()})
+    ]);
+    if(rEv.status===401||rEvi.status===401){ adminSesExpirada(); return; }
+    adminEventos=await rEv.json();
+    const evis = rEvi.ok ? await rEvi.json() : [];
+    const porEvento={}, porItem={};
+    evis.forEach(x=>{ porEvento[x.evento_uid]=(porEvento[x.evento_uid]||0)+1; porItem[x.evento_uid+"|"+x.item]=(porItem[x.evento_uid+"|"+x.item]||0)+1; });
     if(!adminEventos.length){ l.innerHTML='<div class="mut">Aún no hay eventos.</div>'; return; }
-    l.innerHTML=adminEventos.map((e,i)=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}<div class="ac"><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a></div></div></div>`).join("");
+    l.innerHTML=adminEventos.map((e,i)=>{
+      const reg=porEvento[e.uid]||0;
+      const items=(e.config&&e.config.it)||[];
+      const pend=items.filter(it=>(porItem[e.uid+"|"+it.codigo]||0)<3).length;
+      return `<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}`
+        +`<div class="mut" style="margin:3px 0 0">Evidencias registradas: <b>${reg}</b> · Requerimientos pendientes (&lt;3): <b>${pend}</b>/${items.length}</div>`
+        +`<div class="ac"><a class="lnk" onclick="adminCopiar(${i},'oper')">link operador</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link ejecutivo</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a></div></div></div>`;
+    }).join("");
   }catch(_){ l.innerHTML='<div class="mut">Error al cargar.</div>'; }
 }
+window.adminCopiar=(i,tipo)=>{ const e=adminEventos[i]; if(!e) return; const full=tipo==="exec"?linkExec(e.uid):linkOper(e.uid); const u=(tipo==="exec"?e.short_exec:e.short_oper)||full; if(navigator.clipboard) navigator.clipboard.writeText(u); alert((tipo==="exec"?"Enlace del ejecutivo":"Enlace del operador")+" copiado:\n\n"+u); };
 window.adminAbrir=async(i)=>{
   const ev=adminEventos[i]; if(!ev) return;
   $("adBack").classList.remove("hide"); $("adTitulo").textContent=`${ev.cl||""} — ${ev.ev||""}`;
