@@ -116,9 +116,15 @@
           <div class="ie" id="invEv"></div>
           <div class="qrbox"><div id="acQR"></div></div>
           <div class="il" id="acLink"></div>
+          <div class="mut" style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">Enlace del <b>ejecutivo</b> (para re-editar este evento después):</div>
+          <div class="il" id="acLinkExec" style="color:var(--muted)"></div>
         </div>
-        <div class="btn2"><button class="btn sec" id="acCopy">Copiar invitación</button><button class="btn" id="acGo">Continuar como operador</button></div>
+        <div class="btn2"><button class="btn sec" id="acCopy">Copiar invitación (operador)</button><button class="btn" id="acGo">Continuar como operador</button></div>
+        <button class="btn sec" id="acCopyExec" style="margin-top:8px">Copiar enlace del ejecutivo</button>
       </div>
+      <div style="height:14px"></div>
+      <a class="lnk" id="verHist">▸ Eventos configurados (historial)</a>
+      <div id="histList" class="list hide" style="margin-top:10px"></div>
     </div>
   </div>
 
@@ -144,6 +150,7 @@
       <div class="h" id="ctx"></div>
       <label>1) Elige QUÉ vas a fotografiar (una foto = un ítem)</label>
       <select id="item"></select>
+      <div style="text-align:right;margin-top:5px"><a class="lnk" id="addAdic">➕ Agregar requerimiento adicional</a></div>
       <div id="guiaItem" class="guia neutro" role="status" aria-live="polite"></div>
       <button class="btn" id="btnCap" style="margin-top:12px">Capturar foto</button>
       <button class="btn sec" id="btnGal" style="margin-top:12px">Galería (fotos)</button>
@@ -157,6 +164,7 @@
           <div><label>Tamaño</label><select id="esc"><option value="2.6">Pequeño</option><option value="3.4" selected>Medio</option><option value="4.4">Grande</option><option value="5.6">Muy grande</option></select></div>
         </div>
         <label class="tgl"><input id="marca" type="checkbox" checked> Aplicar marca de agua (dirección · fecha · hora)</label>
+        <label class="tgl" style="margin-top:2px"><input id="backup" type="checkbox"> Guardar copia de cada foto en el dispositivo (respaldo)</label>
       </div>
     </div>
     <div class="card">
@@ -194,6 +202,18 @@
   <div class="btn2"><button class="btn sec" id="opClose">Cerrar</button><button class="btn" id="opSave">Guardar</button></div>
 </div></div>
 
+<!-- REQUERIMIENTO ADICIONAL -->
+<div id="adicm" class="modal hide"><div class="sheet">
+  <div class="h">Requerimiento adicional</div>
+  <div class="fld"><label>Requerimiento / ítem adicional</label><input id="adReq" type="text" autocomplete="off" placeholder="Ej.: Punto de hidratación extra"></div>
+  <div class="fld" style="margin-top:8px"><label>Cantidad (opcional)</label><input id="adCant" type="number" min="1" placeholder="1"></div>
+  <div class="fld" style="margin-top:8px"><label>¿Quién lo solicitó?</label><input id="adQuien" type="text" autocomplete="off" placeholder="Ej.: coordinador del evento / cliente"></div>
+  <div class="fld" style="margin-top:8px"><label>Justificación / nota</label><input id="adNota" type="text" autocomplete="off" placeholder="Por qué se agregó en sitio"></div>
+  <div class="mut">Queda marcado como ADICIONAL y viaja en el manifiesto con la justificación y quién lo pidió.</div>
+  <div style="height:12px"></div>
+  <div class="btn2"><button class="btn sec" id="adClose">Cerrar</button><button class="btn" id="adSave">Agregar</button></div>
+</div></div>
+
 <!-- CÁMARA -->
 <div id="camm" class="cam hide">
   <video id="video" autoplay playsinline muted></video>
@@ -209,14 +229,12 @@
 <script src="qrcode.min.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-/* ===== Marca conmutable (white-label) — Freaknerd como producto, skin por cliente ===== */
+/* ===== Marca (una sola versión: Estrella) ===== */
 const BRANDS = {
-  estrella:  { title:"Evidencias · Estrella",  azul:"#0B4EA2", azulD:"#083b7d", oro:"#F2B21A", oroD:"#cf9a09", btnInk:"#10233f", stamp:"#F2B21A", qr:"#0B4EA2", logoImg:"logo_white.png", word:null },
-  freaknerd: { title:"Evidencias · Freaknerd", azul:"#0A0B0D", azulD:"#000000", oro:"#26E57C", oroD:"#0F9E56", btnInk:"#0A0B0D", stamp:"#26E57C", qr:"#0A0B0D", logoImg:null, word:'freaknerd<i style="color:var(--oro);font-style:normal">_</i>' }
+  estrella:  { title:"Evidencias · Estrella",  azul:"#0B4EA2", azulD:"#083b7d", oro:"#F2B21A", oroD:"#cf9a09", btnInk:"#10233f", stamp:"#F2B21A", qr:"#0B4EA2", logoImg:"logo_white.png", word:null }
 };
-// Este repo (el que usa Estrella) queda con su piel. Para ver/servir el skin de producto: ?brand=freaknerd
 const BRAND_DEFAULT = "estrella";
-function brandActivo(){ try{ const q=new URLSearchParams(location.search).get("brand"); if(q && BRANDS[q]) return q; }catch(_){} return BRAND_DEFAULT; }
+function brandActivo(){ return "estrella"; }   // una sola versión, imagen visual Estrella
 let MARCA = BRANDS[brandActivo()];
 let VERDE = MARCA.stamp;   // acento de la marca de agua según el skin activo
 function aplicarMarca(){
@@ -249,17 +267,38 @@ function itemsCfg(){ return (cfg&&cfg.it)||[]; }
 function encCfg(c){ return btoa(unescape(encodeURIComponent(JSON.stringify(c)))); }
 function decCfg(s){ try{ return JSON.parse(decodeURIComponent(escape(atob(s)))); }catch(_){ return null; } }
 
+/* ---- Registro de eventos (multievento + consecutivo + historial) ----
+   Cada evento queda registrado con un consecutivo (EV-001, EV-002…) y el config codificado,
+   para reconstruir el link de operador (#c=) y el de ejecutivo (#e=). Los datos de cada evento
+   (counters, adicionales, lote) ya viven namespaced por cliente|evento, así que NO se mezclan. */
+function eventos(){ return loadJSON("est_eventos", {}); }
+function eventoId(c){ return slug(c.cl)+"_"+slug(c.ev)+(c.fe?("_"+c.fe):""); }
+function evConsecTag(n){ return "EV-"+String(n).padStart(3,"0"); }
+function registrarEvento(c, enc){
+  const all=eventos(); const id=eventoId(c);
+  if(!all[id]){ let mx=0; Object.values(all).forEach(e=>{ if((e.consec||0)>mx) mx=e.consec; }); all[id]={consec:mx+1, creado:(new Date()).toISOString().slice(0,10)}; }
+  Object.assign(all[id], {cl:c.cl, ev:c.ev, fe:c.fe||"", ci:c.ci||"", nItems:(c.it||[]).length, enc, actualizado:(new Date()).toISOString().slice(0,10)});
+  saveJSON("est_eventos", all); return all[id].consec;
+}
+function linkOperDe(enc){ return PROD+"#c="+enc; }
+function linkExecDe(enc){ return PROD+"#e="+enc; }
+
 /* ---- arranque: decide rol ---- */
 window.addEventListener("DOMContentLoaded", () => {
   aplicarMarca();
   $("odlink").value = localStorage.getItem("est_onedrive")||"";
+  if(localStorage.getItem("est_backup")) $("backup").checked=true;
+  $("backup").addEventListener("change", ()=>localStorage.setItem("est_backup", $("backup").checked?"1":""));
   const m = location.hash.match(/[#&]c=([^&]+)/);
+  const me = location.hash.match(/[#&]e=([^&]+)/);
   const fromLink = m ? decCfg(decodeURIComponent(m[1])) : null;
-  cfg = fromLink || loadJSON("est_config", null);
-  if(fromLink){ saveJSON("est_config", cfg); if(cfg.od && !localStorage.getItem("est_onedrive")){ localStorage.setItem("est_onedrive",cfg.od); $("odlink").value=cfg.od; } }
+  const fromExec = me ? decCfg(decodeURIComponent(me[1])) : null;
+  cfg = fromExec || fromLink || loadJSON("est_config", null);
+  if(fromExec || fromLink){ saveJSON("est_config", cfg); if(cfg.od && !localStorage.getItem("est_onedrive")){ localStorage.setItem("est_onedrive",cfg.od); $("odlink").value=cfg.od; } }
   pintarWho();
   const hash = location.hash.replace(/^#/,"");
-  if(fromLink) irALogin();                                 // entró por enlace/QR -> operador
+  if(fromExec){ prefillExec(); show("exec"); }             // enlace del EJECUTIVO -> re-editar el evento
+  else if(fromLink) irALogin();                            // enlace/QR de OPERADOR -> capturar
   else if(hash==="admin"){ prefillExec(); show("exec"); }  // URL de administrador -> ejecutivo
   else show("home");                                       // URL base -> elegir rol
 });
@@ -272,13 +311,22 @@ $("efileReq").addEventListener("change", e=>{ if(e.target.files[0]) cargarReq(e.
 $("egen").addEventListener("click", generarAcceso);
 $("acCopy").addEventListener("click", ()=>{ if(navigator.clipboard) navigator.clipboard.writeText(invitacionTexto()); $("acCopy").textContent="Invitación copiada"; });
 $("acGo").addEventListener("click", ()=>{ saveConfigDesdeExec(); irALogin(); });
+$("acCopyExec").addEventListener("click", ()=>{ if(navigator.clipboard&&accesoExec) navigator.clipboard.writeText(accesoExec); $("acCopyExec").textContent="Enlace del ejecutivo copiado"; });
+$("verHist").addEventListener("click", ()=>{ const l=$("histList"); l.classList.toggle("hide"); const abierto=!l.classList.contains("hide"); if(abierto) renderHistorial(); $("verHist").textContent=(abierto?"▾":"▸")+" Eventos configurados (historial)"; });
+function renderHistorial(){
+  const l=$("histList"); if(!l) return; const arr=Object.values(eventos()).sort((a,b)=>(b.consec||0)-(a.consec||0));
+  if(!arr.length){ l.innerHTML='<div class="mut">Aún no hay eventos configurados en este dispositivo.</div>'; return; }
+  l.innerHTML=arr.map(e=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.nItems||0} evidencias · creado ${e.creado||""}</div><div class="ac"><a class="lnk" onclick="copiarLink('${e.enc}','oper')">link operador</a><a class="lnk" onclick="copiarLink('${e.enc}','exec')">link ejecutivo</a><a class="lnk" onclick="abrirEvento('${e.enc}')">abrir</a></div></div></div>`).join("");
+}
+window.copiarLink=(enc,tipo)=>{ const u=tipo==="exec"?linkExecDe(enc):linkOperDe(enc); if(navigator.clipboard) navigator.clipboard.writeText(u); alert((tipo==="exec"?"Enlace del ejecutivo":"Enlace del operador")+" copiado:\n\n"+u); };
+window.abrirEvento=(enc)=>{ const c=decCfg(decodeURIComponent(enc)); if(!c){ alert("No pude abrir ese evento."); return; } cfg=c; saveJSON("est_config",cfg); prefillExec(); show("exec"); window.scrollTo(0,0); };
 $("goExec").addEventListener("click", ()=>{ prefillExec(); show("exec"); });
 $("goOper").addEventListener("click", ()=>{ if(cfg) irALogin(); else $("homeHint").textContent="Aún no hay una operación configurada en este dispositivo. Pide el enlace o QR de acceso a tu ejecutivo."; });
 function nextCodigo(){ let mx=0; execItems.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx) mx=n; }); return String(mx+1).padStart(2,"0"); }
 $("miadd").addEventListener("click", ()=>{ const req=$("mireq").value.trim(), cant=$("micant").value.trim(), prov=$("miprov").value.trim();
   if(!req){ alert("Escribe el requerimiento."); return; }
   execItems.push({codigo:nextCodigo(),req,cant,prov}); $("mireq").value=""; $("micant").value=""; renderExecItems(); $("mireq").focus(); });   // se conserva el proveedor para agregar varios del mismo
-function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||""})); renderExecItems(); } }
+function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||""})); renderExecItems(); } if(typeof renderHistorial==="function") renderHistorial(); }
 function renderExecItems(){
   const c=$("execList"); c.innerHTML="";
   execItems.forEach((it,idx)=>{ const d=document.createElement("div"); d.className="ev";
@@ -290,14 +338,23 @@ function renderExecItems(){
   chequearGen();
 }
 window.quitarExec=(i)=>{ execItems.splice(i,1); renderExecItems(); };
-function itemCant(cod){ const it=itemsCfg().find(i=>i.codigo===cod); return it?(it.cant||""):""; }
-function itemReq(cod){ const it=itemsCfg().find(i=>i.codigo===cod); return it?(it.req||""):""; }
-function itemProv(cod){ const it=itemsCfg().find(i=>i.codigo===cod); return it?(it.prov||""):""; }
+/* Requerimientos ADICIONALES agregados por el operador en sitio (locales al dispositivo, por evento) */
+function adicKey(){ return "est_adic_"+(cfg?`${slug(cfg.cl)}|${slug(cfg.ev)}`:"NA"); }
+function adicionalesDelEvento(){ return loadJSON(adicKey(), []); }
+function guardarAdicionales(arr){ saveJSON(adicKey(), arr); }
+function itemById(cod){ return itemsCfg().find(i=>i.codigo===cod) || adicionalesDelEvento().find(i=>i.codigo===cod) || null; }
+function itemCant(cod){ const it=itemById(cod); return it?(it.cant||""):""; }
+function itemReq(cod){ const it=itemById(cod); return it?(it.req||""):""; }
+function itemProv(cod){ const it=itemById(cod); return it?(it.prov||""):""; }
+function itemAdic(cod){ const it=itemById(cod); return it&&it.adicional?it:null; }
 function proveedores(){ const s=new Set(); (execItems&&execItems.length?execItems:itemsCfg()).forEach(it=>{ const p=(it.prov||"").trim(); if(p) s.add(p); }); return [...s].sort((a,b)=>a.localeCompare(b,'es')); }
 function provDeItems(){ const s=new Set(); itemsCfg().forEach(it=>{ const p=(it.prov||"").trim(); if(p) s.add(p); }); return [...s].sort((a,b)=>a.localeCompare(b,'es')); }
 function hayProv(){ return provDeItems().length>0; }
 function opcionesProv(){ const l=provDeItems(); if(itemsCfg().some(it=>!((it.prov||"").trim())) && l.length) l.push("Sin proveedor"); return l; }
-function itemsDelOperador(){ if(!hayProv()) return itemsCfg(); const p=(operador&&operador.prov)||""; if(!p) return itemsCfg(); if(p==="Sin proveedor") return itemsCfg().filter(it=>!((it.prov||"").trim())); return itemsCfg().filter(it=>(it.prov||"").trim()===p); }
+function itemsDelOperador(){ let base;
+  if(!hayProv()) base=itemsCfg();
+  else{ const p=(operador&&operador.prov)||""; if(!p) base=itemsCfg(); else if(p==="Sin proveedor") base=itemsCfg().filter(it=>!((it.prov||"").trim())); else base=itemsCfg().filter(it=>(it.prov||"").trim()===p); }
+  return base.concat(adicionalesDelEvento()); }   // los adicionales del operador siempre aparecen
 function llenarSelectProv(sel, valor){ sel.innerHTML=""; const o0=document.createElement("option"); o0.value=""; o0.textContent="— Selecciona proveedor —"; sel.appendChild(o0); opcionesProv().forEach(p=>{ const o=document.createElement("option"); o.value=p; o.textContent=p; sel.appendChild(o); }); sel.value=valor||""; }
 function opTag(){ if(!operador) return "";
   const ini=slug(operador.nombre||"").split("-").filter(Boolean).map(w=>w[0]).join("").slice(0,3).toUpperCase();
@@ -327,18 +384,22 @@ function saveConfigDesdeExec(){
           it:execItems.map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||""})), od:(localStorage.getItem("est_onedrive")||"") };
   saveJSON("est_config", cfg);
 }
-let accesoLink="", accesoCorto="";
+let accesoLink="", accesoExec="", accesoCorto="";
 function generarAcceso(){
   saveConfigDesdeExec();
-  accesoLink = PROD+"#c="+encodeURIComponent(encCfg(cfg)); accesoCorto="";
-  $("invCli").textContent = cfg.cl || "—";
+  const enc=encodeURIComponent(encCfg(cfg));
+  accesoLink=linkOperDe(enc); accesoExec=linkExecDe(enc); accesoCorto="";
+  const consec=registrarEvento(cfg, enc); cfg.consec=consec; saveJSON("est_config",cfg);   // consecutivo del evento
+  $("invCli").textContent = evConsecTag(consec)+" · "+(cfg.cl || "—");
   $("invEv").textContent = [cfg.ev, cfg.fe, cfg.ci].filter(Boolean).join("  ·  ");
   $("acLink").textContent = "Generando enlace…";
+  $("acLinkExec").textContent = accesoExec;
   $("acWrap").classList.remove("hide"); $("acCopy").textContent="Copiar invitación";
   $("acQR").innerHTML="";
   if(window.QRCode){ try{ new QRCode($("acQR"), {text:accesoLink, width:220, height:220, colorDark:MARCA.qr, colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.L}); }
     catch(e){ $("acQR").innerHTML='<div class="mut">Lista muy larga para el QR; comparte el enlace.</div>'; } }
   acortar(accesoLink);
+  renderHistorial();
 }
 async function acortar(url){
   try{ const r=await fetch("https://tinyurl.com/api-create.php?url="+encodeURIComponent(url)); const s=(await r.text()).trim();
@@ -372,21 +433,21 @@ $("salir").addEventListener("click", ()=>{ if(operador){ $("lnom").value=operado
 /* ---- OPERADOR: captura ---- */
 function poblarItemTop(){
   const s=$("item"); const cur=s.value; s.innerHTML="<option value=''>— Sin asignar —</option>";
-  itemsDelOperador().forEach(it=>{ const o=document.createElement("option"); o.value=it.codigo; o.textContent=it.req?`${it.codigo} · ${it.req}`:it.codigo; s.appendChild(o); });
+  itemsDelOperador().forEach(it=>{ const o=document.createElement("option"); o.value=it.codigo; o.textContent=(it.adicional?"➕ ":"")+(it.req?`${it.codigo} · ${it.req}`:it.codigo); s.appendChild(o); });
   s.value = (cur && itemsDelOperador().some(it=>it.codigo===cur)) ? cur : "";
+  itemAnterior = s.value;   // sincroniza el guardián de "mínimo 3 antes de cambiar"
 }
 function irACaptura(){
   poblarItemTop();
   $("ctx").textContent = (cfg.cl||"—")+" · "+(cfg.ev||"—")+((operador&&operador.prov)?("  ·  "+operador.prov):"");
   batch=[]; renderLista(); show("cap"); window.scrollTo(0,0); pedirUbicacion(); actualizarGuia();
+  cargarLote().then(()=>{ if(batch.length){ renderLista(); actualizarGuia(); } });   // restaura el lote en curso si quedó de una sesión anterior
 }
 /* ---- Captura guiada por ítem (mínimo 3 fotos enfocadas) ---- */
-function fotosDeItem(cod){
-  if(!cod) return 0;
-  let n=batch.filter(e=>e.itemCodigo===cod && e.tipo==="foto").length;
-  try{ n += (counters[claveDe(cod)]||0); }catch(_){}
-  return n;
-}
+function enLoteDeItem(cod){ return cod ? batch.filter(e=>e.itemCodigo===cod && e.tipo==="foto").length : 0; }      // en el lote actual (sin enviar)
+function enviadasDeItem(cod){ if(!cod) return 0; try{ return counters[claveDe(cod)]||0; }catch(_){ return 0; } }   // ya enviadas en sesiones previas
+function fotosDeItem(cod){ return enLoteDeItem(cod)+enviadasDeItem(cod); }                                        // total = lote + enviadas
+function itemReqCorto(cod){ const r=itemReq(cod)||cod; return r.length>34?r.slice(0,34)+"…":r; }
 /* diccionario de rasgos distintivos por palabra clave (se busca en la descripción del ítem) */
 var TIPS=[
   [["pasamanos"],"el riel montado en el BORDE de la tarima (no las vallas del piso)"],
@@ -427,13 +488,40 @@ function actualizarGuia(){
   const g=$("guiaItem"); if(!g) return;
   const cod=$("item").value;
   if(!cod){ g.className="guia neutro"; g.innerHTML="Elige un requerimiento arriba para ver la guía y el contador de fotos."; return; }
-  const n=fotosDeItem(cod), meta=3, ok=n>=meta;
+  const enLote=enLoteDeItem(cod), enviadas=enviadasDeItem(cod), n=enLote+enviadas, meta=3, ok=n>=meta;
   const it=itemsDelOperador().find(x=>x.codigo===cod); const nombre=(it&&it.req)?it.req:cod;
   g.className="guia "+(ok?"ok":"falta");
-  g.innerHTML=`<div class="gcount">${ok?"✅":"📸"} ${nombre.slice(0,44)} — ${n}/${meta} fotos ${ok?"· meta cumplida":"· faltan "+(meta-n)+(meta-n===1?" foto":" fotos")}</div>`
+  let head;
+  if(enviadas>0 && enLote===0) head=`✅ ${nombre.slice(0,44)} — ${enviadas} ya enviada${enviadas===1?"":"s"} · listo`;
+  else{ head=`${ok?"✅":"📸"} ${nombre.slice(0,44)} — ${enLote} en este lote`+(enviadas>0?` (+${enviadas} enviadas)`:"")+(ok?" · meta cumplida":` · faltan ${meta-n} para el mínimo de 3`); }
+  g.innerHTML=`<div class="gcount">${head}</div>`
     +`<div class="gtips"><b>Enfoca:</b> ${tipDeItem(nombre)}.<br>Que ocupe <b>≥60%</b> del encuadre · <b>no rotes</b> el teléfono · el plano abierto solo como contexto.</div>`;
 }
-$("item").addEventListener("change", actualizarGuia);
+let itemAnterior="";
+$("item").addEventListener("change", ()=>{
+  const nuevo=$("item").value;
+  // Mínimo 3 por requerimiento: no dejar pasar a otro requerimiento si el actual está empezado (<3).
+  if(itemAnterior && nuevo && nuevo!==itemAnterior){
+    const totalPrev=fotosDeItem(itemAnterior);
+    if(enLoteDeItem(itemAnterior)>0 && totalPrev<3){
+      alert(`Aún no completas las 3 evidencias de «${itemReqCorto(itemAnterior)}» (llevas ${totalPrev}).\n\nCaptura al menos 3 fotos de un requerimiento antes de pasar a otro.`);
+      $("item").value=itemAnterior; actualizarGuia(); return;
+    }
+  }
+  itemAnterior=$("item").value; actualizarGuia();
+});
+/* Requerimiento adicional (agregado por el operador en sitio) */
+$("addAdic").addEventListener("click", ()=>{ ["adReq","adCant","adQuien","adNota"].forEach(id=>$(id).value=""); $("adicm").classList.remove("hide"); });
+$("adClose").addEventListener("click", ()=>$("adicm").classList.add("hide"));
+$("adSave").addEventListener("click", ()=>{
+  const req=$("adReq").value.trim(); if(!req){ alert("Escribe el requerimiento adicional."); return; }
+  const quien=$("adQuien").value.trim(); if(!quien){ alert("Indica quién solicitó el requerimiento adicional."); return; }
+  const a=adicionalesDelEvento(); let mx=0; a.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx)mx=n; });
+  const cod="A"+String(mx+1).padStart(2,"0");
+  a.push({codigo:cod, req, cant:$("adCant").value.trim(), prov:(operador&&operador.prov)||"", adicional:true, solicitadoPor:quien, justificacion:$("adNota").value.trim()});
+  guardarAdicionales(a); $("adicm").classList.add("hide");
+  poblarItemTop(); $("item").value=cod; itemAnterior=cod; actualizarGuia(); renderLista();
+});
 $("gpsEstado").addEventListener("click", pedirUbicacion);
 $("btnCap").addEventListener("click", abrirCamara);
 $("btnGal").addEventListener("click", ()=>$("gal").click());
@@ -469,6 +557,23 @@ function agregar(fileList, meta){
     batch.push(e); procesar(e); });
   renderLista();
 }
+/* ---- Persistencia del lote en curso (IndexedDB): no perder capturas si se recarga la app.
+   Guarda las evidencias LISTAS (con su blob) por evento. Todo va con guardas: si IDB falla,
+   la app sigue funcionando igual, solo sin respaldo de sesión. ---- */
+const IDB={db:null,pend:false};
+function idbOpen(){ return new Promise(res=>{ try{ const r=indexedDB.open("estrella_ev",1);
+  r.onupgradeneeded=()=>{ try{ r.result.createObjectStore("lote",{keyPath:"k"}); }catch(_){} };
+  r.onsuccess=()=>{ IDB.db=r.result; res(IDB.db); }; r.onerror=()=>res(null);
+}catch(_){ res(null); } }); }
+function claveEvento(){ return cfg?`${slug(cfg.cl)}|${slug(cfg.ev)}`:"NA"; }
+async function guardarLote(){ try{ const db=IDB.db||await idbOpen(); if(!db||!cfg) return;
+  const items=batch.filter(e=>e.status==="listo").map(e=>({id:e.id,itemCodigo:e.itemCodigo,tipo:e.tipo,ext:e.ext,filename:e.filename,consec:e.consec,blob:e.blob,file:e.file,thumb:e.thumb,datos:e.datos,cargada:e.cargada,meta:e.meta,status:"listo"}));
+  const tx=db.transaction("lote","readwrite"); tx.objectStore("lote").put({k:claveEvento(),seq,items});
+}catch(_){} }
+async function cargarLote(){ try{ const db=IDB.db||await idbOpen(); if(!db||!cfg) return;
+  const rec=await new Promise(res=>{ const rq=db.transaction("lote","readonly").objectStore("lote").get(claveEvento()); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>res(null); });
+  if(rec&&rec.items&&rec.items.length){ batch=rec.items.map(e=>({...e,status:"listo"})); seq=Math.max(seq,rec.seq||0); }
+}catch(_){} }
 function videoThumb(file){ return new Promise(res=>{
   try{ const v=document.createElement("video"); v.preload="metadata"; v.muted=true; v.playsInline=true;
     const url=URL.createObjectURL(file); let hecho=false; const done=d=>{ if(hecho) return; hecho=true; URL.revokeObjectURL(url); res(d||""); };
@@ -530,6 +635,7 @@ function renderLista(){
     const compl=total-faltan.length;
     pi.textContent = total ? ("Ítems completos: "+compl+"/"+total+(faltan.length?(". Faltan: "+faltan.map(it=>it.codigo).join(", ")):". Todos con 3+ fotos.")) : "";
   }
+  guardarLote();   // respalda el lote en curso (IndexedDB) ante recargas
 }
 window.cambiarItem=(id,v)=>{ const e=batch.find(x=>x.id===id); if(e){ e.itemCodigo=v; renderLista(); } };
 window.quitar=(id)=>{ batch=batch.filter(x=>x.id!==id); renderLista(); };
@@ -551,8 +657,10 @@ async function redibujarTodas(){
 function csvCell(v){ v=String(v==null?"":v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 let enviando=false;
 function construirCSV(listas){
-  let csv="operador_cedula,operador_nombre,operador_celular,operador_proveedor,cliente,evento,evento_fecha,evento_ciudad,item,cantidad,proveedor,tipo,archivo,fecha,hora,lugar,lat,lon\n";
-  listas.forEach(e=>{ csv+=[operador.cedula,operador.nombre,operador.celular,(operador.prov||""),cfg.cl,cfg.ev,cfg.fe||"",cfg.ci||"",e.itemCodigo,itemCant(e.itemCodigo),itemProv(e.itemCodigo),e.tipo||"foto",e.filename,e.datos.fecha,e.datos.hora,e.datos.lugar,e.datos.lat,e.datos.lon].map(csvCell).join(",")+"\n"; });
+  let csv="operador_cedula,operador_nombre,operador_celular,operador_proveedor,cliente,evento,evento_consec,evento_fecha,evento_ciudad,item,cantidad,proveedor,adicional,solicitado_por,justificacion,tipo,archivo,fecha,hora,lugar,lat,lon\n";
+  const evc=cfg.consec?evConsecTag(cfg.consec):"";
+  listas.forEach(e=>{ const ad=itemAdic(e.itemCodigo);
+    csv+=[operador.cedula,operador.nombre,operador.celular,(operador.prov||""),cfg.cl,cfg.ev,evc,cfg.fe||"",cfg.ci||"",e.itemCodigo,itemCant(e.itemCodigo),itemProv(e.itemCodigo),(ad?"SI":""),(ad?ad.solicitadoPor:""),(ad?ad.justificacion:""),e.tipo||"foto",e.filename,e.datos.fecha,e.datos.hora,e.datos.lugar,e.datos.lat,e.datos.lon].map(csvCell).join(",")+"\n"; });
   return csv;
 }
 async function descargarZIP(listas, csv, exito){
@@ -568,38 +676,33 @@ async function empaquetar(enviar){
   const listas=batch.filter(e=>e.status==="listo"); if(!listas.length) return;
   const sinReq=listas.filter(e=>!e.itemCodigo);
   if(sinReq.length){ alert(`No puedes ${enviar?"enviar":"descargar"}: hay ${sinReq.length} evidencia(s) sin requerimiento asignado. Selecciona un requerimiento de la lista en cada evidencia (menú ↑) antes de continuar.`); renderLista(); return; }
+  // Mínimo 3 evidencias por requerimiento para ENVIAR (descargar ZIP se permite como respaldo).
+  if(enviar){
+    const codsLote=[...new Set(listas.filter(e=>e.tipo==="foto"&&e.itemCodigo).map(e=>e.itemCodigo))];
+    const incompletos=codsLote.filter(cod=>fotosDeItem(cod)<3);
+    if(incompletos.length){
+      alert("Cada requerimiento necesita MÍNIMO 3 evidencias para poder enviar. Aún faltan:\n\n"+
+        incompletos.map(cod=>`• ${cod} · ${itemReqCorto(cod)} (${fotosDeItem(cod)}/3)`).join("\n")+
+        "\n\nCompleta las 3 fotos, o usa «Descargar ZIP» para respaldo sin enviar.");
+      renderLista(); return; }
+  }
   enviando=true; $("enviar").disabled=true; $("zip").disabled=true; $("sendInfo").textContent="Preparando…";
   const exito=()=>{ const cta={}; listas.forEach(e=>{ if(e.tipo!=="foto") return; const k=claveDe(e.itemCodigo); cta[k]=(cta[k]||0)+1; }); for(const k in cta) counters[k]=(counters[k]||0)+cta[k]; saveJSON("est_counters",counters); batch=batch.filter(e=>e.status!=="listo"); renderLista(); };
   try{
     calcularNombres();
     const csv=construirCSV(listas);
     if(!enviar){ await descargarZIP(listas, csv, exito); return; }
-    /* ENVIAR: compartir los ARCHIVOS INDIVIDUALES (fotos/videos + manifiesto) SIN generar ZIP.
-       Clave para Android: no hay ningún await antes de share() -> el gesto del usuario sigue vivo,
-       y las imágenes/videos sí están en la lista blanca del Web Share (el .zip no lo estaba). */
-    const textoShare=`Operador ${operador.nombre} (${operador.cedula}) · ${cfg.cl} · ${cfg.ev}`;
-    const od=(localStorage.getItem("est_onedrive")||"").trim();
-    /* ¿El dispositivo puede compartir un .zip? (prueba sincrónica). iOS: sí -> mantenemos la buena
-       práctica de enviar el .zip. Android: no -> compartimos los archivos sueltos. */
-    const zipCompartible = navigator.canShare && navigator.canShare({files:[new File([new Uint8Array([80,75,3,4])],"probe.zip",{type:"application/zip"})]});
-    if(zipCompartible){
-      $("sendInfo").textContent="Preparando ZIP…";
-      const zip=new JSZip(); listas.forEach(e=>zip.file(e.filename,e.blob)); zip.file("manifiesto.csv",csv);
-      const blob=await zip.generateAsync({type:"blob"});   // en iOS el await no rompe el gesto
-      const nombre=`Evidencias_${slug(cfg.cl)}_${slug(cfg.ev)}_${slug(operador.cedula)}.zip`;
-      try{ await navigator.share({files:[new File([blob],nombre,{type:"application/zip"})], title:"Evidencias", text:textoShare}); $("sendInfo").textContent="Compartido. Elige la app destino (OneDrive, correo, WhatsApp…)."; exito(); }
-      catch(err){ if(err&&err.name==="AbortError"){ $("sendInfo").textContent="Envío cancelado. Puedes reintentar."; } else { bajar(blob,nombre); $("sendInfo").innerHTML='ZIP «'+nombre+'» descargado.'+(od?' <a class="lnk" href="'+od+'" target="_blank" rel="noopener">Abrir carpeta OneDrive</a> y súbelo.':' Súbelo a tu carpeta OneDrive.'); exito(); } }
-      return;
-    }
-    /* Android: el .zip no es compartible. Compartimos SOLO fotos/videos (media pura), SIN await previo
-       (gesto vivo), SIN 'text' y SIN el .csv: mezclar el manifiesto .csv con las fotos hace que el intent
-       quede de tipo mixto y WhatsApp/WhatsApp Business no adjunte (el correo sí). El manifiesto queda en «Descargar ZIP». */
+    /* ENVIAR: compartir SIEMPRE los archivos de media individuales (fotos/videos). Funciona igual en
+       iOS y Android. CLAVE: no hay NINGÚN await antes de share() -> el gesto del usuario sigue vivo
+       (lo que antes rompía Android era generar el .zip con await previo). Sin title/text/csv ->
+       WhatsApp SÍ adjunta; el manifiesto .csv va en «Descargar ZIP» si se necesita para el registro. */
     const media=listas.map(e=> new File([e.blob], e.filename, {type: e.tipo==="video" ? ((e.file&&e.file.type)||"video/mp4") : "image/jpeg"}));
     if(navigator.canShare && navigator.canShare({files:media})){
-      try{ await navigator.share({files:media}); $("sendInfo").innerHTML="Compartido. Elige la app destino (WhatsApp, correo, OneDrive…). <span class=\"mut\">El manifiesto va en «Descargar ZIP» si lo necesitas para el registro.</span>"; exito(); }   // sin title/text/csv -> WhatsApp SÍ adjunta
+      try{ await navigator.share({files:media});
+        $("sendInfo").innerHTML="Compartido. Elige la app destino (WhatsApp, correo, OneDrive…). <span class=\"mut\">El manifiesto va en «Descargar ZIP» si lo necesitas para el registro.</span>"; exito(); }
       catch(err){ if(err&&err.name==="AbortError"){ $("sendInfo").textContent="Envío cancelado. Puedes reintentar."; } else { await descargarZIP(listas, csv, exito); } }
     } else {
-      await descargarZIP(listas, csv, exito);   // no comparte archivos -> ZIP + guía OneDrive
+      await descargarZIP(listas, csv, exito);   // el dispositivo no comparte archivos -> ZIP + guía OneDrive
     }
   } finally { enviando=false; renderLista(); }
 }
@@ -668,6 +771,7 @@ async function capturar(){
   const v=$("video"); if(!v.videoWidth) return;
   const c=document.createElement("canvas"); c.width=v.videoWidth; c.height=v.videoHeight; c.getContext("2d").drawImage(v,0,0);
   const blob=await new Promise(r=>c.toBlob(r,"image/jpeg",0.92));
+  if($("backup")&&$("backup").checked){ try{ const t=new Date(); bajar(blob, `foto_${slug(cfg.ev)}_${z(t.getHours())}${z(t.getMinutes())}${z(t.getSeconds())}.jpg`); }catch(_){} }   // respaldo en el dispositivo
   $("camhint").textContent="Ubicando…"; const coords=await posActual(); const now=new Date();
   const meta={fecha:`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`,hora:`${z(now.getHours())}:${z(now.getMinutes())}`,lat:coords?coords.latitude:null,lon:coords?coords.longitude:null};
   agregar([new File([blob],"captura.jpg",{type:"image/jpeg"})], meta);
