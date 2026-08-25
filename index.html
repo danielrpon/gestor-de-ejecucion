@@ -578,12 +578,28 @@ async function adminCargarEventos(){
     const porEvento={}, porItem={};
     evis.forEach(x=>{ porEvento[x.evento_uid]=(porEvento[x.evento_uid]||0)+1; porItem[x.evento_uid+"|"+x.item]=(porItem[x.evento_uid+"|"+x.item]||0)+1; });
     if(!adminEventos.length){ l.innerHTML='<div class="mut">Aún no hay eventos.</div>'; return; }
-    l.innerHTML=adminEventos.map((e,i)=>{
-      const reg=porEvento[e.uid]||0;
+    // ---- métricas por evento + totales globales (Dashboard) ----
+    let gReq=0,gComp=0,gEvi=0; const metricas=adminEventos.map(e=>{
       const items=(e.config&&e.config.it)||[];
-      const pend=items.filter(it=>(porItem[e.uid+"|"+it.codigo]||0)<3).length;
+      const reg=porEvento[e.uid]||0;
+      const conEvi=items.filter(it=>(porItem[e.uid+"|"+it.codigo]||0)>=1).length;
+      const comp=items.filter(it=>(porItem[e.uid+"|"+it.codigo]||0)>=3).length;
+      const pend=items.length-comp;
+      const av=items.length?Math.round(comp/items.length*100):0;
+      gReq+=items.length; gComp+=comp; gEvi+=reg;
+      return {n:items.length,reg,conEvi,comp,pend,av};
+    });
+    const gAv=gReq?Math.round(gComp/gReq*100):0;
+    const kpi=(v,t)=>`<div style="flex:1;min-width:70px;text-align:center;border:1px solid var(--bd,#e3e3e3);border-radius:10px;padding:8px 4px"><div style="font-size:20px;font-weight:800;color:var(--azul)">${v}</div><div class="mut" style="margin:2px 0 0;font-size:11px">${t}</div></div>`;
+    const bar=av=>`<div style="height:7px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0 2px"><div style="height:100%;width:${av}%;background:${av>=100?'#1a9e56':(av>0?'var(--azul)':'#e9e9ee')}"></div></div>`;
+    const dash=`<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">`
+      +kpi(adminEventos.length,"Eventos")+kpi(gReq,"Requerimientos")+kpi(gEvi,"Evidencias")+kpi(gComp+"/"+gReq,"Completos ≥3")+kpi(gAv+"%","Avance")
+      +`</div>`;
+    l.innerHTML=dash+adminEventos.map((e,i)=>{
+      const m=metricas[i];
       return `<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}`
-        +`<div class="mut" style="margin:3px 0 0">Evidencias registradas: <b>${reg}</b> · Requerimientos pendientes (&lt;3): <b>${pend}</b>/${items.length}</div>`
+        +bar(m.av)
+        +`<div class="mut" style="margin:2px 0 0">Requerimientos: <b>${m.n}</b> · Con evidencia: <b>${m.conEvi}</b> · Completos ≥3: <b>${m.comp}</b> · Pendientes: <b>${m.pend}</b> · Evidencias: <b>${m.reg}</b> · Avance: <b>${m.av}%</b></div>`
         +`<div class="ac"><a class="lnk" onclick="adminCopiar(${i},'oper')">link operador</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link ejecutivo</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a></div></div></div>`;
     }).join("");
   }catch(_){ l.innerHTML='<div class="mut">Error al cargar.</div>'; }
