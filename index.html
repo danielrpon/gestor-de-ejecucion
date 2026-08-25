@@ -412,7 +412,7 @@ function nextCodigo(){ let mx=0; execItems.forEach(it=>{ const n=parseInt(String
 $("miadd").addEventListener("click", ()=>{ const req=$("mireq").value.trim(), cant=$("micant").value.trim(), prov=$("miprov").value.trim();
   if(!req){ alert("Escribe el requerimiento."); return; }
   execItems.push({codigo:nextCodigo(),req,cant,prov}); $("mireq").value=""; $("micant").value=""; renderExecItems(); $("mireq").focus(); });   // se conserva el proveedor para agregar varios del mismo
-function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||""})); renderExecItems();
+function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",cat:i.cat||""})); renderExecItems();
     const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; } if(typeof renderHistorial==="function") renderHistorial();
   if($("eguardar")){ editandoId=null; $("eguardar").style.display="none"; } }   // "Guardar" solo aparece al entrar por "editar" del historial
 function renderExecItems(){
@@ -431,6 +431,7 @@ function adicKey(){ return "est_adic_"+(cfg?`${slug(cfg.cl)}|${slug(cfg.ev)}`:"N
 function adicionalesDelEvento(){ return loadJSON(adicKey(), []); }
 function guardarAdicionales(arr){ saveJSON(adicKey(), arr); }
 function itemById(cod){ return itemsCfg().find(i=>i.codigo===cod) || adicionalesDelEvento().find(i=>i.codigo===cod) || null; }
+function itemCat(cod){ const it=itemById(cod); return it?(it.cat||""):""; }
 function itemCant(cod){ const it=itemById(cod); return it?(it.cant||""):""; }
 function itemReq(cod){ const it=itemById(cod); return it?(it.req||""):""; }
 function itemProv(cod){ const it=itemById(cod); return it?(it.prov||""):""; }
@@ -455,7 +456,7 @@ async function cargarReq(file){
     const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:""});
     const get=(o,n)=>{ for(const k in o){ if(n.includes(k.trim().toLowerCase())) return String(o[k]).trim(); } return ""; };
-    execItems = rows.map(r=>({ codigo:get(r,["item_codigo","codigo","código","item","ítem","id","cod"]), req:get(r,["requerimiento","descripcion","descripción","detalle","concepto"]), cant:get(r,["cantidad","cant","qty","unidades"]), prov:get(r,["proveedor","provider","prov","proveedor_nombre","empresa","contratista"]) })).filter(x=>x.req||x.codigo);
+    execItems = rows.map(r=>({ codigo:get(r,["item_codigo","codigo","código","item","ítem","id","cod"]), req:get(r,["requerimiento","descripcion","descripción","detalle","concepto"]), cant:get(r,["cantidad","cant","qty","unidades"]), prov:get(r,["proveedor","provider","prov","proveedor_nombre","nombre proveedores","nombre proveedor","nit proveedor","empresa","contratista"]), cat:get(r,["categoria","categoría","modulo","módulo","grupo","hoja"]) })).filter(x=>x.req||x.codigo);
     let mx=0; execItems.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx)mx=n; });
     execItems.forEach(it=>{ if(!String(it.codigo).trim()){ mx++; it.codigo=String(mx).padStart(2,"0"); } });   // la app asigna código a los ítems sin código
     const c=rows.map(r=>get(r,["cliente","client"])).find(Boolean), e=rows.map(r=>get(r,["evento","nombre_evento"])).find(Boolean), ci=rows.map(r=>get(r,["ciudad","municipio"])).find(Boolean);
@@ -470,7 +471,7 @@ function chequearGen(){ $("egen").disabled = !(execItems.length && $("ecliente")
 function saveConfigDesdeExec(){
   const uid=cfg&&cfg.uid, consec=cfg&&cfg.consec;   // preservar identidad del evento si ya existe
   cfg = { cl:$("ecliente").value.trim(), ev:$("eevento").value.trim(), fe:$("efecha").value, ci:$("eciudad").value.trim(),
-          it:execItems.map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||""})),
+          it:execItems.map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",cat:i.cat||""})),
           marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked} };   // marca definida por el ejecutivo, igual para todos
   if(uid) cfg.uid=uid; if(consec) cfg.consec=consec;
   saveJSON("est_config", cfg);
@@ -582,11 +583,28 @@ async function adminCargarEventos(){
       const pend=items.filter(it=>(porItem[e.uid+"|"+it.codigo]||0)<3).length;
       return `<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}`
         +`<div class="mut" style="margin:3px 0 0">Evidencias registradas: <b>${reg}</b> · Requerimientos pendientes (&lt;3): <b>${pend}</b>/${items.length}</div>`
-        +`<div class="ac"><a class="lnk" onclick="adminCopiar(${i},'oper')">link operador</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link ejecutivo</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a></div></div></div>`;
+        +`<div class="ac"><a class="lnk" onclick="adminCopiar(${i},'oper')">link operador</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link ejecutivo</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a></div></div></div>`;
     }).join("");
   }catch(_){ l.innerHTML='<div class="mut">Error al cargar.</div>'; }
 }
 window.adminCopiar=(i,tipo)=>{ const e=adminEventos[i]; if(!e) return; const u=tipo==="exec"?linkExec(e.uid):linkOper(e.uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del ejecutivo":"Enlace del operador")); };   // siempre el enlace directo ?ev= (nunca tinyurl viejo)
+window.adminBorrarEvento=async(i)=>{
+  const ev=adminEventos[i]; if(!ev) return;
+  if(!confirm(`⚠️ BORRAR EVENTO ${evConsecTag(ev.consec)}\n\n${ev.cl||""} — ${ev.ev||""}\n\nEsto elimina el evento Y TODAS sus evidencias y fotos. Es una acción DELICADA que NO se puede deshacer.\n\n¿Continuar?`)) return;
+  if(!confirm(`Confirma OTRA VEZ: se borrará ${evConsecTag(ev.consec)} y todo su contenido de forma permanente.\n\n¿Seguro?`)) return;
+  try{
+    toast("Borrando evento…");
+    const r=await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid)+"&select=storage_path",{headers:adminHeaders()});
+    if(r.status===401){ adminSesExpirada(); return; }
+    const evs = r.ok ? await r.json() : [];
+    for(const e of evs){ if(e.storage_path){ try{ const p=e.storage_path.replace(/^evidencias\//,"").split("/").map(encodeURIComponent).join("/"); await fetch(SB_URL+"/storage/v1/object/evidencias/"+p,{method:"DELETE",headers:adminHeaders()}); }catch(_){} } }
+    await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid),{method:"DELETE",headers:adminHeaders()});
+    const de=await fetch(SB_URL+"/rest/v1/eventos?uid=eq."+encodeURIComponent(ev.uid),{method:"DELETE",headers:adminHeaders()});
+    if(!de.ok){ toast("No se pudo borrar el evento (revisa política Capa6)"); return; }
+    try{ const all=eventos(); delete all[ev.uid]; saveJSON("est_eventos",all); }catch(_){}
+    toast("Evento borrado ✓"); adminCargarEventos();
+  }catch(_){ toast("Error al borrar el evento"); }
+};
 let adminFotoURLs={}, adminEvidencias=[], lbActual=null, adminEventoActual=null;
 function fmtFecha(iso){ try{ const d=new Date(iso); if(isNaN(d)) return iso||""; return `${z(d.getDate())}/${z(d.getMonth()+1)}/${d.getFullYear()} ${z(d.getHours())}:${z(d.getMinutes())}`; }catch(_){ return iso||""; } }
 window.adminAbrir=async(i)=>{
@@ -653,7 +671,7 @@ function poblarItemTop(){
   const s=$("item"); const cur=s.value; s.innerHTML="<option value=''>— Elige un requerimiento —</option>";
   itemsDelOperador().forEach(it=>{ const n=fotosDeItem(it.codigo); const mark = n>=3?"✓ ":(n>0?"◔ ":"○ ");   // ✓ completo · ◔ en progreso · ○ pendiente
     const o=document.createElement("option"); o.value=it.codigo;
-    o.textContent=(it.adicional?"➕ ":"")+mark+(it.req?`${it.codigo} · ${it.req}`:it.codigo)+(n>0&&n<3?`  (${n}/3)`:"");
+    o.textContent=(it.adicional?"➕ ":"")+mark+(it.cat?`${it.cat} · `:"")+(it.req?`${it.codigo} · ${it.req}`:it.codigo)+(n>0&&n<3?`  (${n}/3)`:"");
     s.appendChild(o); });
   s.value = (cur && itemsDelOperador().some(it=>it.codigo===cur)) ? cur : "";
   itemAnterior = s.value;   // sincroniza el guardián de "mínimo 3 antes de cambiar"
@@ -875,10 +893,10 @@ async function redibujarTodas(){
 function csvCell(v){ v=String(v==null?"":v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 let enviando=false;
 function construirCSV(listas, radicado){
-  let csv="radicado,operador_cedula,operador_nombre,operador_celular,operador_proveedor,cliente,evento,evento_consec,evento_fecha,evento_ciudad,item,cantidad,proveedor,adicional,solicitado_por,justificacion,tipo,archivo,fecha,hora,lugar,lat,lon\n";
+  let csv="radicado,operador_cedula,operador_nombre,operador_celular,operador_proveedor,cliente,evento,evento_consec,evento_fecha,evento_ciudad,categoria,item,cantidad,proveedor,adicional,solicitado_por,justificacion,tipo,archivo,fecha,hora,lugar,lat,lon\n";
   const evc=cfg.consec?evConsecTag(cfg.consec):""; const rad=radicado||"";
   listas.forEach(e=>{ const ad=itemAdic(e.itemCodigo);
-    csv+=[rad,operador.cedula,operador.nombre,operador.celular,(operador.prov||""),cfg.cl,cfg.ev,evc,cfg.fe||"",cfg.ci||"",e.itemCodigo,itemCant(e.itemCodigo),itemProv(e.itemCodigo),(ad?"SI":""),(ad?ad.solicitadoPor:""),(ad?ad.justificacion:""),e.tipo||"foto",e.filename,e.datos.fecha,e.datos.hora,e.datos.lugar,e.datos.lat,e.datos.lon].map(csvCell).join(",")+"\n"; });
+    csv+=[rad,operador.cedula,operador.nombre,operador.celular,(operador.prov||""),cfg.cl,cfg.ev,evc,cfg.fe||"",cfg.ci||"",itemCat(e.itemCodigo),e.itemCodigo,itemCant(e.itemCodigo),itemProv(e.itemCodigo),(ad?"SI":""),(ad?ad.solicitadoPor:""),(ad?ad.justificacion:""),e.tipo||"foto",e.filename,e.datos.fecha,e.datos.hora,e.datos.lugar,e.datos.lat,e.datos.lon].map(csvCell).join(",")+"\n"; });
   return csv;
 }
 async function descargarZIP(listas, csv, exito){
@@ -939,13 +957,13 @@ async function subirEvidencia(e, radicado){
     }
     const ad=itemAdic(e.itemCodigo)||{};
     const row={ radicado:radicado||"", evento_uid:cfg.uid||"", consec:cfg.consec||null, cliente:cfg.cl, evento:cfg.ev,
-      item:e.itemCodigo, requerimiento:itemReq(e.itemCodigo), proveedor:itemProv(e.itemCodigo),
+      categoria:itemCat(e.itemCodigo), item:e.itemCodigo, requerimiento:itemReq(e.itemCodigo), proveedor:itemProv(e.itemCodigo),
       adicional:!!itemAdic(e.itemCodigo), solicitado_por:ad.solicitadoPor||"", justificacion:ad.justificacion||"",
       operador_nombre:operador.nombre, operador_cedula:operador.cedula, operador_celular:operador.celular,
       tipo:e.tipo||"foto", archivo:e.filename, storage_path:"evidencias/"+path,
       fecha:e.datos.fecha||"", hora:e.datos.hora||"", lugar:e.datos.lugar||"", lat:e.datos.lat, lon:e.datos.lon };
     let ins=await fetch(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row)});
-    if(!ins.ok && radicado){ const row2=Object.assign({},row); delete row2.radicado;   // por si la columna radicado aún no existe: reintentar sin ella
+    if(!ins.ok){ const row2=Object.assign({},row); delete row2.radicado; delete row2.categoria;   // por si columnas radicado/categoria aún no existen: reintentar sin ellas
       ins=await fetch(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row2)}); }
     return ins.ok;
   }catch(_){ return false; }
