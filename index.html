@@ -68,6 +68,16 @@
   .cam .cammode button.on{background:var(--oro);color:var(--btn-ink);border-color:var(--oro)}
   .modal{position:fixed;inset:0;background:rgba(8,20,40,.55);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px}
   .modal .sheet{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;width:100%;max-width:520px}
+  /* toast (confirmaciones suaves, no bloqueantes) */
+  .toast{position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(16px);background:#0e1a2e;color:#fff;padding:11px 16px;border-radius:11px;font-size:13.5px;font-weight:600;max-width:90%;box-shadow:0 8px 24px rgba(10,25,50,.28);opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;z-index:80;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  /* barra de progreso del evento */
+  .prog{margin:2px 0 12px}
+  .prog .bar{height:8px;background:#e3e9f2;border-radius:5px;overflow:hidden}
+  .prog .bar>span{display:block;height:100%;width:0;background:var(--azul);border-radius:5px;transition:width .35s ease}
+  .prog .lbl{font-size:12.5px;color:var(--muted);margin-top:6px}
+  .prog .lbl b{color:var(--txt);font-weight:800}
+  .lnk.dis{opacity:.4;pointer-events:none}
 </style>
 </head>
 <body>
@@ -181,15 +191,15 @@
       </div>
     </div>
     <div class="card">
-      <div class="h">Evidencias del lote</div>
-      <div id="progItems" class="mut"></div>
+      <div class="h">Progreso del evento</div>
+      <div id="prog" class="prog"><div class="bar"><span></span></div><div class="lbl"></div></div>
       <div class="cnt" id="cnt">Aún no agregas fotos.</div>
       <div class="list" id="list"></div>
-      <div style="height:12px"></div>
-      <button class="btn" id="enviar" disabled>Enviar evidencias (a la base)</button>
+      <div style="height:14px"></div>
+      <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <button class="btn sec" id="compartir" disabled style="margin-top:10px">Compartir (WhatsApp / correo)</button>
-      <button class="btn sec" id="zip" disabled style="margin-top:10px">Descargar ZIP (respaldo)</button>
-      <div class="mut" id="sendInfo"></div>
+      <div style="text-align:center;margin-top:12px"><a class="lnk dis" id="zip">Descargar respaldo (ZIP)</a></div>
+      <div class="mut" id="sendInfo" style="margin-top:8px"></div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -247,6 +257,8 @@
   <div class="bar"><button class="btn sec" id="camClose">Cerrar</button><button class="btn" id="camShot">Capturar</button><button class="btn sec" id="camFlip">Girar</button></div>
 </div>
 
+<div id="toast" class="toast"></div>
+
 <script src="exifr.full.umd.js"></script>
 <script src="heic2any.min.js"></script>
 <script src="xlsx.full.min.js"></script>
@@ -293,6 +305,9 @@ function saveJSON(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(_
 const z = n => String(n).padStart(2,"0");
 const slug = s => (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "NA";
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
+let toastT=null;
+function toast(msg){ const t=$("toast"); if(!t) return; t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2600); }
+function copiarAlPortapapeles(url, etiqueta){ try{ if(navigator.clipboard){ navigator.clipboard.writeText(url); toast(etiqueta+" copiado ✓"); return; } }catch(_){} prompt(etiqueta+" — cópialo:", url); }
 function show(id){ ["home","exec","login","cap","admin"].forEach(s=>$(s).classList.toggle("hide", s!==id)); }
 function itemsCfg(){ return (cfg&&cfg.it)||[]; }
 
@@ -355,10 +370,10 @@ $("ebtnReq").addEventListener("click", ()=>$("efileReq").click());
 $("efileReq").addEventListener("change", e=>{ if(e.target.files[0]) cargarReq(e.target.files[0]); });
 ["ecliente","eevento"].forEach(id=>$(id).addEventListener("input", chequearGen));
 $("egen").addEventListener("click", generarAcceso);
-$("acCopy").addEventListener("click", ()=>{ if(navigator.clipboard) navigator.clipboard.writeText(invitacionTexto()); $("acCopy").textContent="Invitación copiada"; });
+$("acCopy").addEventListener("click", ()=>{ if(navigator.clipboard) navigator.clipboard.writeText(invitacionTexto()); $("acCopy").textContent="Invitación copiada ✓"; toast("Invitación copiada ✓"); });
 $("acGo").addEventListener("click", ()=>{ saveConfigDesdeExec(); irALogin(); });
 $("eguardar").addEventListener("click", guardarEventoEditado);
-$("acCopyExec").addEventListener("click", ()=>{ const u=$("acLinkExec").textContent; if(navigator.clipboard&&u) navigator.clipboard.writeText(u); $("acCopyExec").textContent="Enlace del ejecutivo copiado"; });
+$("acCopyExec").addEventListener("click", ()=>{ const u=$("acLinkExec").textContent; if(navigator.clipboard&&u) navigator.clipboard.writeText(u); $("acCopyExec").textContent="Enlace del ejecutivo copiado ✓"; toast("Enlace del ejecutivo copiado ✓"); });
 $("verHist").addEventListener("click", ()=>{ const l=$("histList"); l.classList.toggle("hide"); const abierto=!l.classList.contains("hide"); if(abierto) renderHistorial(); $("verHist").textContent=(abierto?"▾":"▸")+" Configuración de eventos"; });
 async function renderHistorial(){
   const l=$("histList"); if(!l) return;
@@ -369,7 +384,7 @@ async function renderHistorial(){
   if(!arr.length){ l.innerHTML='<div class="mut">Aún no hay eventos configurados.</div>'; return; }
   l.innerHTML=arr.map(e=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.n_items||0} evidencias</div><div class="ac"><a class="lnk" onclick="copiarLinkEv('${e.uid}','oper')">link operador</a><a class="lnk" onclick="copiarLinkEv('${e.uid}','exec')">link ejecutivo</a><a class="lnk" onclick="editarEventoId('${e.uid}')">editar</a></div></div></div>`).join("");
 }
-window.copiarLinkEv=(uid,tipo)=>{ const e=eventos()[uid]; const full=tipo==="exec"?linkExec(uid):linkOper(uid); const u=(e&&(tipo==="exec"?e.short_exec:e.short_oper))||full; if(navigator.clipboard) navigator.clipboard.writeText(u); alert((tipo==="exec"?"Enlace del ejecutivo":"Enlace del operador")+" copiado:\n\n"+u); };
+window.copiarLinkEv=(uid,tipo)=>{ const e=eventos()[uid]; const full=tipo==="exec"?linkExec(uid):linkOper(uid); const u=(e&&(tipo==="exec"?e.short_exec:e.short_oper))||full; copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del ejecutivo":"Enlace del operador")); };
 window.editarEventoId=(uid)=>{ editarEvento(uid); };
 $("goExec").addEventListener("click", ()=>{ prefillExec(); show("exec"); });
 $("goOper").addEventListener("click", ()=>{ if(cfg) irALogin(); else $("homeHint").textContent="Aún no hay una operación configurada en este dispositivo. Pide el enlace o QR de acceso a tu ejecutivo."; });
@@ -453,16 +468,14 @@ async function generarAcceso(){
 async function mostrarAcceso(consec){
   $("invCli").textContent = evConsecTag(consec)+" · "+(cfg.cl || "—");
   $("invEv").textContent = [cfg.ev, cfg.fe, cfg.ci].filter(Boolean).join("  ·  ");
-  $("acLink").textContent="Generando enlace…"; $("acLinkExec").textContent="Generando enlace…";
   $("acWrap").classList.remove("hide"); $("acCopy").textContent="Copiar invitación (operador)";
+  accesoCorto=accesoLink;   // sin acortador: el enlace ?ev= ya es corto, DIRECTO y estable (sin página intermedia)
+  $("acLink").textContent=accesoLink; $("acLinkExec").textContent=accesoExec;
   pintarQR(accesoLink);
-  const [so,se]=await Promise.all([shorten(accesoLink), shorten(accesoExec)]);   // TinyURL a ambos (iOS/PC/Android)
-  accesoCorto=so; $("acLink").textContent=so; $("acLinkExec").textContent=se; pintarQR(so);
-  await persistirEvento(so, se);   // guarda/actualiza en Supabase + cache
+  await persistirEvento(accesoLink, accesoExec);   // guarda/actualiza en Supabase + cache
   renderHistorial();
 }
 function pintarQR(url){ $("acQR").innerHTML=""; if(window.QRCode){ try{ new QRCode($("acQR"), {text:url, width:220, height:220, colorDark:MARCA.qr, colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.L}); }catch(e){ $("acQR").innerHTML='<div class="mut">Lista muy larga para el QR; comparte el enlace.</div>'; } } }
-async function shorten(url){ try{ const r=await fetch("https://tinyurl.com/api-create.php?url="+encodeURIComponent(url)); const s=(await r.text()).trim(); if(/^https?:\/\//.test(s)) return s; }catch(_){} return url; }
 /* Editar un evento del historial: trae su config de Supabase y conserva su uid/consecutivo (mismo enlace). */
 async function editarEvento(uid){
   let rec=await sbGet(uid) || eventos()[uid];
@@ -553,7 +566,7 @@ async function adminCargarEventos(){
     }).join("");
   }catch(_){ l.innerHTML='<div class="mut">Error al cargar.</div>'; }
 }
-window.adminCopiar=(i,tipo)=>{ const e=adminEventos[i]; if(!e) return; const full=tipo==="exec"?linkExec(e.uid):linkOper(e.uid); const u=(tipo==="exec"?e.short_exec:e.short_oper)||full; if(navigator.clipboard) navigator.clipboard.writeText(u); alert((tipo==="exec"?"Enlace del ejecutivo":"Enlace del operador")+" copiado:\n\n"+u); };
+window.adminCopiar=(i,tipo)=>{ const e=adminEventos[i]; if(!e) return; const full=tipo==="exec"?linkExec(e.uid):linkOper(e.uid); const u=(tipo==="exec"?e.short_exec:e.short_oper)||full; copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del ejecutivo":"Enlace del operador")); };
 window.adminAbrir=async(i)=>{
   const ev=adminEventos[i]; if(!ev) return;
   $("adBack").classList.remove("hide"); $("adTitulo").textContent=`${ev.cl||""} — ${ev.ev||""}`;
@@ -575,8 +588,11 @@ async function adminCargarFoto(imgId, storagePath){
 
 /* ---- OPERADOR: captura ---- */
 function poblarItemTop(){
-  const s=$("item"); const cur=s.value; s.innerHTML="<option value=''>— Sin asignar —</option>";
-  itemsDelOperador().forEach(it=>{ const o=document.createElement("option"); o.value=it.codigo; o.textContent=(it.adicional?"➕ ":"")+(it.req?`${it.codigo} · ${it.req}`:it.codigo); s.appendChild(o); });
+  const s=$("item"); const cur=s.value; s.innerHTML="<option value=''>— Elige un requerimiento —</option>";
+  itemsDelOperador().forEach(it=>{ const n=fotosDeItem(it.codigo); const mark = n>=3?"✓ ":(n>0?"◔ ":"○ ");   // ✓ completo · ◔ en progreso · ○ pendiente
+    const o=document.createElement("option"); o.value=it.codigo;
+    o.textContent=(it.adicional?"➕ ":"")+mark+(it.req?`${it.codigo} · ${it.req}`:it.codigo)+(n>0&&n<3?`  (${n}/3)`:"");
+    s.appendChild(o); });
   s.value = (cur && itemsDelOperador().some(it=>it.codigo===cur)) ? cur : "";
   itemAnterior = s.value;   // sincroniza el guardián de "mínimo 3 antes de cambiar"
 }
@@ -755,7 +771,7 @@ function renderLista(){
   const listas=batch.filter(e=>e.status==="listo").length;
   const sinReq=batch.filter(e=>e.status==="listo"&&!e.itemCodigo).length;
   $("cnt").innerHTML = batch.length ? (`${listas}/${batch.length} listas`+(sinReq?` · <span style="color:#b3261e">${sinReq} sin requerimiento</span>`:"")) : "Aún no agregas evidencias.";
-  $("zip").disabled=listas===0; $("enviar").disabled=listas===0; if($("compartir")) $("compartir").disabled=listas===0;
+  $("enviar").disabled=listas===0; if($("compartir")) $("compartir").disabled=listas===0; if($("zip")) $("zip").classList.toggle("dis",listas===0);
   batch.forEach(e=>{
     const opts=`<option value="" ${!e.itemCodigo?"selected":""}>— Selecciona requerimiento —</option>`+itemsDelOperador().map(it=>`<option value="${it.codigo}" ${it.codigo===e.itemCodigo?"selected":""}>${it.codigo}${it.req?" · "+it.req.slice(0,26):""}</option>`).join("");
     const d=document.createElement("div"); d.className="ev";
@@ -769,12 +785,14 @@ function renderLista(){
        <div class="ac">${e.status==="listo"&&e.itemCodigo?`<a class="lnk" onclick="descargarUno(${e.id})">descargar</a>`:""}<a class="lnk" onclick="quitar(${e.id})">quitar</a></div></div>`;
     c.appendChild(d);
   });
-  const pi=$("progItems");
+  const pi=$("prog");
   if(pi){ const items=itemsDelOperador(); const total=items.length;
-    const faltan=items.filter(it=>fotosDeItem(it.codigo)<3);
-    const compl=total-faltan.length;
-    pi.textContent = total ? ("Ítems completos: "+compl+"/"+total+(faltan.length?(". Faltan: "+faltan.map(it=>it.codigo).join(", ")):". Todos con 3+ fotos.")) : "";
+    const faltan=items.filter(it=>fotosDeItem(it.codigo)<3); const compl=total-faltan.length;
+    const pct=total?Math.round(compl/total*100):0;
+    const span=pi.querySelector(".bar>span"); if(span) span.style.width=pct+"%";
+    const lbl=pi.querySelector(".lbl"); if(lbl) lbl.innerHTML = total ? (`<b>${compl}/${total}</b> requerimientos completos`+(faltan.length?` · faltan: ${faltan.map(it=>it.codigo).join(", ")}`:` · ¡todo listo! ✅`)) : "Sin requerimientos cargados.";
   }
+  if($("item") && document.activeElement!==$("item")) poblarItemTop();   // refresca ✓/◔/○ en el selector
   guardarLote();   // respalda el lote en curso (IndexedDB) ante recargas
 }
 window.cambiarItem=(id,v)=>{ const e=batch.find(x=>x.id===id); if(e){ e.itemCodigo=v; renderLista(); } };
