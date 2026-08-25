@@ -853,8 +853,11 @@ async function subirEvidencia(e){
   try{
     const path=(cfg.uid||"sinuid")+"/"+e.filename;
     const up=await fetch(SB_URL+"/storage/v1/object/evidencias/"+encodeURI(path), {method:"POST",
-      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":(e.tipo==="video"?((e.file&&e.file.type)||"video/mp4"):"image/jpeg"), "x-upsert":"true"}, body:e.blob});
-    if(!up.ok) return false;
+      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":(e.tipo==="video"?((e.file&&e.file.type)||"video/mp4"):"image/jpeg")}, body:e.blob});
+    if(!up.ok){   // 409 "Duplicate" (reintento de una foto ya subida) cuenta como OK; cualquier otro error sí falla
+      let dup=false; try{ const t=await up.json(); dup=!!(t&&(t.statusCode==="409"||t.error==="Duplicate"||t.code==="KeyAlreadyExists")); }catch(_){}
+      if(!dup) return false;
+    }
     const ad=itemAdic(e.itemCodigo)||{};
     const row={ evento_uid:cfg.uid||"", consec:cfg.consec||null, cliente:cfg.cl, evento:cfg.ev,
       item:e.itemCodigo, requerimiento:itemReq(e.itemCodigo), proveedor:itemProv(e.itemCodigo),
