@@ -268,6 +268,18 @@
   <button class="btn sec" id="okClose">Listo</button>
 </div></div>
 
+<div id="failm" class="modal hide"><div class="sheet" style="text-align:center">
+  <div style="font-size:44px;line-height:1">⚠️</div>
+  <div class="h" style="color:#b3261e;justify-content:center;margin-top:6px">No se pudo enviar</div>
+  <div class="mut" id="failDet" style="margin-top:4px"></div>
+  <div class="mut" style="margin-top:8px">Tus fotos <b>siguen aquí</b> y respaldadas en el dispositivo. No se pierde nada.</div>
+  <div style="height:14px"></div>
+  <button class="btn" id="failRetry">Reintentar envío</button>
+  <div style="text-align:center;margin-top:10px"><a class="lnk" id="failZip">Descargar respaldo (ZIP)</a></div>
+  <div style="height:12px"></div>
+  <button class="btn sec" id="failClose">Cerrar</button>
+</div></div>
+
 <div id="toast" class="toast"></div>
 
 <!-- LIGHTBOX (ver foto grande) -->
@@ -923,13 +935,13 @@ async function descargarZIP(listas, csv, exito){
   const nombre=`Evidencias_${slug(cfg.cl)}_${slug(cfg.ev)}_${slug(operador.cedula)}.zip`;
   bajar(blob,nombre); $("sendInfo").innerHTML='ZIP «'+nombre+'» descargado (respaldo).'; exito();
 }
-async function empaquetar(accion){   // accion: "supabase" | "compartir" | "zip"
+async function empaquetar(accion, saltarMin){   // accion: "supabase" | "compartir" | "zip"; saltarMin: reintento de las que fallaron
   if(enviando) return;
   const listas=batch.filter(e=>e.status==="listo"); if(!listas.length) return;
   const sinReq=listas.filter(e=>!e.itemCodigo);
   if(sinReq.length){ alert(`Hay ${sinReq.length} evidencia(s) sin requerimiento asignado. Selecciona un requerimiento en cada una (menú ↑) antes de continuar.`); renderLista(); return; }
   // Mínimo 3 por requerimiento para ENVIAR/COMPARTIR (Descargar ZIP se permite como respaldo sin el mínimo).
-  if(accion!=="zip"){
+  if(accion!=="zip" && !saltarMin){
     const codsLote=[...new Set(listas.filter(e=>e.tipo==="foto"&&e.itemCodigo).map(e=>e.itemCodigo))];
     const incompletos=codsLote.filter(cod=>fotosDeItem(cod)<3);
     if(incompletos.length){
@@ -962,12 +974,15 @@ async function compartirMedia(listas, csv, exito){
     catch(err){ if(err&&err.name==="AbortError"){ $("sendInfo").textContent="Compartir cancelado."; } else { await descargarZIP(listas, csv, exito); } }
   } else { await descargarZIP(listas, csv, exito); }
 }
+/* fetch con timeout: si la señal es mala y no responde en `ms`, aborta (no deja el botón colgado). */
+async function fetchTO(url, opts, ms){ const c=new AbortController(); const t=setTimeout(()=>c.abort(), ms||30000);
+  try{ return await fetch(url, Object.assign({}, opts, {signal:c.signal})); } finally { clearTimeout(t); } }
 /* Sube UNA evidencia: la foto al bucket + la fila de metadatos a la tabla. Devuelve true si ambas OK. */
 async function subirEvidencia(e, radicado){
   try{
     const path=(cfg.uid||"sinuid")+"/"+e.filename;
-    const up=await fetch(SB_URL+"/storage/v1/object/evidencias/"+encodeURI(path), {method:"POST",
-      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":(e.tipo==="video"?((e.file&&e.file.type)||"video/mp4"):"image/jpeg")}, body:e.blob});
+    const up=await fetchTO(SB_URL+"/storage/v1/object/evidencias/"+encodeURI(path), {method:"POST",
+      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":(e.tipo==="video"?((e.file&&e.file.type)||"video/mp4"):"image/jpeg")}, body:e.blob}, 45000);
     if(!up.ok){   // 409 "Duplicate" (reintento de una foto ya subida) cuenta como OK; cualquier otro error sí falla
       let dup=false; try{ const t=await up.json(); dup=!!(t&&(t.statusCode==="409"||t.error==="Duplicate"||t.code==="KeyAlreadyExists")); }catch(_){}
       if(!dup) return false;
@@ -979,9 +994,9 @@ async function subirEvidencia(e, radicado){
       operador_nombre:operador.nombre, operador_cedula:operador.cedula, operador_celular:operador.celular,
       tipo:e.tipo||"foto", archivo:e.filename, storage_path:"evidencias/"+path,
       fecha:e.datos.fecha||"", hora:e.datos.hora||"", lugar:e.datos.lugar||"", lat:e.datos.lat, lon:e.datos.lon };
-    let ins=await fetch(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row)});
+    let ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row)}, 30000);
     if(!ins.ok){ const row2=Object.assign({},row); delete row2.radicado; delete row2.categoria; delete row2.proveedor_nit;   // por si columnas radicado/categoria/proveedor_nit aún no existen: reintentar sin ellas
-      ins=await fetch(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row2)}); }
+      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row2)}, 30000); }
     return ins.ok;
   }catch(_){ return false; }
 }
@@ -1006,12 +1021,20 @@ async function enviarASupabase(listas, exito){
   else{
     const subidas=listas.filter(e=>!fallidos.includes(e));
     if(subidas.length) marcarSubidas(subidas);   // las que sí subieron salen del lote
-    $("sendInfo").innerHTML=`Subidas ${ok}, fallaron ${fallidos.length} (¿sin señal?). Reintenta «Enviar». <span class="mut">Tus fotos siguen aquí y respaldadas en el dispositivo.</span>`;
+    envioActual={radicado, listas:fallidos.slice(), csv:construirCSV(fallidos, radicado)};   // reintento/ZIP = solo las que fallaron
+    $("sendInfo").textContent="";
+    $("failDet").innerHTML = ok>0
+      ? `Se subieron <b>${ok}</b>, pero <b>${fallidos.length}</b> no cargaron (posible falta de señal).`
+      : `No se pudo subir ninguna de las <b>${fallidos.length}</b> evidencias (posible falta de señal).`;
+    $("failm").classList.remove("hide");
   }
 }
 $("okClose").addEventListener("click", ()=>$("okm").classList.add("hide"));
 $("okShare").addEventListener("click", ()=>{ if(envioActual) compartirMedia(envioActual.listas, envioActual.csv, ()=>{}); });
 $("okZip").addEventListener("click", ()=>{ if(envioActual) descargarZIP(envioActual.listas, envioActual.csv, ()=>{}); });
+$("failClose").addEventListener("click", ()=>$("failm").classList.add("hide"));
+$("failRetry").addEventListener("click", ()=>{ $("failm").classList.add("hide"); empaquetar("supabase", true); });
+$("failZip").addEventListener("click", ()=>{ if(envioActual) descargarZIP(envioActual.listas, envioActual.csv, ()=>{}); });
 function bajar(blob,nombre){ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=nombre; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); }
 
 /* ---- cámara (foto/video in-app) ---- */
