@@ -587,10 +587,10 @@ async function adminCargarEventos(){
   }catch(_){ l.innerHTML='<div class="mut">Error al cargar.</div>'; }
 }
 window.adminCopiar=(i,tipo)=>{ const e=adminEventos[i]; if(!e) return; const u=tipo==="exec"?linkExec(e.uid):linkOper(e.uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del ejecutivo":"Enlace del operador")); };   // siempre el enlace directo ?ev= (nunca tinyurl viejo)
-let adminFotoURLs={}, adminEvidencias=[], lbActual=null;
+let adminFotoURLs={}, adminEvidencias=[], lbActual=null, adminEventoActual=null;
 function fmtFecha(iso){ try{ const d=new Date(iso); if(isNaN(d)) return iso||""; return `${z(d.getDate())}/${z(d.getMonth()+1)}/${d.getFullYear()} ${z(d.getHours())}:${z(d.getMinutes())}`; }catch(_){ return iso||""; } }
 window.adminAbrir=async(i)=>{
-  const ev=adminEventos[i]; if(!ev) return;
+  const ev=adminEventos[i]; if(!ev) return; adminEventoActual=i;
   $("adBack").classList.remove("hide"); $("adTitulo").textContent=`${ev.cl||""} — ${ev.ev||""}`;
   const l=$("adLista"); l.innerHTML='<div class="mut">Cargando evidencias…</div>'; adminFotoURLs={}; adminEvidencias=[];
   try{
@@ -600,7 +600,7 @@ window.adminAbrir=async(i)=>{
     if(!arr.length){ l.innerHTML='<div class="mut">Este evento aún no tiene evidencias enviadas.</div>'; return; }
     const cab=`<div class="mut" style="margin-bottom:6px">${arr.length} evidencia(s) · toca una foto para verla grande</div>`
       +`<div style="display:flex;gap:16px;margin-bottom:10px"><a class="lnk" onclick="adminManifiesto()">⬇ Manifiesto (CSV)</a><a class="lnk" onclick="adminFotosZIP()">⬇ Fotos (ZIP)</a></div>`;
-    l.innerHTML=cab+arr.map((e,j)=>`<div class="ev"><div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})"><img id="adimg${j}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5"></div><div class="in"><b>${e.item||""}</b> · ${(e.requerimiento||"").slice(0,38)}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${e.operador_nombre||""}${e.operador_cedula?" · "+e.operador_cedula:""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+e.radicado:""}</div><div class="fn" style="margin-top:3px">${e.archivo||""}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${(e.lugar||"").slice(0,60)}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a></div></div></div>`).join("");
+    l.innerHTML=cab+arr.map((e,j)=>`<div class="ev"><div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})"><img id="adimg${j}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5"></div><div class="in"><b>${e.item||""}</b> · ${(e.requerimiento||"").slice(0,38)}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${e.operador_nombre||""}${e.operador_cedula?" · "+e.operador_cedula:""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+e.radicado:""}</div><div class="fn" style="margin-top:3px">${e.archivo||""}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${(e.lugar||"").slice(0,60)}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvidencia(${j})">borrar</a></div></div></div>`).join("");
     arr.forEach((e,j)=>adminCargarFoto("adimg"+j, e.storage_path, j, e.archivo));
   }catch(_){ l.innerHTML='<div class="mut">Error al cargar evidencias.</div>'; }
 };
@@ -611,6 +611,19 @@ async function adminCargarFoto(imgId, storagePath, j, nombre){
 }
 window.adminVerFoto=(j)=>{ const f=adminFotoURLs[j]; if(!f) return; lbActual=j; $("lbImg").src=f.url; $("lbName").textContent=f.nombre||""; $("lightbox").classList.remove("hide"); };
 window.descargarFoto=(j)=>{ const f=adminFotoURLs[j]; if(!f){ toast("La foto aún se está cargando…"); return; } const a=document.createElement("a"); a.href=f.url; a.download=f.nombre||"evidencia.jpg"; a.click(); };
+window.adminBorrarEvidencia=async(j)=>{
+  const e=adminEvidencias[j]; if(!e) return;
+  if(!confirm(`¿Borrar esta evidencia?\n\n${e.item||""} · ${(e.requerimiento||"").slice(0,40)}\n${e.archivo||""}\n\nElimina la foto y su registro. No se puede deshacer.`)) return;
+  try{
+    const rr=await fetch(SB_URL+"/rest/v1/evidencias?id=eq."+encodeURIComponent(e.id), {method:"DELETE", headers:adminHeaders()});
+    if(rr.status===401){ adminSesExpirada(); return; }
+    if(!rr.ok){ toast("No se pudo borrar (revisa la política Capa5)"); return; }
+    if(e.storage_path){ try{ const p=e.storage_path.replace(/^evidencias\//,"").split("/").map(encodeURIComponent).join("/");
+      await fetch(SB_URL+"/storage/v1/object/evidencias/"+p, {method:"DELETE", headers:adminHeaders()}); }catch(_){} }
+    toast("Evidencia borrada ✓");
+    if(adminEventoActual!=null) adminAbrir(adminEventoActual);   // refresca la vista del evento
+  }catch(_){ toast("Error al borrar"); }
+};
 $("lbClose").addEventListener("click", ()=>$("lightbox").classList.add("hide"));
 $("lbDown").addEventListener("click", ()=>{ if(lbActual!=null) descargarFoto(lbActual); });
 $("lightbox").addEventListener("click", e=>{ if(e.target.id==="lightbox") $("lightbox").classList.add("hide"); });
