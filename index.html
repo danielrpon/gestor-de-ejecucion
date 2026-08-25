@@ -259,6 +259,15 @@
 
 <div id="toast" class="toast"></div>
 
+<!-- LIGHTBOX (ver foto grande) -->
+<div id="lightbox" class="modal hide" style="background:rgba(6,12,22,.93)">
+  <div style="width:100%;max-width:660px;text-align:center">
+    <img id="lbImg" style="max-width:100%;max-height:74vh;border-radius:10px;background:#000;display:block;margin:0 auto">
+    <div id="lbName" style="color:#e7edf5;font-family:var(--mono);font-size:11.5px;word-break:break-all;margin-top:10px;background:rgba(0,0,0,.35);padding:8px 10px;border-radius:8px"></div>
+    <button class="btn" id="lbClose" style="margin-top:12px;max-width:220px">Cerrar</button>
+  </div>
+</div>
+
 <script src="exifr.full.umd.js"></script>
 <script src="heic2any.min.js"></script>
 <script src="xlsx.full.min.js"></script>
@@ -384,7 +393,7 @@ async function renderHistorial(){
   if(!arr.length){ l.innerHTML='<div class="mut">Aún no hay eventos configurados.</div>'; return; }
   l.innerHTML=arr.map(e=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.n_items||0} evidencias</div><div class="ac"><a class="lnk" onclick="copiarLinkEv('${e.uid}','oper')">link operador</a><a class="lnk" onclick="copiarLinkEv('${e.uid}','exec')">link ejecutivo</a><a class="lnk" onclick="editarEventoId('${e.uid}')">editar</a></div></div></div>`).join("");
 }
-window.copiarLinkEv=(uid,tipo)=>{ const e=eventos()[uid]; const full=tipo==="exec"?linkExec(uid):linkOper(uid); const u=(e&&(tipo==="exec"?e.short_exec:e.short_oper))||full; copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del ejecutivo":"Enlace del operador")); };
+window.copiarLinkEv=(uid,tipo)=>{ const u=tipo==="exec"?linkExec(uid):linkOper(uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del ejecutivo":"Enlace del operador")); };   // siempre el enlace directo ?ev=
 window.editarEventoId=(uid)=>{ editarEvento(uid); };
 $("goExec").addEventListener("click", ()=>{ prefillExec(); show("exec"); });
 $("goOper").addEventListener("click", ()=>{ if(cfg) irALogin(); else $("homeHint").textContent="Aún no hay una operación configurada en este dispositivo. Pide el enlace o QR de acceso a tu ejecutivo."; });
@@ -566,25 +575,30 @@ async function adminCargarEventos(){
     }).join("");
   }catch(_){ l.innerHTML='<div class="mut">Error al cargar.</div>'; }
 }
-window.adminCopiar=(i,tipo)=>{ const e=adminEventos[i]; if(!e) return; const full=tipo==="exec"?linkExec(e.uid):linkOper(e.uid); const u=(tipo==="exec"?e.short_exec:e.short_oper)||full; copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del ejecutivo":"Enlace del operador")); };
+window.adminCopiar=(i,tipo)=>{ const e=adminEventos[i]; if(!e) return; const u=tipo==="exec"?linkExec(e.uid):linkOper(e.uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del ejecutivo":"Enlace del operador")); };   // siempre el enlace directo ?ev= (nunca tinyurl viejo)
+let adminFotoURLs={};
+function fmtFecha(iso){ try{ const d=new Date(iso); if(isNaN(d)) return iso||""; return `${z(d.getDate())}/${z(d.getMonth()+1)}/${d.getFullYear()} ${z(d.getHours())}:${z(d.getMinutes())}`; }catch(_){ return iso||""; } }
 window.adminAbrir=async(i)=>{
   const ev=adminEventos[i]; if(!ev) return;
   $("adBack").classList.remove("hide"); $("adTitulo").textContent=`${ev.cl||""} — ${ev.ev||""}`;
-  const l=$("adLista"); l.innerHTML='<div class="mut">Cargando evidencias…</div>';
+  const l=$("adLista"); l.innerHTML='<div class="mut">Cargando evidencias…</div>'; adminFotoURLs={};
   try{
     const r=await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid)+"&select=*&order=creado.asc",{headers:adminHeaders()});
     if(r.status===401){ adminSesExpirada(); return; }
     const arr=await r.json();
     if(!arr.length){ l.innerHTML='<div class="mut">Este evento aún no tiene evidencias enviadas.</div>'; return; }
-    l.innerHTML=`<div class="mut" style="margin-bottom:8px">${arr.length} evidencia(s)</div>`+arr.map((e,j)=>`<div class="ev"><div style="flex:none;width:66px;height:66px"><img id="adimg${j}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5"></div><div class="in"><b>${e.item||""}</b> · ${(e.requerimiento||"").slice(0,38)}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${e.operador_nombre||""} · ${e.fecha||""} ${e.hora||""}</div><div class="mut" style="margin:0">${(e.lugar||"").slice(0,50)}</div></div></div>`).join("");
-    arr.forEach((e,j)=>adminCargarFoto("adimg"+j, e.storage_path));
+    l.innerHTML=`<div class="mut" style="margin-bottom:8px">${arr.length} evidencia(s) · toca una foto para verla grande</div>`+arr.map((e,j)=>`<div class="ev"><div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})"><img id="adimg${j}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5"></div><div class="in"><b>${e.item||""}</b> · ${(e.requerimiento||"").slice(0,38)}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${e.operador_nombre||""}${e.operador_cedula?" · "+e.operador_cedula:""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}</div><div class="fn" style="margin-top:3px">${e.archivo||""}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${(e.lugar||"").slice(0,60)}</div>`:""}</div></div>`).join("");
+    arr.forEach((e,j)=>adminCargarFoto("adimg"+j, e.storage_path, j, e.archivo));
   }catch(_){ l.innerHTML='<div class="mut">Error al cargar evidencias.</div>'; }
 };
-async function adminCargarFoto(imgId, storagePath){
+async function adminCargarFoto(imgId, storagePath, j, nombre){
   if(!storagePath){ return; } const img=$(imgId); if(!img) return;
   try{ const url=SB_URL+"/storage/v1/object/authenticated/"+storagePath.split("/").map(encodeURIComponent).join("/");
-    const r=await fetch(url,{headers:adminHeaders()}); if(r.ok){ img.src=URL.createObjectURL(await r.blob()); } }catch(_){}
+    const r=await fetch(url,{headers:adminHeaders()}); if(r.ok){ const u=URL.createObjectURL(await r.blob()); img.src=u; if(j!=null) adminFotoURLs[j]={url:u, nombre:nombre||""}; } }catch(_){}
 }
+window.adminVerFoto=(j)=>{ const f=adminFotoURLs[j]; if(!f) return; $("lbImg").src=f.url; $("lbName").textContent=f.nombre||""; $("lightbox").classList.remove("hide"); };
+$("lbClose").addEventListener("click", ()=>$("lightbox").classList.add("hide"));
+$("lightbox").addEventListener("click", e=>{ if(e.target.id==="lightbox") $("lightbox").classList.add("hide"); });
 
 /* ---- OPERADOR: captura ---- */
 function poblarItemTop(){
