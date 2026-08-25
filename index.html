@@ -199,7 +199,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v5 · 25ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v6 · 25ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -301,6 +301,10 @@
 <script src="qrcode.min.js"></script>
 <script>
 const $ = id => document.getElementById(id);
+/* Red de seguridad: cualquier error de JS no capturado se muestra en pantalla (nunca falla en silencio). */
+function mostrarErr(msg){ try{ let b=$("errbar"); if(!b){ b=document.createElement("div"); b.id="errbar"; b.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:200;background:#b3261e;color:#fff;font:600 12px/1.4 system-ui;padding:10px 14px;text-align:center"; document.body.appendChild(b);} b.textContent="⚠️ "+msg+"  (toca para ocultar)"; b.onclick=()=>b.remove(); }catch(_){} }
+window.addEventListener("error", e=>mostrarErr("Error: "+((e&&e.message)||"desconocido")+(e&&e.lineno?(" (línea "+e.lineno+")"):"")));
+window.addEventListener("unhandledrejection", e=>mostrarErr("Promesa: "+((e&&e.reason&&(e.reason.message||e.reason))||"error")));
 /* ===== Marca (una sola versión: Estrella) ===== */
 const BRANDS = {
   estrella:  { title:"Evidencias · Estrella",  azul:"#0B4EA2", azulD:"#083b7d", oro:"#F2B21A", oroD:"#cf9a09", btnInk:"#10233f", stamp:"#F2B21A", qr:"#0B4EA2", logoImg:"logo_white.png", word:null }
@@ -974,9 +978,10 @@ async function empaquetar(accion, saltarMin){   // accion: "supabase" | "compart
         "\n\nCompleta las 3 fotos, o usa «Descargar ZIP» para respaldo.");
       renderLista(); return; }
   }
-  enviando=true; $("enviar").disabled=true; $("zip").disabled=true; if($("compartir")) $("compartir").disabled=true; $("sendInfo").textContent="Preparando…";
+  enviando=true;
   const exito=()=>marcarSubidas(listas);
   try{
+    $("enviar").disabled=true; if($("zip")) $("zip").disabled=true; if($("compartir")) $("compartir").disabled=true; $("sendInfo").textContent="Preparando…";
     calcularNombres();
     const csv=construirCSV(listas);
     if(accion==="zip"){ await descargarZIP(listas, csv, exito); return; }
