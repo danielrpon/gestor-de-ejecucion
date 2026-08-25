@@ -132,7 +132,7 @@
         <button class="btn sec" id="acCopyExec" style="margin-top:8px">Copiar enlace del ejecutivo</button>
       </div>
       <div style="height:14px"></div>
-      <a class="lnk" id="verHist">▸ Eventos configurados (historial)</a>
+      <a class="lnk" id="verHist">▸ Configuración de eventos</a>
       <div id="histList" class="list hide" style="margin-top:10px"></div>
     </div>
   </div>
@@ -320,7 +320,7 @@ $("acCopy").addEventListener("click", ()=>{ if(navigator.clipboard) navigator.cl
 $("acGo").addEventListener("click", ()=>{ saveConfigDesdeExec(); irALogin(); });
 $("eguardar").addEventListener("click", guardarEventoEditado);
 $("acCopyExec").addEventListener("click", ()=>{ const u=$("acLinkExec").textContent; if(navigator.clipboard&&u) navigator.clipboard.writeText(u); $("acCopyExec").textContent="Enlace del ejecutivo copiado"; });
-$("verHist").addEventListener("click", ()=>{ const l=$("histList"); l.classList.toggle("hide"); const abierto=!l.classList.contains("hide"); if(abierto) renderHistorial(); $("verHist").textContent=(abierto?"▾":"▸")+" Eventos configurados (historial)"; });
+$("verHist").addEventListener("click", ()=>{ const l=$("histList"); l.classList.toggle("hide"); const abierto=!l.classList.contains("hide"); if(abierto) renderHistorial(); $("verHist").textContent=(abierto?"▾":"▸")+" Configuración de eventos"; });
 function renderHistorial(){
   const l=$("histList"); if(!l) return; const entries=Object.entries(eventos()).sort((a,b)=>(b[1].consec||0)-(a[1].consec||0));
   if(!entries.length){ l.innerHTML='<div class="mut">Aún no hay eventos configurados en este dispositivo.</div>'; return; }
@@ -336,7 +336,7 @@ $("miadd").addEventListener("click", ()=>{ const req=$("mireq").value.trim(), ca
   execItems.push({codigo:nextCodigo(),req,cant,prov}); $("mireq").value=""; $("micant").value=""; renderExecItems(); $("mireq").focus(); });   // se conserva el proveedor para agregar varios del mismo
 function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||""})); renderExecItems();
     const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; } if(typeof renderHistorial==="function") renderHistorial();
-  if($("eguardar")){ if(cfg&&cfg.consec){ editandoId=eventoId(cfg); $("eguardar").style.display=""; } else { editandoId=null; $("eguardar").style.display="none"; } } }
+  if($("eguardar")){ editandoId=null; $("eguardar").style.display="none"; } }   // "Guardar" solo aparece al entrar por "editar" del historial
 function renderExecItems(){
   const c=$("execList"); c.innerHTML="";
   execItems.forEach((it,idx)=>{ const d=document.createElement("div"); d.className="ev";
@@ -402,7 +402,7 @@ function generarAcceso(){
   const enc=encodeURIComponent(encCfg(cfg));
   accesoLink=linkOperDe(enc); accesoExec=linkExecDe(enc); accesoCorto="";
   const consec=registrarEvento(cfg, enc); cfg.consec=consec; saveJSON("est_config",cfg);   // consecutivo del evento
-  editandoId=eventoId(cfg); $("eguardar").style.display="";   // ya es un evento existente -> permite guardar cambios
+  editandoId=null; $("eguardar").style.display="none";   // "Guardar" solo desde el historial (editar)
   mostrarAcceso(consec);
 }
 /* Muestra el panel de acceso con el consecutivo y ambos enlaces (operador + ejecutivo) acortados. */
@@ -427,8 +427,10 @@ async function acortarAmbos(id){
 /* Editar un evento del historial (conserva su consecutivo). */
 function editarEvento(enc){
   const c=decCfg(decodeURIComponent(enc)); if(!c){ alert("No pude abrir ese evento."); return; }
-  cfg=c; saveJSON("est_config",cfg); editandoId=eventoId(cfg);
-  prefillExec(); show("exec"); $("eguardar").style.display=""; $("acWrap").classList.add("hide"); window.scrollTo(0,0);
+  cfg=c; saveJSON("est_config",cfg);
+  prefillExec(); show("exec");
+  editandoId=eventoId(cfg); $("eguardar").style.display="";   // se setea DESPUÉS de prefillExec (que lo resetea)
+  $("acWrap").classList.add("hide"); window.scrollTo(0,0);
 }
 /* Guardar cambios del evento en edición: MISMO consecutivo/identidad; regenera enlaces (cambian solo si cambió el contenido). */
 function guardarEventoEditado(){
