@@ -182,8 +182,9 @@
       <div class="cnt" id="cnt">Aún no agregas fotos.</div>
       <div class="list" id="list"></div>
       <div style="height:12px"></div>
-      <button class="btn" id="enviar" disabled>Enviar evidencias</button>
-      <button class="btn sec" id="zip" disabled style="margin-top:10px">Descargar ZIP</button>
+      <button class="btn" id="enviar" disabled>Enviar evidencias (a la base)</button>
+      <button class="btn sec" id="compartir" disabled style="margin-top:10px">Compartir (WhatsApp / correo)</button>
+      <button class="btn sec" id="zip" disabled style="margin-top:10px">Descargar ZIP (respaldo)</button>
       <div class="mut" id="sendInfo"></div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
@@ -599,8 +600,9 @@ $("opClose").addEventListener("click", ()=>$("opm").classList.add("hide"));
 $("opSave").addEventListener("click", ()=>{ const n=$("onom").value.trim(),c=$("oced").value.trim(),ce=$("ocel").value.trim(); if(!n||!c||!ce){ alert("Completa nombre, cédula y celular."); return; }
   const nuevo={nombre:n,cedula:c,celular:ce}; if(hayProv()){ const p=$("oprov").value; if(!p){ alert("Selecciona tu proveedor."); return; } nuevo.prov=p; }
   operador=nuevo; saveJSON("est_operador",operador); pintarWho(); $("opm").classList.add("hide"); poblarItemTop(); $("ctx").textContent=(cfg.cl||"—")+" · "+(cfg.ev||"—")+(operador.prov?("  ·  "+operador.prov):""); renderLista(); });
-$("zip").addEventListener("click", ()=>empaquetar(false));
-$("enviar").addEventListener("click", ()=>empaquetar(true));
+$("zip").addEventListener("click", ()=>empaquetar("zip"));
+$("enviar").addEventListener("click", ()=>empaquetar("supabase"));
+$("compartir").addEventListener("click", ()=>empaquetar("compartir"));
 
 /* ---- Ajustes ---- */
 $("odlink").addEventListener("input", ()=>localStorage.setItem("est_onedrive",$("odlink").value.trim()));
@@ -677,7 +679,7 @@ function renderLista(){
   const listas=batch.filter(e=>e.status==="listo").length;
   const sinReq=batch.filter(e=>e.status==="listo"&&!e.itemCodigo).length;
   $("cnt").innerHTML = batch.length ? (`${listas}/${batch.length} listas`+(sinReq?` · <span style="color:#b3261e">${sinReq} sin requerimiento</span>`:"")) : "Aún no agregas evidencias.";
-  $("zip").disabled=listas===0; $("enviar").disabled=listas===0;
+  $("zip").disabled=listas===0; $("enviar").disabled=listas===0; if($("compartir")) $("compartir").disabled=listas===0;
   batch.forEach(e=>{
     const opts=`<option value="" ${!e.itemCodigo?"selected":""}>— Selecciona requerimiento —</option>`+itemsDelOperador().map(it=>`<option value="${it.codigo}" ${it.codigo===e.itemCodigo?"selected":""}>${it.codigo}${it.req?" · "+it.req.slice(0,26):""}</option>`).join("");
     const d=document.createElement("div"); d.className="ev";
@@ -733,40 +735,76 @@ async function descargarZIP(listas, csv, exito){
   const od=(localStorage.getItem("est_onedrive")||"").trim();
   bajar(blob,nombre); $("sendInfo").innerHTML='ZIP «'+nombre+'» descargado.'+(od?' <a class="lnk" href="'+od+'" target="_blank" rel="noopener">Abrir carpeta OneDrive</a> y súbelo.':' Súbelo a tu carpeta OneDrive.'); exito();
 }
-async function empaquetar(enviar){
+async function empaquetar(accion){   // accion: "supabase" | "compartir" | "zip"
   if(enviando) return;
   const listas=batch.filter(e=>e.status==="listo"); if(!listas.length) return;
   const sinReq=listas.filter(e=>!e.itemCodigo);
-  if(sinReq.length){ alert(`No puedes ${enviar?"enviar":"descargar"}: hay ${sinReq.length} evidencia(s) sin requerimiento asignado. Selecciona un requerimiento de la lista en cada evidencia (menú ↑) antes de continuar.`); renderLista(); return; }
-  // Mínimo 3 evidencias por requerimiento para ENVIAR (descargar ZIP se permite como respaldo).
-  if(enviar){
+  if(sinReq.length){ alert(`Hay ${sinReq.length} evidencia(s) sin requerimiento asignado. Selecciona un requerimiento en cada una (menú ↑) antes de continuar.`); renderLista(); return; }
+  // Mínimo 3 por requerimiento para ENVIAR/COMPARTIR (Descargar ZIP se permite como respaldo sin el mínimo).
+  if(accion!=="zip"){
     const codsLote=[...new Set(listas.filter(e=>e.tipo==="foto"&&e.itemCodigo).map(e=>e.itemCodigo))];
     const incompletos=codsLote.filter(cod=>fotosDeItem(cod)<3);
     if(incompletos.length){
-      alert("Cada requerimiento necesita MÍNIMO 3 evidencias para poder enviar. Aún faltan:\n\n"+
+      alert("Cada requerimiento necesita MÍNIMO 3 evidencias. Aún faltan:\n\n"+
         incompletos.map(cod=>`• ${cod} · ${itemReqCorto(cod)} (${fotosDeItem(cod)}/3)`).join("\n")+
-        "\n\nCompleta las 3 fotos, o usa «Descargar ZIP» para respaldo sin enviar.");
+        "\n\nCompleta las 3 fotos, o usa «Descargar ZIP» para respaldo.");
       renderLista(); return; }
   }
-  enviando=true; $("enviar").disabled=true; $("zip").disabled=true; $("sendInfo").textContent="Preparando…";
-  const exito=()=>{ const cta={}; listas.forEach(e=>{ if(e.tipo!=="foto") return; const k=claveDe(e.itemCodigo); cta[k]=(cta[k]||0)+1; }); for(const k in cta) counters[k]=(counters[k]||0)+cta[k]; saveJSON("est_counters",counters); batch=batch.filter(e=>e.status!=="listo"); renderLista(); };
+  enviando=true; $("enviar").disabled=true; $("zip").disabled=true; if($("compartir")) $("compartir").disabled=true; $("sendInfo").textContent="Preparando…";
+  const exito=()=>marcarSubidas(listas);
   try{
     calcularNombres();
     const csv=construirCSV(listas);
-    if(!enviar){ await descargarZIP(listas, csv, exito); return; }
-    /* ENVIAR: compartir SIEMPRE los archivos de media individuales (fotos/videos). Funciona igual en
-       iOS y Android. CLAVE: no hay NINGÚN await antes de share() -> el gesto del usuario sigue vivo
-       (lo que antes rompía Android era generar el .zip con await previo). Sin title/text/csv ->
-       WhatsApp SÍ adjunta; el manifiesto .csv va en «Descargar ZIP» si se necesita para el registro. */
-    const media=listas.map(e=> new File([e.blob], e.filename, {type: e.tipo==="video" ? ((e.file&&e.file.type)||"video/mp4") : "image/jpeg"}));
-    if(navigator.canShare && navigator.canShare({files:media})){
-      try{ await navigator.share({files:media});
-        $("sendInfo").innerHTML="Compartido. Elige la app destino (WhatsApp, correo, OneDrive…). <span class=\"mut\">El manifiesto va en «Descargar ZIP» si lo necesitas para el registro.</span>"; exito(); }
-      catch(err){ if(err&&err.name==="AbortError"){ $("sendInfo").textContent="Envío cancelado. Puedes reintentar."; } else { await descargarZIP(listas, csv, exito); } }
-    } else {
-      await descargarZIP(listas, csv, exito);   // el dispositivo no comparte archivos -> ZIP + guía OneDrive
-    }
+    if(accion==="zip"){ await descargarZIP(listas, csv, exito); return; }
+    if(accion==="compartir"){ await compartirMedia(listas, csv, exito); return; }
+    await enviarASupabase(listas, exito);   // "supabase": sube a la base (bucket + tabla)
   } finally { enviando=false; renderLista(); }
+}
+/* Marca como enviadas SOLO las evidencias dadas: suma consecutivos y las saca del lote. */
+function marcarSubidas(subidas){
+  const cta={}; subidas.forEach(e=>{ if(e.tipo!=="foto") return; const k=claveDe(e.itemCodigo); cta[k]=(cta[k]||0)+1; });
+  for(const k in cta) counters[k]=(counters[k]||0)+cta[k]; saveJSON("est_counters",counters);
+  const ids=new Set(subidas.map(e=>e.id)); batch=batch.filter(e=>!ids.has(e.id)); renderLista();
+}
+/* Compartir por WhatsApp/correo (canal humano). Sin await antes de share() -> gesto vivo en Android. */
+async function compartirMedia(listas, csv, exito){
+  const media=listas.map(e=> new File([e.blob], e.filename, {type: e.tipo==="video" ? ((e.file&&e.file.type)||"video/mp4") : "image/jpeg"}));
+  if(navigator.canShare && navigator.canShare({files:media})){
+    try{ await navigator.share({files:media}); $("sendInfo").innerHTML="Compartido. Elige la app (WhatsApp, correo…)."; exito(); }
+    catch(err){ if(err&&err.name==="AbortError"){ $("sendInfo").textContent="Compartir cancelado."; } else { await descargarZIP(listas, csv, exito); } }
+  } else { await descargarZIP(listas, csv, exito); }
+}
+/* Sube UNA evidencia: la foto al bucket + la fila de metadatos a la tabla. Devuelve true si ambas OK. */
+async function subirEvidencia(e){
+  try{
+    const path=(cfg.uid||"sinuid")+"/"+e.filename;
+    const up=await fetch(SB_URL+"/storage/v1/object/evidencias/"+encodeURI(path), {method:"POST",
+      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":(e.tipo==="video"?((e.file&&e.file.type)||"video/mp4"):"image/jpeg"), "x-upsert":"true"}, body:e.blob});
+    if(!up.ok) return false;
+    const ad=itemAdic(e.itemCodigo)||{};
+    const row={ evento_uid:cfg.uid||"", consec:cfg.consec||null, cliente:cfg.cl, evento:cfg.ev,
+      item:e.itemCodigo, requerimiento:itemReq(e.itemCodigo), proveedor:itemProv(e.itemCodigo),
+      adicional:!!itemAdic(e.itemCodigo), solicitado_por:ad.solicitadoPor||"", justificacion:ad.justificacion||"",
+      operador_nombre:operador.nombre, operador_cedula:operador.cedula, operador_celular:operador.celular,
+      tipo:e.tipo||"foto", archivo:e.filename, storage_path:"evidencias/"+path,
+      fecha:e.datos.fecha||"", hora:e.datos.hora||"", lugar:e.datos.lugar||"", lat:e.datos.lat, lon:e.datos.lon };
+    const ins=await fetch(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row)});
+    return ins.ok;
+  }catch(_){ return false; }
+}
+/* Sube todo el lote a la base, con progreso. Las que fallan (sin señal) se quedan para reintentar. */
+async function enviarASupabase(listas, exito){
+  const fallidos=[]; let ok=0;
+  for(let i=0;i<listas.length;i++){
+    $("sendInfo").textContent=`Subiendo a la base ${i+1}/${listas.length}…`;
+    if(await subirEvidencia(listas[i])) ok++; else fallidos.push(listas[i]);
+  }
+  if(!fallidos.length){ $("sendInfo").innerHTML=`✅ ${ok} evidencia(s) subidas a la base.`; exito(); }
+  else{
+    const subidas=listas.filter(e=>!fallidos.includes(e));
+    if(subidas.length) marcarSubidas(subidas);   // las que sí subieron salen del lote
+    $("sendInfo").innerHTML=`Subidas ${ok}, fallaron ${fallidos.length} (¿sin señal?). Reintenta «Enviar». <span class="mut">Tus fotos siguen aquí y respaldadas en el dispositivo.</span>`;
+  }
 }
 function bajar(blob,nombre){ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=nombre; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); }
 
