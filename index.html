@@ -158,6 +158,7 @@
       <div class="role">Operador</div>
       <div class="h">Ingreso</div>
       <div class="fld hide" id="lprovWrap"><label>Proveedor</label><select id="lprov"></select></div>
+      <div class="fld hide" id="lnitWrap"><label>NIT del proveedor (sin dígito de verificación)</label><input id="lnit" type="text" inputmode="numeric" autocomplete="off" placeholder="Ej: 900123456"></div>
       <div class="fld"><label>Nombre completo</label><input id="lnom" type="text" autocomplete="off"></div>
       <div class="fld"><label>Cédula</label><input id="lced" type="text" inputmode="numeric" autocomplete="off"></div>
       <div class="fld"><label>Celular</label><input id="lcel" type="text" inputmode="tel" autocomplete="off"></div>
@@ -198,7 +199,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v3 · 25ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v4 · 25ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -228,6 +229,7 @@
 <div id="opm" class="modal hide"><div class="sheet">
   <div class="h">Editar operador</div>
   <div class="fld hide" id="oprovWrap"><label>Proveedor</label><select id="oprov"></select></div>
+  <div class="fld hide" id="onitWrap"><label>NIT del proveedor (sin dígito de verificación)</label><input id="onit" type="text" inputmode="numeric" autocomplete="off" placeholder="Ej: 900123456"></div>
   <div class="fld"><label>Nombre completo</label><input id="onom" type="text" autocomplete="off"></div>
   <div class="fld"><label>Cédula</label><input id="oced" type="text" inputmode="numeric" autocomplete="off"></div>
   <div class="fld"><label>Celular</label><input id="ocel" type="text" inputmode="tel" autocomplete="off"></div>
@@ -452,6 +454,11 @@ function itemNit(cod){ const it=itemById(cod); return it?(it.nit||""):""; }
 function itemAdic(cod){ const it=itemById(cod); return it&&it.adicional?it:null; }
 function proveedores(){ const s=new Set(); (execItems&&execItems.length?execItems:itemsCfg()).forEach(it=>{ const p=(it.prov||"").trim(); if(p) s.add(p); }); return [...s].sort((a,b)=>a.localeCompare(b,'es')); }
 function provDeItems(){ const s=new Set(); itemsCfg().forEach(it=>{ const p=(it.prov||"").trim(); if(p) s.add(p); }); return [...s].sort((a,b)=>a.localeCompare(b,'es')); }
+/* --- Capa de acceso por NIT (opcional, se activa solo si el evento trae NITs cargados) --- */
+function nitDeProveedor(nombre){ const p=(nombre||"").trim(); if(!p) return ""; const it=itemsCfg().find(x=>(x.prov||"").trim()===p && String(x.nit||"").trim()); return it?String(it.nit).trim():""; }
+function hayNits(){ return provDeItems().some(p=>nitDeProveedor(p)); }
+function nitBase(s){ return String(s||"").replace(/[^0-9]/g,""); }
+function nitCoincide(entered, stored){ const a=nitBase(entered), b=nitBase(stored); if(!a||!b) return false; if(a===b) return true; if(b.length===a.length+1 && b.startsWith(a)) return true; if(a.length===b.length+1 && a.startsWith(b)) return true; return false; }  // acepta con o sin dígito de verificación
 function hayProv(){ return provDeItems().length>0; }
 function opcionesProv(){ const l=provDeItems(); if(itemsCfg().some(it=>!((it.prov||"").trim())) && l.length) l.push("Sin proveedor"); return l; }
 function itemsDelOperador(){ let base;
@@ -540,15 +547,19 @@ function invitacionTexto(){
 function irALogin(){
   $("lbCli").textContent = "Cliente: "+(cfg.cl||"—");
   $("lbEv").textContent = "Evento: "+(cfg.ev||"—")+"  ·  "+itemsCfg().length+" evidencias";
-  if(hayProv()){ $("lprovWrap").classList.remove("hide"); llenarSelectProv($("lprov"), operador&&operador.prov); }
-  else $("lprovWrap").classList.add("hide");
+  if(hayProv()){ $("lprovWrap").classList.remove("hide"); llenarSelectProv($("lprov"), operador&&operador.prov);
+    if(hayNits()){ $("lnitWrap").classList.remove("hide"); $("lnit").value=""; } else $("lnitWrap").classList.add("hide"); }
+  else { $("lprovWrap").classList.add("hide"); $("lnitWrap").classList.add("hide"); }
   if(operador){ $("lnom").value=operador.nombre; $("lced").value=operador.cedula; $("lcel").value=operador.celular; }
   show("login");
 }
 $("lentrar").addEventListener("click", ()=>{
   const o={ nombre:$("lnom").value.trim(), cedula:$("lced").value.trim(), celular:$("lcel").value.trim() };
   if(!o.nombre||!o.cedula||!o.celular){ alert("Completa nombre, cédula y celular."); return; }
-  if(hayProv()){ const p=$("lprov").value; if(!p){ alert("Selecciona tu proveedor."); return; } o.prov=p; }
+  if(hayProv()){ const p=$("lprov").value; if(!p){ alert("Selecciona tu proveedor."); return; }
+    const nitReq=nitDeProveedor(p);
+    if(nitReq && !nitCoincide($("lnit").value, nitReq)){ alert("El NIT no corresponde al proveedor seleccionado.\n\nIngresa el NIT del proveedor (sin dígito de verificación) para continuar."); return; }
+    o.prov=p; }
   operador=o; saveJSON("est_operador",o); pintarWho(); irACaptura();
 });
 $("reconfig").addEventListener("click", ()=>{ prefillExec(); show("exec"); });
@@ -801,11 +812,16 @@ $("vidf").addEventListener("change", async e=>{ const files=[...e.target.files];
 $("gal").addEventListener("change", e=>{ agregar(e.target.files); e.target.value=""; });
 ["pos","esc","marca"].forEach(id=>$(id).addEventListener("change", redibujarTodas));   /* auto-refresh de la marca */
 $("who").addEventListener("click", ()=>{ if(!operador) return; $("onom").value=operador.nombre; $("oced").value=operador.cedula; $("ocel").value=operador.celular;
-  if(hayProv()){ $("oprovWrap").classList.remove("hide"); llenarSelectProv($("oprov"), operador.prov); } else $("oprovWrap").classList.add("hide");
+  if(hayProv()){ $("oprovWrap").classList.remove("hide"); llenarSelectProv($("oprov"), operador.prov);
+    if(hayNits()){ $("onitWrap").classList.remove("hide"); $("onit").value=""; } else $("onitWrap").classList.add("hide"); }
+  else { $("oprovWrap").classList.add("hide"); $("onitWrap").classList.add("hide"); }
   $("opm").classList.remove("hide"); });
 $("opClose").addEventListener("click", ()=>$("opm").classList.add("hide"));
 $("opSave").addEventListener("click", ()=>{ const n=$("onom").value.trim(),c=$("oced").value.trim(),ce=$("ocel").value.trim(); if(!n||!c||!ce){ alert("Completa nombre, cédula y celular."); return; }
-  const nuevo={nombre:n,cedula:c,celular:ce}; if(hayProv()){ const p=$("oprov").value; if(!p){ alert("Selecciona tu proveedor."); return; } nuevo.prov=p; }
+  const nuevo={nombre:n,cedula:c,celular:ce}; if(hayProv()){ const p=$("oprov").value; if(!p){ alert("Selecciona tu proveedor."); return; }
+    const nitReq=nitDeProveedor(p);
+    if(nitReq && !nitCoincide($("onit").value, nitReq)){ alert("El NIT no corresponde al proveedor seleccionado.\n\nIngresa el NIT del proveedor (sin dígito de verificación) para continuar."); return; }
+    nuevo.prov=p; }
   operador=nuevo; saveJSON("est_operador",operador); pintarWho(); $("opm").classList.add("hide"); poblarItemTop(); $("ctx").textContent=(cfg.cl||"—")+" · "+(cfg.ev||"—")+(operador.prov?("  ·  "+operador.prov):""); renderLista(); });
 $("enviar").addEventListener("click", ()=>empaquetar("supabase"));
 
