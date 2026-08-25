@@ -198,6 +198,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v2 · 25ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -958,7 +959,7 @@ async function empaquetar(accion, saltarMin){   // accion: "supabase" | "compart
     if(accion==="zip"){ await descargarZIP(listas, csv, exito); return; }
     if(accion==="compartir"){ await compartirMedia(listas, csv, exito); return; }
     await enviarASupabase(listas, exito);   // "supabase": sube a la base (bucket + tabla)
-  } finally { enviando=false; renderLista(); }
+  } finally { enviando=false; $("enviar").textContent="Enviar evidencias"; renderLista(); }
 }
 /* Marca como enviadas SOLO las evidencias dadas: suma consecutivos y las saca del lote. */
 function marcarSubidas(subidas){
@@ -978,14 +979,15 @@ async function compartirMedia(listas, csv, exito){
 async function fetchTO(url, opts, ms){ const c=new AbortController(); const t=setTimeout(()=>c.abort(), ms||30000);
   try{ return await fetch(url, Object.assign({}, opts, {signal:c.signal})); } finally { clearTimeout(t); } }
 /* Sube UNA evidencia: la foto al bucket + la fila de metadatos a la tabla. Devuelve true si ambas OK. */
+let ultimoErr="";
 async function subirEvidencia(e, radicado){
   try{
     const path=(cfg.uid||"sinuid")+"/"+e.filename;
     const up=await fetchTO(SB_URL+"/storage/v1/object/evidencias/"+encodeURI(path), {method:"POST",
-      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":(e.tipo==="video"?((e.file&&e.file.type)||"video/mp4"):"image/jpeg")}, body:e.blob}, 45000);
+      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":(e.tipo==="video"?((e.file&&e.file.type)||"video/mp4"):"image/jpeg")}, body:e.blob}, 20000);
     if(!up.ok){   // 409 "Duplicate" (reintento de una foto ya subida) cuenta como OK; cualquier otro error sí falla
       let dup=false; try{ const t=await up.json(); dup=!!(t&&(t.statusCode==="409"||t.error==="Duplicate"||t.code==="KeyAlreadyExists")); }catch(_){}
-      if(!dup) return false;
+      if(!dup){ ultimoErr="subir foto: HTTP "+up.status; return false; }
     }
     const ad=itemAdic(e.itemCodigo)||{};
     const row={ radicado:radicado||"", evento_uid:cfg.uid||"", consec:cfg.consec||null, cliente:cfg.cl, evento:cfg.ev,
@@ -994,20 +996,21 @@ async function subirEvidencia(e, radicado){
       operador_nombre:operador.nombre, operador_cedula:operador.cedula, operador_celular:operador.celular,
       tipo:e.tipo||"foto", archivo:e.filename, storage_path:"evidencias/"+path,
       fecha:e.datos.fecha||"", hora:e.datos.hora||"", lugar:e.datos.lugar||"", lat:e.datos.lat, lon:e.datos.lon };
-    let ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row)}, 30000);
+    let ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row)}, 15000);
     if(!ins.ok){ const row2=Object.assign({},row); delete row2.radicado; delete row2.categoria; delete row2.proveedor_nit;   // por si columnas radicado/categoria/proveedor_nit aún no existen: reintentar sin ellas
-      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row2)}, 30000); }
+      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row2)}, 15000); }
+    if(!ins.ok) ultimoErr="registrar dato: HTTP "+ins.status;
     return ins.ok;
-  }catch(_){ return false; }
+  }catch(err){ ultimoErr=(err&&err.name==="AbortError")?"tiempo agotado (señal muy lenta)":("red: "+((err&&err.name)||"error")); return false; }
 }
 /* Sube todo el lote a la base, con progreso. Las que fallan (sin señal) se quedan para reintentar. */
 let envioActual=null;
 function nuevoRadicado(){ const t=new Date(); const ev=(cfg&&cfg.consec)?String(cfg.consec).padStart(3,"0"):"000"; return `RAD-${ev}-${String(t.getFullYear()).slice(2)}${z(t.getMonth()+1)}${z(t.getDate())}-${z(t.getHours())}${z(t.getMinutes())}${z(t.getSeconds())}`; }
 async function enviarASupabase(listas, exito){
   const radicado=nuevoRadicado(); const csv=construirCSV(listas, radicado);
-  const fallidos=[]; let ok=0;
+  const fallidos=[]; let ok=0; ultimoErr="";
   for(let i=0;i<listas.length;i++){
-    $("sendInfo").textContent=`Subiendo a la base ${i+1}/${listas.length}…`;
+    const et=`Enviando ${i+1}/${listas.length}…`; $("sendInfo").textContent=et; $("enviar").textContent=et;
     if(await subirEvidencia(listas[i], radicado)) ok++; else fallidos.push(listas[i]);
   }
   if(!fallidos.length){
@@ -1023,9 +1026,10 @@ async function enviarASupabase(listas, exito){
     if(subidas.length) marcarSubidas(subidas);   // las que sí subieron salen del lote
     envioActual={radicado, listas:fallidos.slice(), csv:construirCSV(fallidos, radicado)};   // reintento/ZIP = solo las que fallaron
     $("sendInfo").textContent="";
-    $("failDet").innerHTML = ok>0
-      ? `Se subieron <b>${ok}</b>, pero <b>${fallidos.length}</b> no cargaron (posible falta de señal).`
-      : `No se pudo subir ninguna de las <b>${fallidos.length}</b> evidencias (posible falta de señal).`;
+    $("failDet").innerHTML = (ok>0
+      ? `Se subieron <b>${ok}</b>, pero <b>${fallidos.length}</b> no cargaron.`
+      : `No se pudo subir ninguna de las <b>${fallidos.length}</b> evidencias.`)
+      + (ultimoErr?`<br><span class="mut" style="font-size:12px">Motivo: ${ultimoErr}</span>`:"");
     $("failm").classList.remove("hide");
   }
 }
