@@ -199,7 +199,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v6 · 25ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v7 · 25ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -643,9 +643,11 @@ window.adminBorrarEvento=async(i)=>{
     if(r.status===401){ adminSesExpirada(); return; }
     const evs = r.ok ? await r.json() : [];
     for(const e of evs){ if(e.storage_path){ try{ const p=e.storage_path.replace(/^evidencias\//,"").split("/").map(encodeURIComponent).join("/"); await fetch(SB_URL+"/storage/v1/object/evidencias/"+p,{method:"DELETE",headers:adminHeaders()}); }catch(_){} } }
-    await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid),{method:"DELETE",headers:adminHeaders()});
-    const de=await fetch(SB_URL+"/rest/v1/eventos?uid=eq."+encodeURIComponent(ev.uid),{method:"DELETE",headers:adminHeaders()});
-    if(!de.ok){ toast("No se pudo borrar el evento (revisa política Capa6)"); return; }
+    await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid),{method:"DELETE",headers:Object.assign({},adminHeaders(),{Prefer:"return=representation",Accept:"application/json"})});
+    const de=await fetch(SB_URL+"/rest/v1/eventos?uid=eq."+encodeURIComponent(ev.uid),{method:"DELETE",headers:Object.assign({},adminHeaders(),{Prefer:"return=representation",Accept:"application/json"})});
+    if(!de.ok){ alert("No se pudo borrar el evento (HTTP "+de.status+").\n\nCorre las Capas 5 y 6 en Supabase y reintenta."); return; }
+    let evBorr=[]; try{ evBorr=await de.json(); }catch(_){}
+    if(!Array.isArray(evBorr)||!evBorr.length){ alert("El evento NO se borró (0 filas eliminadas).\n\nFalta activar el permiso de borrado: corre las Capas 5 y 6 en Supabase y reintenta."); return; }
     try{ const all=eventos(); delete all[ev.uid]; saveJSON("est_eventos",all); }catch(_){}
     toast("Evento borrado ✓"); adminCargarEventos();
   }catch(_){ toast("Error al borrar el evento"); }
@@ -678,9 +680,11 @@ window.adminBorrarEvidencia=async(j)=>{
   const e=adminEvidencias[j]; if(!e) return;
   if(!confirm(`¿Borrar esta evidencia?\n\n${e.item||""} · ${(e.requerimiento||"").slice(0,40)}\n${e.archivo||""}\n\nElimina la foto y su registro. No se puede deshacer.`)) return;
   try{
-    const rr=await fetch(SB_URL+"/rest/v1/evidencias?id=eq."+encodeURIComponent(e.id), {method:"DELETE", headers:adminHeaders()});
+    const rr=await fetch(SB_URL+"/rest/v1/evidencias?id=eq."+encodeURIComponent(e.id), {method:"DELETE", headers:Object.assign({},adminHeaders(),{Prefer:"return=representation",Accept:"application/json"})});
     if(rr.status===401){ adminSesExpirada(); return; }
-    if(!rr.ok){ toast("No se pudo borrar (revisa la política Capa5)"); return; }
+    if(!rr.ok){ alert("No se pudo borrar (HTTP "+rr.status+").\n\nFalta activar el permiso de borrado: corre la Capa5 en Supabase (SQL Editor) y reintenta."); return; }
+    let borradas=[]; try{ borradas=await rr.json(); }catch(_){}
+    if(!Array.isArray(borradas)||!borradas.length){ alert("La evidencia NO se borró (el servidor no eliminó ninguna fila).\n\nEsto pasa cuando el permiso de borrado no está activo: corre la Capa5 en Supabase (SQL Editor) y reintenta."); return; }   // 200 con 0 filas = RLS bloqueó
     if(e.storage_path){ try{ const p=e.storage_path.replace(/^evidencias\//,"").split("/").map(encodeURIComponent).join("/");
       await fetch(SB_URL+"/storage/v1/object/evidencias/"+p, {method:"DELETE", headers:adminHeaders()}); }catch(_){} }
     toast("Evidencia borrada ✓");
