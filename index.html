@@ -107,8 +107,17 @@
       <div class="mut" id="miCodHint">La app asigna el código automáticamente (siguiente consecutivo).</div>
       <button class="btn sec" id="miadd" style="margin-top:8px">Agregar a la lista</button>
       <div id="execList" class="list" style="margin-top:10px"></div>
+      <div class="h" style="margin-top:16px">Marca de agua (aplica a TODOS los operadores del evento)</div>
+      <div class="opts">
+        <div class="row">
+          <div><label>Posición</label><select id="emPos"><option value="bl">Inf. izq.</option><option value="br">Inf. der.</option><option value="tl">Sup. izq.</option><option value="tr">Sup. der.</option></select></div>
+          <div><label>Tamaño</label><select id="emEsc"><option value="2.6">Pequeño</option><option value="3.4" selected>Medio</option><option value="4.4">Grande</option><option value="5.6">Muy grande</option></select></div>
+        </div>
+        <label class="tgl"><input id="emOn" type="checkbox" checked> Aplicar marca de agua (dirección · fecha · hora)</label>
+      </div>
       <div style="height:14px"></div>
       <button class="btn" id="egen" disabled>Generar acceso para operadores</button>
+      <button class="btn" id="eguardar" style="margin-top:10px;display:none">Guardar cambios del evento</button>
       <div id="acWrap" class="hide">
         <div class="invite">
           <div class="it">Invitación · Captura de evidencias</div>
@@ -158,13 +167,13 @@
       <input id="vidf" type="file" accept="video/*" capture="environment">
       <input id="gal" type="file" accept="image/*" multiple>
       <div class="mut" id="gpsEstado" style="margin-top:6px;cursor:pointer"><b>Toca aquí para activar la ubicación.</b></div>
-      <div class="opts">
+      <!-- posición/tamaño/marca ahora los define el EJECUTIVO; estos inputs quedan ocultos y los lee el dibujo de marca -->
+      <div class="opts hide">
         <div class="row">
           <div><label>Posición</label><select id="pos"><option value="bl">Inf. izq.</option><option value="br">Inf. der.</option><option value="tl">Sup. izq.</option><option value="tr">Sup. der.</option></select></div>
           <div><label>Tamaño</label><select id="esc"><option value="2.6">Pequeño</option><option value="3.4" selected>Medio</option><option value="4.4">Grande</option><option value="5.6">Muy grande</option></select></div>
         </div>
         <label class="tgl"><input id="marca" type="checkbox" checked> Aplicar marca de agua (dirección · fecha · hora)</label>
-        <label class="tgl" style="margin-top:2px"><input id="backup" type="checkbox"> Guardar copia de cada foto en el dispositivo (respaldo)</label>
       </div>
     </div>
     <div class="card">
@@ -287,8 +296,6 @@ function linkExecDe(enc){ return PROD+"#e="+enc; }
 window.addEventListener("DOMContentLoaded", () => {
   aplicarMarca();
   $("odlink").value = localStorage.getItem("est_onedrive")||"";
-  if(localStorage.getItem("est_backup")) $("backup").checked=true;
-  $("backup").addEventListener("change", ()=>localStorage.setItem("est_backup", $("backup").checked?"1":""));
   const m = location.hash.match(/[#&]c=([^&]+)/);
   const me = location.hash.match(/[#&]e=([^&]+)/);
   const fromLink = m ? decCfg(decodeURIComponent(m[1])) : null;
@@ -311,22 +318,25 @@ $("efileReq").addEventListener("change", e=>{ if(e.target.files[0]) cargarReq(e.
 $("egen").addEventListener("click", generarAcceso);
 $("acCopy").addEventListener("click", ()=>{ if(navigator.clipboard) navigator.clipboard.writeText(invitacionTexto()); $("acCopy").textContent="Invitación copiada"; });
 $("acGo").addEventListener("click", ()=>{ saveConfigDesdeExec(); irALogin(); });
-$("acCopyExec").addEventListener("click", ()=>{ if(navigator.clipboard&&accesoExec) navigator.clipboard.writeText(accesoExec); $("acCopyExec").textContent="Enlace del ejecutivo copiado"; });
+$("eguardar").addEventListener("click", guardarEventoEditado);
+$("acCopyExec").addEventListener("click", ()=>{ const u=$("acLinkExec").textContent; if(navigator.clipboard&&u) navigator.clipboard.writeText(u); $("acCopyExec").textContent="Enlace del ejecutivo copiado"; });
 $("verHist").addEventListener("click", ()=>{ const l=$("histList"); l.classList.toggle("hide"); const abierto=!l.classList.contains("hide"); if(abierto) renderHistorial(); $("verHist").textContent=(abierto?"▾":"▸")+" Eventos configurados (historial)"; });
 function renderHistorial(){
-  const l=$("histList"); if(!l) return; const arr=Object.values(eventos()).sort((a,b)=>(b.consec||0)-(a.consec||0));
-  if(!arr.length){ l.innerHTML='<div class="mut">Aún no hay eventos configurados en este dispositivo.</div>'; return; }
-  l.innerHTML=arr.map(e=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.nItems||0} evidencias · creado ${e.creado||""}</div><div class="ac"><a class="lnk" onclick="copiarLink('${e.enc}','oper')">link operador</a><a class="lnk" onclick="copiarLink('${e.enc}','exec')">link ejecutivo</a><a class="lnk" onclick="abrirEvento('${e.enc}')">abrir</a></div></div></div>`).join("");
+  const l=$("histList"); if(!l) return; const entries=Object.entries(eventos()).sort((a,b)=>(b[1].consec||0)-(a[1].consec||0));
+  if(!entries.length){ l.innerHTML='<div class="mut">Aún no hay eventos configurados en este dispositivo.</div>'; return; }
+  l.innerHTML=entries.map(([id,e])=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.nItems||0} evidencias · ${e.actualizado||e.creado||""}</div><div class="ac"><a class="lnk" onclick="copiarLinkEv('${id}','oper')">link operador</a><a class="lnk" onclick="copiarLinkEv('${id}','exec')">link ejecutivo</a><a class="lnk" onclick="editarEventoId('${id}')">editar</a></div></div></div>`).join("");
 }
-window.copiarLink=(enc,tipo)=>{ const u=tipo==="exec"?linkExecDe(enc):linkOperDe(enc); if(navigator.clipboard) navigator.clipboard.writeText(u); alert((tipo==="exec"?"Enlace del ejecutivo":"Enlace del operador")+" copiado:\n\n"+u); };
-window.abrirEvento=(enc)=>{ const c=decCfg(decodeURIComponent(enc)); if(!c){ alert("No pude abrir ese evento."); return; } cfg=c; saveJSON("est_config",cfg); prefillExec(); show("exec"); window.scrollTo(0,0); };
+window.copiarLinkEv=(id,tipo)=>{ const e=eventos()[id]; if(!e) return; const full=tipo==="exec"?linkExecDe(e.enc):linkOperDe(e.enc); const u=(tipo==="exec"?e.shortExec:e.shortOper)||full; if(navigator.clipboard) navigator.clipboard.writeText(u); alert((tipo==="exec"?"Enlace del ejecutivo":"Enlace del operador")+" copiado:\n\n"+u); };
+window.editarEventoId=(id)=>{ const e=eventos()[id]; if(!e){ alert("No encontré el evento."); return; } editarEvento(e.enc); };
 $("goExec").addEventListener("click", ()=>{ prefillExec(); show("exec"); });
 $("goOper").addEventListener("click", ()=>{ if(cfg) irALogin(); else $("homeHint").textContent="Aún no hay una operación configurada en este dispositivo. Pide el enlace o QR de acceso a tu ejecutivo."; });
 function nextCodigo(){ let mx=0; execItems.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx) mx=n; }); return String(mx+1).padStart(2,"0"); }
 $("miadd").addEventListener("click", ()=>{ const req=$("mireq").value.trim(), cant=$("micant").value.trim(), prov=$("miprov").value.trim();
   if(!req){ alert("Escribe el requerimiento."); return; }
   execItems.push({codigo:nextCodigo(),req,cant,prov}); $("mireq").value=""; $("micant").value=""; renderExecItems(); $("mireq").focus(); });   // se conserva el proveedor para agregar varios del mismo
-function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||""})); renderExecItems(); } if(typeof renderHistorial==="function") renderHistorial(); }
+function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||""})); renderExecItems();
+    const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; } if(typeof renderHistorial==="function") renderHistorial();
+  if($("eguardar")){ if(cfg&&cfg.consec){ editandoId=eventoId(cfg); $("eguardar").style.display=""; } else { editandoId=null; $("eguardar").style.display="none"; } } }
 function renderExecItems(){
   const c=$("execList"); c.innerHTML="";
   execItems.forEach((it,idx)=>{ const d=document.createElement("div"); d.className="ev";
@@ -381,30 +391,58 @@ async function cargarReq(file){
 function chequearGen(){ $("egen").disabled = !(execItems.length && $("ecliente").value.trim() && $("eevento").value.trim()); }
 function saveConfigDesdeExec(){
   cfg = { cl:$("ecliente").value.trim(), ev:$("eevento").value.trim(), fe:$("efecha").value, ci:$("eciudad").value.trim(),
-          it:execItems.map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||""})), od:(localStorage.getItem("est_onedrive")||"") };
+          it:execItems.map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||""})),
+          marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked},   // marca definida por el ejecutivo, igual para todos
+          od:(localStorage.getItem("est_onedrive")||"") };
   saveJSON("est_config", cfg);
 }
-let accesoLink="", accesoExec="", accesoCorto="";
+let accesoLink="", accesoExec="", accesoCorto="", editandoId=null;
 function generarAcceso(){
   saveConfigDesdeExec();
   const enc=encodeURIComponent(encCfg(cfg));
   accesoLink=linkOperDe(enc); accesoExec=linkExecDe(enc); accesoCorto="";
   const consec=registrarEvento(cfg, enc); cfg.consec=consec; saveJSON("est_config",cfg);   // consecutivo del evento
+  editandoId=eventoId(cfg); $("eguardar").style.display="";   // ya es un evento existente -> permite guardar cambios
+  mostrarAcceso(consec);
+}
+/* Muestra el panel de acceso con el consecutivo y ambos enlaces (operador + ejecutivo) acortados. */
+function mostrarAcceso(consec){
   $("invCli").textContent = evConsecTag(consec)+" · "+(cfg.cl || "—");
   $("invEv").textContent = [cfg.ev, cfg.fe, cfg.ci].filter(Boolean).join("  ·  ");
-  $("acLink").textContent = "Generando enlace…";
-  $("acLinkExec").textContent = accesoExec;
-  $("acWrap").classList.remove("hide"); $("acCopy").textContent="Copiar invitación";
-  $("acQR").innerHTML="";
-  if(window.QRCode){ try{ new QRCode($("acQR"), {text:accesoLink, width:220, height:220, colorDark:MARCA.qr, colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.L}); }
-    catch(e){ $("acQR").innerHTML='<div class="mut">Lista muy larga para el QR; comparte el enlace.</div>'; } }
-  acortar(accesoLink);
+  $("acLink").textContent="Generando enlace…"; $("acLinkExec").textContent="Generando enlace…";
+  $("acWrap").classList.remove("hide"); $("acCopy").textContent="Copiar invitación (operador)";
+  pintarQR(accesoLink);
+  acortarAmbos(eventoId(cfg));
   renderHistorial();
 }
-async function acortar(url){
-  try{ const r=await fetch("https://tinyurl.com/api-create.php?url="+encodeURIComponent(url)); const s=(await r.text()).trim();
-    if(/^https?:\/\//.test(s)){ accesoCorto=s; $("acLink").textContent=s; return; } }catch(_){}
-  $("acLink").textContent = url;   // respaldo: enlace completo si el acortador falla
+function pintarQR(url){ $("acQR").innerHTML=""; if(window.QRCode){ try{ new QRCode($("acQR"), {text:url, width:220, height:220, colorDark:MARCA.qr, colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.L}); }catch(e){ $("acQR").innerHTML='<div class="mut">Lista muy larga para el QR; comparte el enlace.</div>'; } } }
+/* Acorta con TinyURL AMBOS enlaces (operador y ejecutivo). Funciona igual en iOS/PC/Android (es un fetch).
+   Si el acortador falla, deja el enlace completo. Guarda los cortos en el registro del evento. */
+async function shorten(url){ try{ const r=await fetch("https://tinyurl.com/api-create.php?url="+encodeURIComponent(url)); const s=(await r.text()).trim(); if(/^https?:\/\//.test(s)) return s; }catch(_){} return url; }
+async function acortarAmbos(id){
+  const [so,se]=await Promise.all([shorten(accesoLink), shorten(accesoExec)]);
+  accesoCorto=so; $("acLink").textContent=so; $("acLinkExec").textContent=se; pintarQR(so);   // QR con el enlace corto (más robusto)
+  try{ const all=eventos(); if(all[id]){ all[id].shortOper=so; all[id].shortExec=se; saveJSON("est_eventos",all); renderHistorial(); } }catch(_){}
+}
+/* Editar un evento del historial (conserva su consecutivo). */
+function editarEvento(enc){
+  const c=decCfg(decodeURIComponent(enc)); if(!c){ alert("No pude abrir ese evento."); return; }
+  cfg=c; saveJSON("est_config",cfg); editandoId=eventoId(cfg);
+  prefillExec(); show("exec"); $("eguardar").style.display=""; $("acWrap").classList.add("hide"); window.scrollTo(0,0);
+}
+/* Guardar cambios del evento en edición: MISMO consecutivo/identidad; regenera enlaces (cambian solo si cambió el contenido). */
+function guardarEventoEditado(){
+  if(!editandoId){ generarAcceso(); return; }
+  saveConfigDesdeExec();
+  const enc=encodeURIComponent(encCfg(cfg));
+  const all=eventos(); const prev=all[editandoId]||{};
+  const consec=prev.consec || (Object.values(all).reduce((m,x)=>Math.max(m,x.consec||0),0)+1);
+  const newId=eventoId(cfg); if(newId!==editandoId) delete all[editandoId];
+  all[newId]=Object.assign({}, prev, {consec, cl:cfg.cl, ev:cfg.ev, fe:cfg.fe||"", ci:cfg.ci||"", nItems:(cfg.it||[]).length, enc, actualizado:(new Date()).toISOString().slice(0,10)});
+  saveJSON("est_eventos", all); editandoId=newId; cfg.consec=consec; saveJSON("est_config",cfg);
+  accesoLink=linkOperDe(enc); accesoExec=linkExecDe(enc); accesoCorto="";
+  mostrarAcceso(consec);
+  alert("Cambios guardados en "+evConsecTag(consec)+" (mismo evento y consecutivo).\n\nSi cambiaste requerimientos o la marca, el enlace del operador se actualizó — vuelve a compartirlo.");
 }
 function invitacionTexto(){
   const link = accesoCorto || accesoLink;
@@ -439,6 +477,7 @@ function poblarItemTop(){
 }
 function irACaptura(){
   poblarItemTop();
+  const mk=(cfg&&cfg.marca)||{}; $("pos").value=mk.pos||"bl"; $("esc").value=mk.esc||"3.4"; $("marca").checked=mk.on!==false;   // marca fijada por el ejecutivo
   $("ctx").textContent = (cfg.cl||"—")+" · "+(cfg.ev||"—")+((operador&&operador.prov)?("  ·  "+operador.prov):"");
   batch=[]; renderLista(); show("cap"); window.scrollTo(0,0); pedirUbicacion(); actualizarGuia();
   cargarLote().then(()=>{ if(batch.length){ renderLista(); actualizarGuia(); } });   // restaura el lote en curso si quedó de una sesión anterior
@@ -771,7 +810,7 @@ async function capturar(){
   const v=$("video"); if(!v.videoWidth) return;
   const c=document.createElement("canvas"); c.width=v.videoWidth; c.height=v.videoHeight; c.getContext("2d").drawImage(v,0,0);
   const blob=await new Promise(r=>c.toBlob(r,"image/jpeg",0.92));
-  if($("backup")&&$("backup").checked){ try{ const t=new Date(); bajar(blob, `foto_${slug(cfg.ev)}_${z(t.getHours())}${z(t.getMinutes())}${z(t.getSeconds())}.jpg`); }catch(_){} }   // respaldo en el dispositivo
+  try{ const t=new Date(); bajar(blob, `foto_${slug(cfg.ev)}_${z(t.getHours())}${z(t.getMinutes())}${z(t.getSeconds())}.jpg`); }catch(_){}   // respaldo en el dispositivo (siempre activo)
   $("camhint").textContent="Ubicando…"; const coords=await posActual(); const now=new Date();
   const meta={fecha:`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`,hora:`${z(now.getHours())}:${z(now.getMinutes())}`,lat:coords?coords.latitude:null,lon:coords?coords.longitude:null};
   agregar([new File([blob],"captura.jpg",{type:"image/jpeg"})], meta);
