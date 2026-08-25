@@ -197,8 +197,6 @@
       <div class="list" id="list"></div>
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
-      <button class="btn sec" id="compartir" disabled style="margin-top:10px">Compartir (WhatsApp / correo)</button>
-      <div style="text-align:center;margin-top:12px"><a class="lnk dis" id="zip">Descargar respaldo (ZIP)</a></div>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
@@ -257,6 +255,19 @@
   <div class="bar"><button class="btn sec" id="camClose">Cerrar</button><button class="btn" id="camShot">Capturar</button><button class="btn sec" id="camFlip">Girar</button></div>
 </div>
 
+<!-- ENVÍO EXITOSO -->
+<div id="okm" class="modal hide"><div class="sheet" style="text-align:center">
+  <div style="font-size:44px;line-height:1">✅</div>
+  <div class="h" style="color:var(--azul);justify-content:center;margin-top:6px">Envío exitoso</div>
+  <div id="okRad" style="font-family:var(--mono);font-size:14px;font-weight:800;color:var(--txt);margin:2px 0"></div>
+  <div class="mut" id="okDet"></div>
+  <div style="height:14px"></div>
+  <button class="btn" id="okShare">Compartir por WhatsApp / correo</button>
+  <div style="text-align:center;margin-top:10px"><a class="lnk" id="okZip">Descargar comprobante (ZIP)</a></div>
+  <div style="height:12px"></div>
+  <button class="btn sec" id="okClose">Listo</button>
+</div></div>
+
 <div id="toast" class="toast"></div>
 
 <!-- LIGHTBOX (ver foto grande) -->
@@ -264,7 +275,7 @@
   <div style="width:100%;max-width:660px;text-align:center">
     <img id="lbImg" style="max-width:100%;max-height:74vh;border-radius:10px;background:#000;display:block;margin:0 auto">
     <div id="lbName" style="color:#e7edf5;font-family:var(--mono);font-size:11.5px;word-break:break-all;margin-top:10px;background:rgba(0,0,0,.35);padding:8px 10px;border-radius:8px"></div>
-    <button class="btn" id="lbClose" style="margin-top:12px;max-width:220px">Cerrar</button>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:12px"><button class="btn sec" id="lbDown" style="max-width:170px">Descargar</button><button class="btn" id="lbClose" style="max-width:170px">Cerrar</button></div>
   </div>
 </div>
 
@@ -576,29 +587,53 @@ async function adminCargarEventos(){
   }catch(_){ l.innerHTML='<div class="mut">Error al cargar.</div>'; }
 }
 window.adminCopiar=(i,tipo)=>{ const e=adminEventos[i]; if(!e) return; const u=tipo==="exec"?linkExec(e.uid):linkOper(e.uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del ejecutivo":"Enlace del operador")); };   // siempre el enlace directo ?ev= (nunca tinyurl viejo)
-let adminFotoURLs={};
+let adminFotoURLs={}, adminEvidencias=[], lbActual=null;
 function fmtFecha(iso){ try{ const d=new Date(iso); if(isNaN(d)) return iso||""; return `${z(d.getDate())}/${z(d.getMonth()+1)}/${d.getFullYear()} ${z(d.getHours())}:${z(d.getMinutes())}`; }catch(_){ return iso||""; } }
 window.adminAbrir=async(i)=>{
   const ev=adminEventos[i]; if(!ev) return;
   $("adBack").classList.remove("hide"); $("adTitulo").textContent=`${ev.cl||""} — ${ev.ev||""}`;
-  const l=$("adLista"); l.innerHTML='<div class="mut">Cargando evidencias…</div>'; adminFotoURLs={};
+  const l=$("adLista"); l.innerHTML='<div class="mut">Cargando evidencias…</div>'; adminFotoURLs={}; adminEvidencias=[];
   try{
     const r=await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid)+"&select=*&order=creado.asc",{headers:adminHeaders()});
     if(r.status===401){ adminSesExpirada(); return; }
-    const arr=await r.json();
+    const arr=await r.json(); adminEvidencias=arr;
     if(!arr.length){ l.innerHTML='<div class="mut">Este evento aún no tiene evidencias enviadas.</div>'; return; }
-    l.innerHTML=`<div class="mut" style="margin-bottom:8px">${arr.length} evidencia(s) · toca una foto para verla grande</div>`+arr.map((e,j)=>`<div class="ev"><div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})"><img id="adimg${j}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5"></div><div class="in"><b>${e.item||""}</b> · ${(e.requerimiento||"").slice(0,38)}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${e.operador_nombre||""}${e.operador_cedula?" · "+e.operador_cedula:""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}</div><div class="fn" style="margin-top:3px">${e.archivo||""}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${(e.lugar||"").slice(0,60)}</div>`:""}</div></div>`).join("");
+    const cab=`<div class="mut" style="margin-bottom:6px">${arr.length} evidencia(s) · toca una foto para verla grande</div>`
+      +`<div style="display:flex;gap:16px;margin-bottom:10px"><a class="lnk" onclick="adminManifiesto()">⬇ Manifiesto (CSV)</a><a class="lnk" onclick="adminFotosZIP()">⬇ Fotos (ZIP)</a></div>`;
+    l.innerHTML=cab+arr.map((e,j)=>`<div class="ev"><div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})"><img id="adimg${j}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5"></div><div class="in"><b>${e.item||""}</b> · ${(e.requerimiento||"").slice(0,38)}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${e.operador_nombre||""}${e.operador_cedula?" · "+e.operador_cedula:""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+e.radicado:""}</div><div class="fn" style="margin-top:3px">${e.archivo||""}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${(e.lugar||"").slice(0,60)}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a></div></div></div>`).join("");
     arr.forEach((e,j)=>adminCargarFoto("adimg"+j, e.storage_path, j, e.archivo));
   }catch(_){ l.innerHTML='<div class="mut">Error al cargar evidencias.</div>'; }
 };
 async function adminCargarFoto(imgId, storagePath, j, nombre){
   if(!storagePath){ return; } const img=$(imgId); if(!img) return;
   try{ const url=SB_URL+"/storage/v1/object/authenticated/"+storagePath.split("/").map(encodeURIComponent).join("/");
-    const r=await fetch(url,{headers:adminHeaders()}); if(r.ok){ const u=URL.createObjectURL(await r.blob()); img.src=u; if(j!=null) adminFotoURLs[j]={url:u, nombre:nombre||""}; } }catch(_){}
+    const r=await fetch(url,{headers:adminHeaders()}); if(r.ok){ const b=await r.blob(); const u=URL.createObjectURL(b); img.src=u; if(j!=null) adminFotoURLs[j]={url:u, nombre:nombre||"", blob:b}; } }catch(_){}
 }
-window.adminVerFoto=(j)=>{ const f=adminFotoURLs[j]; if(!f) return; $("lbImg").src=f.url; $("lbName").textContent=f.nombre||""; $("lightbox").classList.remove("hide"); };
+window.adminVerFoto=(j)=>{ const f=adminFotoURLs[j]; if(!f) return; lbActual=j; $("lbImg").src=f.url; $("lbName").textContent=f.nombre||""; $("lightbox").classList.remove("hide"); };
+window.descargarFoto=(j)=>{ const f=adminFotoURLs[j]; if(!f){ toast("La foto aún se está cargando…"); return; } const a=document.createElement("a"); a.href=f.url; a.download=f.nombre||"evidencia.jpg"; a.click(); };
 $("lbClose").addEventListener("click", ()=>$("lightbox").classList.add("hide"));
+$("lbDown").addEventListener("click", ()=>{ if(lbActual!=null) descargarFoto(lbActual); });
 $("lightbox").addEventListener("click", e=>{ if(e.target.id==="lightbox") $("lightbox").classList.add("hide"); });
+/* Manifiesto CSV del evento (se genera desde la tabla -> siempre al día con todo lo enviado) */
+window.adminManifiesto=()=>{
+  const arr=adminEvidencias; if(!arr.length){ toast("Sin evidencias"); return; }
+  const cols=["radicado","evento_consec","cliente","evento","item","requerimiento","proveedor","adicional","solicitado_por","justificacion","operador_nombre","operador_cedula","operador_celular","tipo","archivo","fecha","hora","lugar","lat","lon","creado"];
+  let csv=cols.join(",")+"\n";
+  arr.forEach(e=>{ csv+=cols.map(c=>{ const v=(c==="evento_consec")?(e.consec?evConsecTag(e.consec):""):(e[c]!=null?e[c]:""); return csvCell(v); }).join(",")+"\n"; });
+  bajar(new Blob([csv],{type:"text/csv"}), `manifiesto_${slug(arr[0].cliente||"")}_${slug(arr[0].evento||"")}.csv`);
+};
+/* ZIP con las fotos cargadas + manifiesto */
+window.adminFotosZIP=async()=>{
+  const arr=adminEvidencias; const idx=Object.keys(adminFotoURLs);
+  if(!idx.length){ toast("Las fotos aún se están cargando…"); return; }
+  toast("Generando ZIP…"); const zip=new JSZip();
+  idx.forEach(j=>{ const f=adminFotoURLs[j]; if(f&&f.blob) zip.file(f.nombre||("foto_"+j+".jpg"), f.blob); });
+  const cols=["radicado","cliente","evento","item","requerimiento","operador_nombre","archivo","fecha","hora","lugar","creado"];
+  let csv=cols.join(",")+"\n"; arr.forEach(e=>{ csv+=cols.map(c=>csvCell(e[c]!=null?e[c]:"")).join(",")+"\n"; });
+  zip.file("manifiesto.csv", csv);
+  bajar(await zip.generateAsync({type:"blob"}), `fotos_${slug(arr[0].cliente||"")}_${slug(arr[0].evento||"")}.zip`);
+  toast("ZIP descargado");
+};
 
 /* ---- OPERADOR: captura ---- */
 function poblarItemTop(){
@@ -711,9 +746,7 @@ $("opClose").addEventListener("click", ()=>$("opm").classList.add("hide"));
 $("opSave").addEventListener("click", ()=>{ const n=$("onom").value.trim(),c=$("oced").value.trim(),ce=$("ocel").value.trim(); if(!n||!c||!ce){ alert("Completa nombre, cédula y celular."); return; }
   const nuevo={nombre:n,cedula:c,celular:ce}; if(hayProv()){ const p=$("oprov").value; if(!p){ alert("Selecciona tu proveedor."); return; } nuevo.prov=p; }
   operador=nuevo; saveJSON("est_operador",operador); pintarWho(); $("opm").classList.add("hide"); poblarItemTop(); $("ctx").textContent=(cfg.cl||"—")+" · "+(cfg.ev||"—")+(operador.prov?("  ·  "+operador.prov):""); renderLista(); });
-$("zip").addEventListener("click", ()=>empaquetar("zip"));
 $("enviar").addEventListener("click", ()=>empaquetar("supabase"));
-$("compartir").addEventListener("click", ()=>empaquetar("compartir"));
 
 
 /* ---- lote ---- */
@@ -785,7 +818,7 @@ function renderLista(){
   const listas=batch.filter(e=>e.status==="listo").length;
   const sinReq=batch.filter(e=>e.status==="listo"&&!e.itemCodigo).length;
   $("cnt").innerHTML = batch.length ? (`${listas}/${batch.length} listas`+(sinReq?` · <span style="color:#b3261e">${sinReq} sin requerimiento</span>`:"")) : "Aún no agregas evidencias.";
-  $("enviar").disabled=listas===0; if($("compartir")) $("compartir").disabled=listas===0; if($("zip")) $("zip").classList.toggle("dis",listas===0);
+  $("enviar").disabled=listas===0;
   batch.forEach(e=>{
     const opts=`<option value="" ${!e.itemCodigo?"selected":""}>— Selecciona requerimiento —</option>`+itemsDelOperador().map(it=>`<option value="${it.codigo}" ${it.codigo===e.itemCodigo?"selected":""}>${it.codigo}${it.req?" · "+it.req.slice(0,26):""}</option>`).join("");
     const d=document.createElement("div"); d.className="ev";
@@ -828,11 +861,11 @@ async function redibujarTodas(){
 
 function csvCell(v){ v=String(v==null?"":v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 let enviando=false;
-function construirCSV(listas){
-  let csv="operador_cedula,operador_nombre,operador_celular,operador_proveedor,cliente,evento,evento_consec,evento_fecha,evento_ciudad,item,cantidad,proveedor,adicional,solicitado_por,justificacion,tipo,archivo,fecha,hora,lugar,lat,lon\n";
-  const evc=cfg.consec?evConsecTag(cfg.consec):"";
+function construirCSV(listas, radicado){
+  let csv="radicado,operador_cedula,operador_nombre,operador_celular,operador_proveedor,cliente,evento,evento_consec,evento_fecha,evento_ciudad,item,cantidad,proveedor,adicional,solicitado_por,justificacion,tipo,archivo,fecha,hora,lugar,lat,lon\n";
+  const evc=cfg.consec?evConsecTag(cfg.consec):""; const rad=radicado||"";
   listas.forEach(e=>{ const ad=itemAdic(e.itemCodigo);
-    csv+=[operador.cedula,operador.nombre,operador.celular,(operador.prov||""),cfg.cl,cfg.ev,evc,cfg.fe||"",cfg.ci||"",e.itemCodigo,itemCant(e.itemCodigo),itemProv(e.itemCodigo),(ad?"SI":""),(ad?ad.solicitadoPor:""),(ad?ad.justificacion:""),e.tipo||"foto",e.filename,e.datos.fecha,e.datos.hora,e.datos.lugar,e.datos.lat,e.datos.lon].map(csvCell).join(",")+"\n"; });
+    csv+=[rad,operador.cedula,operador.nombre,operador.celular,(operador.prov||""),cfg.cl,cfg.ev,evc,cfg.fe||"",cfg.ci||"",e.itemCodigo,itemCant(e.itemCodigo),itemProv(e.itemCodigo),(ad?"SI":""),(ad?ad.solicitadoPor:""),(ad?ad.justificacion:""),e.tipo||"foto",e.filename,e.datos.fecha,e.datos.hora,e.datos.lugar,e.datos.lat,e.datos.lon].map(csvCell).join(",")+"\n"; });
   return csv;
 }
 async function descargarZIP(listas, csv, exito){
@@ -882,7 +915,7 @@ async function compartirMedia(listas, csv, exito){
   } else { await descargarZIP(listas, csv, exito); }
 }
 /* Sube UNA evidencia: la foto al bucket + la fila de metadatos a la tabla. Devuelve true si ambas OK. */
-async function subirEvidencia(e){
+async function subirEvidencia(e, radicado){
   try{
     const path=(cfg.uid||"sinuid")+"/"+e.filename;
     const up=await fetch(SB_URL+"/storage/v1/object/evidencias/"+encodeURI(path), {method:"POST",
@@ -892,30 +925,45 @@ async function subirEvidencia(e){
       if(!dup) return false;
     }
     const ad=itemAdic(e.itemCodigo)||{};
-    const row={ evento_uid:cfg.uid||"", consec:cfg.consec||null, cliente:cfg.cl, evento:cfg.ev,
+    const row={ radicado:radicado||"", evento_uid:cfg.uid||"", consec:cfg.consec||null, cliente:cfg.cl, evento:cfg.ev,
       item:e.itemCodigo, requerimiento:itemReq(e.itemCodigo), proveedor:itemProv(e.itemCodigo),
       adicional:!!itemAdic(e.itemCodigo), solicitado_por:ad.solicitadoPor||"", justificacion:ad.justificacion||"",
       operador_nombre:operador.nombre, operador_cedula:operador.cedula, operador_celular:operador.celular,
       tipo:e.tipo||"foto", archivo:e.filename, storage_path:"evidencias/"+path,
       fecha:e.datos.fecha||"", hora:e.datos.hora||"", lugar:e.datos.lugar||"", lat:e.datos.lat, lon:e.datos.lon };
-    const ins=await fetch(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row)});
+    let ins=await fetch(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row)});
+    if(!ins.ok && radicado){ const row2=Object.assign({},row); delete row2.radicado;   // por si la columna radicado aún no existe: reintentar sin ella
+      ins=await fetch(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row2)}); }
     return ins.ok;
   }catch(_){ return false; }
 }
 /* Sube todo el lote a la base, con progreso. Las que fallan (sin señal) se quedan para reintentar. */
+let envioActual=null;
+function nuevoRadicado(){ const t=new Date(); const ev=(cfg&&cfg.consec)?String(cfg.consec).padStart(3,"0"):"000"; return `RAD-${ev}-${String(t.getFullYear()).slice(2)}${z(t.getMonth()+1)}${z(t.getDate())}-${z(t.getHours())}${z(t.getMinutes())}${z(t.getSeconds())}`; }
 async function enviarASupabase(listas, exito){
+  const radicado=nuevoRadicado(); const csv=construirCSV(listas, radicado);
   const fallidos=[]; let ok=0;
   for(let i=0;i<listas.length;i++){
     $("sendInfo").textContent=`Subiendo a la base ${i+1}/${listas.length}…`;
-    if(await subirEvidencia(listas[i])) ok++; else fallidos.push(listas[i]);
+    if(await subirEvidencia(listas[i], radicado)) ok++; else fallidos.push(listas[i]);
   }
-  if(!fallidos.length){ $("sendInfo").innerHTML=`✅ ${ok} evidencia(s) subidas a la base.`; exito(); }
+  if(!fallidos.length){
+    envioActual={radicado, listas:listas.slice(), csv};
+    $("sendInfo").textContent="";
+    $("okRad").textContent="Radicado: "+radicado;
+    $("okDet").textContent=`${ok} evidencia(s) registradas en la base`;
+    $("okm").classList.remove("hide");
+    exito();
+  }
   else{
     const subidas=listas.filter(e=>!fallidos.includes(e));
     if(subidas.length) marcarSubidas(subidas);   // las que sí subieron salen del lote
     $("sendInfo").innerHTML=`Subidas ${ok}, fallaron ${fallidos.length} (¿sin señal?). Reintenta «Enviar». <span class="mut">Tus fotos siguen aquí y respaldadas en el dispositivo.</span>`;
   }
 }
+$("okClose").addEventListener("click", ()=>$("okm").classList.add("hide"));
+$("okShare").addEventListener("click", ()=>{ if(envioActual) compartirMedia(envioActual.listas, envioActual.csv, ()=>{}); });
+$("okZip").addEventListener("click", ()=>{ if(envioActual) descargarZIP(envioActual.listas, envioActual.csv, ()=>{}); });
 function bajar(blob,nombre){ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=nombre; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); }
 
 /* ---- cámara (foto/video in-app) ---- */
