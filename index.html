@@ -199,7 +199,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v4 · 25ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v5 · 25ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -953,8 +953,15 @@ async function descargarZIP(listas, csv, exito){
   bajar(blob,nombre); $("sendInfo").innerHTML='ZIP «'+nombre+'» descargado (respaldo).'; exito();
 }
 async function empaquetar(accion, saltarMin){   // accion: "supabase" | "compartir" | "zip"; saltarMin: reintento de las que fallaron
-  if(enviando){ toast("Envío en curso, espera un momento…"); return; }
-  const listas=batch.filter(e=>e.status==="listo"); if(!listas.length){ toast("No hay evidencias listas para enviar."); return; }
+  if(enviando){ $("sendInfo").innerHTML='<b style="color:#b3261e">Ya hay un envío en curso.</b> Espera a que termine (verás el resultado aquí).'; return; }
+  const listas=batch.filter(e=>e.status==="listo");
+  if(!listas.length){
+    const est=batch.map(e=>(e.status||"?")).join(", ");
+    $("sendInfo").innerHTML = batch.length
+      ? `<b style="color:#b3261e">Ninguna de tus ${batch.length} foto(s) está lista todavía</b> (estado: ${est}). Espera unos segundos a que terminen de procesarse y vuelve a tocar Enviar.`
+      : `<b style="color:#b3261e">Aún no has agregado fotos.</b>`;
+    return;
+  }
   const sinReq=listas.filter(e=>!e.itemCodigo);
   if(sinReq.length){ alert(`Hay ${sinReq.length} evidencia(s) sin requerimiento asignado. Selecciona un requerimiento en cada una (menú ↑) antes de continuar.`); renderLista(); return; }
   // Mínimo 3 por requerimiento para ENVIAR/COMPARTIR (Descargar ZIP se permite como respaldo sin el mínimo).
@@ -975,9 +982,10 @@ async function empaquetar(accion, saltarMin){   // accion: "supabase" | "compart
     if(accion==="zip"){ await descargarZIP(listas, csv, exito); return; }
     if(accion==="compartir"){ await compartirMedia(listas, csv, exito); return; }
     await enviarASupabase(listas, exito);   // "supabase": sube a la base (bucket + tabla)
-  } catch(err){   // NADA falla en silencio: cualquier error muestra el popup con el detalle
-    $("sendInfo").textContent="";
-    $("failDet").innerHTML=`Ocurrió un error al enviar.<br><span class="mut" style="font-size:12px">Detalle: ${((err&&(err.message||err.name))||err)}</span>`;
+  } catch(err){   // NADA falla en silencio: cualquier error muestra el popup + texto fijo con el detalle
+    const det=((err&&(err.message||err.name))||err);
+    $("sendInfo").innerHTML=`<span style="color:#b3261e">⚠️ Error al enviar. Detalle: ${det}</span>`;
+    $("failDet").innerHTML=`Ocurrió un error al enviar.<br><span class="mut" style="font-size:12px">Detalle: ${det}</span>`;
     $("failm").classList.remove("hide");
   } finally { enviando=false; $("enviar").textContent="Enviar evidencias"; renderLista(); }
 }
@@ -1035,7 +1043,7 @@ async function enviarASupabase(listas, exito){
   }
   if(!fallidos.length){
     envioActual={radicado, listas:listas.slice(), csv};
-    $("sendInfo").textContent="";
+    $("sendInfo").innerHTML=`<b style="color:#1a7f37">✅ Enviado. ${ok} evidencia(s) en la base.</b><br><span class="mut" style="font-size:12px">${radicado}</span>`;
     $("okRad").textContent="Radicado: "+radicado;
     $("okDet").textContent=`${ok} evidencia(s) registradas en la base`;
     $("okm").classList.remove("hide");
@@ -1045,11 +1053,12 @@ async function enviarASupabase(listas, exito){
     const subidas=listas.filter(e=>!fallidos.includes(e));
     if(subidas.length) marcarSubidas(subidas);   // las que sí subieron salen del lote
     envioActual={radicado, listas:fallidos.slice(), csv:construirCSV(fallidos, radicado)};   // reintento/ZIP = solo las que fallaron
-    $("sendInfo").textContent="";
-    $("failDet").innerHTML = (ok>0
+    const txt=(ok>0
       ? `Se subieron <b>${ok}</b>, pero <b>${fallidos.length}</b> no cargaron.`
       : `No se pudo subir ninguna de las <b>${fallidos.length}</b> evidencias.`)
       + (ultimoErr?`<br><span class="mut" style="font-size:12px">Motivo: ${ultimoErr}</span>`:"");
+    $("sendInfo").innerHTML=`<span style="color:#b3261e">⚠️ ${txt}</span>`;
+    $("failDet").innerHTML = txt;
     $("failm").classList.remove("hide");
   }
 }
