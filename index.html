@@ -258,6 +258,14 @@ function aplicarMarca(){
   else { if(img) img.style.display="none"; if(word){ word.innerHTML=MARCA.word; word.style.display=""; } }
 }
 const PROD = "https://danielrpon.github.io/gestor-de-ejecucion/";  // el QR/enlace SIEMPRE apunta a la app publicada (no a file://)
+/* ---- Supabase: base de datos de eventos (histórico + compartido entre dispositivos + links estables) ---- */
+const SB_URL="https://yjrhnyyftnrmofqrtzmv.supabase.co";
+const SB_KEY="sb_publishable_uYKPtqQlONKLhQZCpnDRsw_vwQi8iwv";   // publishable key (segura en el navegador)
+const SB_H={apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":"application/json"};
+async function sbSave(row){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify(row)}); return r.ok; }catch(_){ return false; } }
+async function sbGet(uid){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos?uid=eq."+encodeURIComponent(uid)+"&select=*",{headers:SB_H}); if(!r.ok) return null; const a=await r.json(); return a[0]||null; }catch(_){ return null; } }
+async function sbList(){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos?select=*&order=consec.desc",{headers:SB_H}); if(!r.ok) return null; return await r.json(); }catch(_){ return null; } }
+async function sbMaxConsec(){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos?select=consec&order=consec.desc&limit=1",{headers:SB_H}); if(r.ok){ const a=await r.json(); if(a.length) return a[0].consec||0; } }catch(_){} return 0; }
 let cfg = null;              // {cl, ev, it:[{codigo,req}], od}
 let operador = loadJSON("est_operador", null);
 let counters = loadJSON("est_counters", {});
@@ -280,32 +288,47 @@ function decCfg(s){ try{ return JSON.parse(decodeURIComponent(escape(atob(s))));
    Cada evento queda registrado con un consecutivo (EV-001, EV-002…) y el config codificado,
    para reconstruir el link de operador (#c=) y el de ejecutivo (#e=). Los datos de cada evento
    (counters, adicionales, lote) ya viven namespaced por cliente|evento, así que NO se mezclan. */
-function eventos(){ return loadJSON("est_eventos", {}); }
-function eventoId(c){ return slug(c.cl)+"_"+slug(c.ev)+(c.fe?("_"+c.fe):""); }
+function eventos(){ return loadJSON("est_eventos", {}); }                 // cache local por uid (respaldo si no hay señal)
+function cacheEvento(rec){ try{ if(rec&&rec.uid){ const all=eventos(); all[rec.uid]=rec; saveJSON("est_eventos",all); } }catch(_){} }
 function evConsecTag(n){ return "EV-"+String(n).padStart(3,"0"); }
-function registrarEvento(c, enc){
-  const all=eventos(); const id=eventoId(c);
-  if(!all[id]){ let mx=0; Object.values(all).forEach(e=>{ if((e.consec||0)>mx) mx=e.consec; }); all[id]={consec:mx+1, creado:(new Date()).toISOString().slice(0,10)}; }
-  Object.assign(all[id], {cl:c.cl, ev:c.ev, fe:c.fe||"", ci:c.ci||"", nItems:(c.it||[]).length, enc, actualizado:(new Date()).toISOString().slice(0,10)});
-  saveJSON("est_eventos", all); return all[id].consec;
+function nuevoUid(){ return "ev"+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function linkOper(uid){ return PROD+"?ev="+uid; }                          // link estable de operador
+function linkExec(uid){ return PROD+"?ev="+uid+"&rol=ex"; }                 // link estable de ejecutivo
+async function nextConsec(){ const mx=await sbMaxConsec(); const local=Object.values(eventos()).reduce((m,x)=>Math.max(m,x.consec||0),0); return Math.max(mx,local)+1; }
+/* Guarda/actualiza el evento en Supabase (y en cache local). Devuelve true si Supabase confirmó. */
+async function persistirEvento(shortOper, shortExec){
+  const rec={ uid:cfg.uid, consec:cfg.consec, cl:cfg.cl, ev:cfg.ev, fe:cfg.fe||"", ci:cfg.ci||"", n_items:(cfg.it||[]).length,
+    config:cfg, short_oper:shortOper||"", short_exec:shortExec||"", actualizado:(new Date()).toISOString() };
+  cacheEvento(rec); return await sbSave(rec);
 }
-function linkOperDe(enc){ return PROD+"#c="+enc; }
-function linkExecDe(enc){ return PROD+"#e="+enc; }
 
 /* ---- arranque: decide rol ---- */
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
   aplicarMarca();
   $("odlink").value = localStorage.getItem("est_onedrive")||"";
+  const params=new URLSearchParams(location.search);
+  const evUid=params.get("ev"); const rolQ=params.get("rol");
   const m = location.hash.match(/[#&]c=([^&]+)/);
   const me = location.hash.match(/[#&]e=([^&]+)/);
   const fromLink = m ? decCfg(decodeURIComponent(m[1])) : null;
   const fromExec = me ? decCfg(decodeURIComponent(me[1])) : null;
+  if(evUid){                                                 // link ESTABLE ?ev=<uid> (config desde Supabase)
+    const rec=await sbGet(evUid) || eventos()[evUid];
+    if(rec&&rec.config){
+      cfg=rec.config; cfg.uid=evUid; cfg.consec=rec.consec; saveJSON("est_config",cfg); cacheEvento(rec);
+      if(cfg.od && !localStorage.getItem("est_onedrive")){ localStorage.setItem("est_onedrive",cfg.od); $("odlink").value=cfg.od; }
+      pintarWho();
+      if(rolQ==="ex"){ editandoId=evUid; prefillExec(); show("exec"); $("eguardar").style.display=""; }   // ejecutivo -> editar
+      else irALogin();                                       // operador -> capturar
+    } else { cfg=loadJSON("est_config",null); pintarWho(); if($("homeHint")) $("homeHint").textContent="No pude cargar el evento. Revisa tu conexión y vuelve a abrir el enlace."; show("home"); }
+    return;
+  }
   cfg = fromExec || fromLink || loadJSON("est_config", null);
   if(fromExec || fromLink){ saveJSON("est_config", cfg); if(cfg.od && !localStorage.getItem("est_onedrive")){ localStorage.setItem("est_onedrive",cfg.od); $("odlink").value=cfg.od; } }
   pintarWho();
   const hash = location.hash.replace(/^#/,"");
-  if(fromExec){ prefillExec(); show("exec"); }             // enlace del EJECUTIVO -> re-editar el evento
-  else if(fromLink) irALogin();                            // enlace/QR de OPERADOR -> capturar
+  if(fromExec){ prefillExec(); show("exec"); }             // link viejo del EJECUTIVO (compatibilidad)
+  else if(fromLink) irALogin();                            // link viejo de OPERADOR (compatibilidad)
   else if(hash==="admin"){ prefillExec(); show("exec"); }  // URL de administrador -> ejecutivo
   else show("home");                                       // URL base -> elegir rol
 });
@@ -321,13 +344,17 @@ $("acGo").addEventListener("click", ()=>{ saveConfigDesdeExec(); irALogin(); });
 $("eguardar").addEventListener("click", guardarEventoEditado);
 $("acCopyExec").addEventListener("click", ()=>{ const u=$("acLinkExec").textContent; if(navigator.clipboard&&u) navigator.clipboard.writeText(u); $("acCopyExec").textContent="Enlace del ejecutivo copiado"; });
 $("verHist").addEventListener("click", ()=>{ const l=$("histList"); l.classList.toggle("hide"); const abierto=!l.classList.contains("hide"); if(abierto) renderHistorial(); $("verHist").textContent=(abierto?"▾":"▸")+" Configuración de eventos"; });
-function renderHistorial(){
-  const l=$("histList"); if(!l) return; const entries=Object.entries(eventos()).sort((a,b)=>(b[1].consec||0)-(a[1].consec||0));
-  if(!entries.length){ l.innerHTML='<div class="mut">Aún no hay eventos configurados en este dispositivo.</div>'; return; }
-  l.innerHTML=entries.map(([id,e])=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.nItems||0} evidencias · ${e.actualizado||e.creado||""}</div><div class="ac"><a class="lnk" onclick="copiarLinkEv('${id}','oper')">link operador</a><a class="lnk" onclick="copiarLinkEv('${id}','exec')">link ejecutivo</a><a class="lnk" onclick="editarEventoId('${id}')">editar</a></div></div></div>`).join("");
+async function renderHistorial(){
+  const l=$("histList"); if(!l) return;
+  let arr=await sbList();                                       // fuente: Supabase (compartido entre dispositivos)
+  if(arr){ const cache={}; arr.forEach(e=>cache[e.uid]=e); saveJSON("est_eventos",cache); }   // refresca cache local
+  else arr=Object.values(eventos());                           // respaldo: cache local si no hay señal
+  arr=arr.slice().sort((a,b)=>(b.consec||0)-(a.consec||0));
+  if(!arr.length){ l.innerHTML='<div class="mut">Aún no hay eventos configurados.</div>'; return; }
+  l.innerHTML=arr.map(e=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.n_items||0} evidencias</div><div class="ac"><a class="lnk" onclick="copiarLinkEv('${e.uid}','oper')">link operador</a><a class="lnk" onclick="copiarLinkEv('${e.uid}','exec')">link ejecutivo</a><a class="lnk" onclick="editarEventoId('${e.uid}')">editar</a></div></div></div>`).join("");
 }
-window.copiarLinkEv=(id,tipo)=>{ const e=eventos()[id]; if(!e) return; const full=tipo==="exec"?linkExecDe(e.enc):linkOperDe(e.enc); const u=(tipo==="exec"?e.shortExec:e.shortOper)||full; if(navigator.clipboard) navigator.clipboard.writeText(u); alert((tipo==="exec"?"Enlace del ejecutivo":"Enlace del operador")+" copiado:\n\n"+u); };
-window.editarEventoId=(id)=>{ const e=eventos()[id]; if(!e){ alert("No encontré el evento."); return; } editarEvento(e.enc); };
+window.copiarLinkEv=(uid,tipo)=>{ const e=eventos()[uid]; const full=tipo==="exec"?linkExec(uid):linkOper(uid); const u=(e&&(tipo==="exec"?e.short_exec:e.short_oper))||full; if(navigator.clipboard) navigator.clipboard.writeText(u); alert((tipo==="exec"?"Enlace del ejecutivo":"Enlace del operador")+" copiado:\n\n"+u); };
+window.editarEventoId=(uid)=>{ editarEvento(uid); };
 $("goExec").addEventListener("click", ()=>{ prefillExec(); show("exec"); });
 $("goOper").addEventListener("click", ()=>{ if(cfg) irALogin(); else $("homeHint").textContent="Aún no hay una operación configurada en este dispositivo. Pide el enlace o QR de acceso a tu ejecutivo."; });
 function nextCodigo(){ let mx=0; execItems.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx) mx=n; }); return String(mx+1).padStart(2,"0"); }
@@ -390,61 +417,55 @@ async function cargarReq(file){
 }
 function chequearGen(){ $("egen").disabled = !(execItems.length && $("ecliente").value.trim() && $("eevento").value.trim()); }
 function saveConfigDesdeExec(){
+  const uid=cfg&&cfg.uid, consec=cfg&&cfg.consec;   // preservar identidad del evento si ya existe
   cfg = { cl:$("ecliente").value.trim(), ev:$("eevento").value.trim(), fe:$("efecha").value, ci:$("eciudad").value.trim(),
           it:execItems.map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||""})),
           marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked},   // marca definida por el ejecutivo, igual para todos
           od:(localStorage.getItem("est_onedrive")||"") };
+  if(uid) cfg.uid=uid; if(consec) cfg.consec=consec;
   saveJSON("est_config", cfg);
 }
 let accesoLink="", accesoExec="", accesoCorto="", editandoId=null;
-function generarAcceso(){
+/* Generar acceso = PUBLICAR este config como evento NUEVO (uid + consecutivo nuevos) en Supabase. */
+async function generarAcceso(){
   saveConfigDesdeExec();
-  const enc=encodeURIComponent(encCfg(cfg));
-  accesoLink=linkOperDe(enc); accesoExec=linkExecDe(enc); accesoCorto="";
-  const consec=registrarEvento(cfg, enc); cfg.consec=consec; saveJSON("est_config",cfg);   // consecutivo del evento
+  cfg.uid=nuevoUid(); cfg.consec=await nextConsec(); saveJSON("est_config",cfg);
+  accesoLink=linkOper(cfg.uid); accesoExec=linkExec(cfg.uid); accesoCorto="";
   editandoId=null; $("eguardar").style.display="none";   // "Guardar" solo desde el historial (editar)
-  mostrarAcceso(consec);
+  await mostrarAcceso(cfg.consec);
 }
-/* Muestra el panel de acceso con el consecutivo y ambos enlaces (operador + ejecutivo) acortados. */
-function mostrarAcceso(consec){
+/* Panel de acceso: consecutivo + ambos enlaces (operador + ejecutivo) acortados; guarda en Supabase. */
+async function mostrarAcceso(consec){
   $("invCli").textContent = evConsecTag(consec)+" · "+(cfg.cl || "—");
   $("invEv").textContent = [cfg.ev, cfg.fe, cfg.ci].filter(Boolean).join("  ·  ");
   $("acLink").textContent="Generando enlace…"; $("acLinkExec").textContent="Generando enlace…";
   $("acWrap").classList.remove("hide"); $("acCopy").textContent="Copiar invitación (operador)";
   pintarQR(accesoLink);
-  acortarAmbos(eventoId(cfg));
+  const [so,se]=await Promise.all([shorten(accesoLink), shorten(accesoExec)]);   // TinyURL a ambos (iOS/PC/Android)
+  accesoCorto=so; $("acLink").textContent=so; $("acLinkExec").textContent=se; pintarQR(so);
+  await persistirEvento(so, se);   // guarda/actualiza en Supabase + cache
   renderHistorial();
 }
 function pintarQR(url){ $("acQR").innerHTML=""; if(window.QRCode){ try{ new QRCode($("acQR"), {text:url, width:220, height:220, colorDark:MARCA.qr, colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.L}); }catch(e){ $("acQR").innerHTML='<div class="mut">Lista muy larga para el QR; comparte el enlace.</div>'; } } }
-/* Acorta con TinyURL AMBOS enlaces (operador y ejecutivo). Funciona igual en iOS/PC/Android (es un fetch).
-   Si el acortador falla, deja el enlace completo. Guarda los cortos en el registro del evento. */
 async function shorten(url){ try{ const r=await fetch("https://tinyurl.com/api-create.php?url="+encodeURIComponent(url)); const s=(await r.text()).trim(); if(/^https?:\/\//.test(s)) return s; }catch(_){} return url; }
-async function acortarAmbos(id){
-  const [so,se]=await Promise.all([shorten(accesoLink), shorten(accesoExec)]);
-  accesoCorto=so; $("acLink").textContent=so; $("acLinkExec").textContent=se; pintarQR(so);   // QR con el enlace corto (más robusto)
-  try{ const all=eventos(); if(all[id]){ all[id].shortOper=so; all[id].shortExec=se; saveJSON("est_eventos",all); renderHistorial(); } }catch(_){}
-}
-/* Editar un evento del historial (conserva su consecutivo). */
-function editarEvento(enc){
-  const c=decCfg(decodeURIComponent(enc)); if(!c){ alert("No pude abrir ese evento."); return; }
-  cfg=c; saveJSON("est_config",cfg);
+/* Editar un evento del historial: trae su config de Supabase y conserva su uid/consecutivo (mismo enlace). */
+async function editarEvento(uid){
+  let rec=await sbGet(uid) || eventos()[uid];
+  if(!rec||!rec.config){ alert("No pude abrir ese evento (¿sin conexión?). Intenta de nuevo."); return; }
+  cfg=rec.config; cfg.uid=uid; cfg.consec=rec.consec; saveJSON("est_config",cfg); cacheEvento(rec);
   prefillExec(); show("exec");
-  editandoId=eventoId(cfg); $("eguardar").style.display="";   // se setea DESPUÉS de prefillExec (que lo resetea)
+  editandoId=uid; $("eguardar").style.display="";   // se setea DESPUÉS de prefillExec (que lo resetea)
   $("acWrap").classList.add("hide"); window.scrollTo(0,0);
 }
-/* Guardar cambios del evento en edición: MISMO consecutivo/identidad; regenera enlaces (cambian solo si cambió el contenido). */
-function guardarEventoEditado(){
-  if(!editandoId){ generarAcceso(); return; }
+/* Guardar cambios: MISMO uid/consecutivo -> el MISMO enlace sirve el contenido actualizado (link estable). */
+async function guardarEventoEditado(){
+  if(!editandoId){ return generarAcceso(); }
   saveConfigDesdeExec();
-  const enc=encodeURIComponent(encCfg(cfg));
-  const all=eventos(); const prev=all[editandoId]||{};
-  const consec=prev.consec || (Object.values(all).reduce((m,x)=>Math.max(m,x.consec||0),0)+1);
-  const newId=eventoId(cfg); if(newId!==editandoId) delete all[editandoId];
-  all[newId]=Object.assign({}, prev, {consec, cl:cfg.cl, ev:cfg.ev, fe:cfg.fe||"", ci:cfg.ci||"", nItems:(cfg.it||[]).length, enc, actualizado:(new Date()).toISOString().slice(0,10)});
-  saveJSON("est_eventos", all); editandoId=newId; cfg.consec=consec; saveJSON("est_config",cfg);
-  accesoLink=linkOperDe(enc); accesoExec=linkExecDe(enc); accesoCorto="";
-  mostrarAcceso(consec);
-  alert("Cambios guardados en "+evConsecTag(consec)+" (mismo evento y consecutivo).\n\nSi cambiaste requerimientos o la marca, el enlace del operador se actualizó — vuelve a compartirlo.");
+  cfg.uid=editandoId; if(!cfg.consec){ const e=eventos()[editandoId]; cfg.consec=(e&&e.consec)||await nextConsec(); }
+  saveJSON("est_config",cfg);
+  accesoLink=linkOper(cfg.uid); accesoExec=linkExec(cfg.uid); accesoCorto="";
+  await mostrarAcceso(cfg.consec);
+  alert("Cambios guardados en "+evConsecTag(cfg.consec)+".\n\nEl enlace NO cambia: los operadores verán el contenido actualizado al reabrirlo.");
 }
 function invitacionTexto(){
   const link = accesoCorto || accesoLink;
