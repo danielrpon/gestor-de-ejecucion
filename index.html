@@ -198,7 +198,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v2 · 25ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v3 · 25ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -937,8 +937,8 @@ async function descargarZIP(listas, csv, exito){
   bajar(blob,nombre); $("sendInfo").innerHTML='ZIP «'+nombre+'» descargado (respaldo).'; exito();
 }
 async function empaquetar(accion, saltarMin){   // accion: "supabase" | "compartir" | "zip"; saltarMin: reintento de las que fallaron
-  if(enviando) return;
-  const listas=batch.filter(e=>e.status==="listo"); if(!listas.length) return;
+  if(enviando){ toast("Envío en curso, espera un momento…"); return; }
+  const listas=batch.filter(e=>e.status==="listo"); if(!listas.length){ toast("No hay evidencias listas para enviar."); return; }
   const sinReq=listas.filter(e=>!e.itemCodigo);
   if(sinReq.length){ alert(`Hay ${sinReq.length} evidencia(s) sin requerimiento asignado. Selecciona un requerimiento en cada una (menú ↑) antes de continuar.`); renderLista(); return; }
   // Mínimo 3 por requerimiento para ENVIAR/COMPARTIR (Descargar ZIP se permite como respaldo sin el mínimo).
@@ -959,6 +959,10 @@ async function empaquetar(accion, saltarMin){   // accion: "supabase" | "compart
     if(accion==="zip"){ await descargarZIP(listas, csv, exito); return; }
     if(accion==="compartir"){ await compartirMedia(listas, csv, exito); return; }
     await enviarASupabase(listas, exito);   // "supabase": sube a la base (bucket + tabla)
+  } catch(err){   // NADA falla en silencio: cualquier error muestra el popup con el detalle
+    $("sendInfo").textContent="";
+    $("failDet").innerHTML=`Ocurrió un error al enviar.<br><span class="mut" style="font-size:12px">Detalle: ${((err&&(err.message||err.name))||err)}</span>`;
+    $("failm").classList.remove("hide");
   } finally { enviando=false; $("enviar").textContent="Enviar evidencias"; renderLista(); }
 }
 /* Marca como enviadas SOLO las evidencias dadas: suma consecutivos y las saca del lote. */
