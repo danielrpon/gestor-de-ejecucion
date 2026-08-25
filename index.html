@@ -192,14 +192,14 @@
       </div>
     </div>
     <div class="card">
-      <div class="h">Progreso del evento</div>
+      <div class="h" style="justify-content:space-between;align-items:center">Progreso del evento <a class="lnk" id="syncProg" style="font-size:13px;font-weight:600">↻ Actualizar</a></div>
       <div id="prog" class="prog"><div class="bar"><span></span></div><div class="lbl"></div></div>
       <div class="cnt" id="cnt">Aún no agregas fotos.</div>
       <div class="list" id="list"></div>
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v7 · 25ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v8 · 25ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -731,11 +731,31 @@ function irACaptura(){
   $("ctx").textContent = (cfg.cl||"—")+" · "+(cfg.ev||"—")+((operador&&operador.prov)?("  ·  "+operador.prov):"");
   batch=[]; renderLista(); show("cap"); window.scrollTo(0,0); pedirUbicacion(); actualizarGuia();
   cargarLote().then(()=>{ if(batch.length){ renderLista(); actualizarGuia(); } });   // restaura el lote en curso si quedó de una sesión anterior
+  sincronizarProgreso(true);   // trae el progreso ya subido a la base (funciona entre dispositivos)
 }
 /* ---- Captura guiada por ítem (mínimo 3 fotos enfocadas) ---- */
 function enLoteDeItem(cod){ return cod ? batch.filter(e=>e.itemCodigo===cod && e.tipo==="foto").length : 0; }      // en el lote actual (sin enviar)
 function enviadasDeItem(cod){ if(!cod) return 0; try{ return counters[claveDe(cod)]||0; }catch(_){ return 0; } }   // ya enviadas en sesiones previas
 function fotosDeItem(cod){ return enLoteDeItem(cod)+enviadasDeItem(cod); }                                        // total = lote + enviadas
+/* Sincroniza el progreso (✓/◔) desde la base: cuenta fotos ya subidas por requerimiento.
+   Usa un RPC de SOLO-CONTEO (no expone fotos, nombres, GPS ni datos del operador) -> el progreso
+   viaja entre dispositivos y evita re-fotografiar lo ya hecho. Mantiene el insert-only del operador. */
+let sincronizando=false;
+async function sincronizarProgreso(silencioso){
+  if(!cfg||!cfg.uid||sincronizando) return;
+  sincronizando=true; const lnk=$("syncProg"); if(lnk&&!silencioso) lnk.textContent="Actualizando…";
+  try{
+    const r=await fetchTO(SB_URL+"/rest/v1/rpc/progreso_evento",{method:"POST",headers:SB_H,body:JSON.stringify({p_uid:cfg.uid})},15000);
+    if(r.ok){ const arr=await r.json();
+      if(Array.isArray(arr)){
+        arr.forEach(row=>{ const cod=row.item; if(!cod) return; const n=parseInt(row.n,10)||0; const k=claveDe(cod); counters[k]=Math.max(counters[k]||0,n); });
+        saveJSON("est_counters",counters); poblarItemTop(); if(typeof actualizarGuia==="function") actualizarGuia(); if(typeof renderLista==="function") renderLista();
+        if(lnk&&!silencioso) toast("Progreso actualizado desde la base ✓");
+      }
+    } else if(lnk&&!silencioso){ toast("No se pudo actualizar (¿falta correr la Capa8?)"); }
+  }catch(_){ if(lnk&&!silencioso) toast("Sin señal para actualizar el progreso"); }
+  finally{ sincronizando=false; if(lnk) lnk.textContent="↻ Actualizar"; }
+}
 function itemReqCorto(cod){ const r=itemReq(cod)||cod; return r.length>34?r.slice(0,34)+"…":r; }
 /* diccionario de rasgos distintivos por palabra clave (se busca en la descripción del ítem) */
 var TIPS=[
@@ -799,6 +819,7 @@ $("item").addEventListener("change", ()=>{
   }
   itemAnterior=$("item").value; actualizarGuia();
 });
+if($("syncProg")) $("syncProg").addEventListener("click", ()=>sincronizarProgreso(false));
 /* Requerimiento adicional (agregado por el operador en sitio) */
 $("addAdic").addEventListener("click", ()=>{ ["adReq","adCant","adQuien","adNota"].forEach(id=>$(id).value=""); $("adicm").classList.remove("hide"); });
 $("adClose").addEventListener("click", ()=>$("adicm").classList.add("hide"));
