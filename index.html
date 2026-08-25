@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Evidencias · Estrella</title>
 <style>
   :root{ --azul:#0B4EA2; --azul-d:#083b7d; --oro:#F2B21A; --oro-d:#cf9a09; --btn-ink:#10233f;
@@ -71,7 +74,7 @@
 <div class="hd">
   <div class="hdin">
     <img class="logo" id="brandLogo" src="logo_white.png" alt=""><span class="logo" id="brandWord" style="display:none;color:#fff;font-family:var(--mono);font-weight:700;font-size:18px;letter-spacing:.02em;align-self:center"></span>
-    <div class="r"><span id="who"></span> <a id="btnCfg">Ajustes</a></div>
+    <div class="r"><span id="who"></span></div>
   </div>
 </div>
 <div class="wrap">
@@ -212,15 +215,6 @@
   </div>
 </div>
 
-<!-- AJUSTES -->
-<div id="cfgm" class="modal hide"><div class="sheet">
-  <div class="h">Ajustes</div>
-  <div class="fld"><label>Carpeta OneDrive (destino)</label><input id="odlink" type="text" placeholder="Pega el enlace de la carpeta compartida" autocomplete="off"></div>
-  <div class="mut">Aquí llegan las evidencias al Enviar. En móvil se ofrece OneDrive/Teams directamente.</div>
-  <div style="height:14px"></div>
-  <div class="btn2"><button class="btn sec" id="cfgClose">Cerrar</button><button class="btn" id="cfgSave">Guardar</button></div>
-</div></div>
-
 <!-- EDITAR OPERADOR -->
 <div id="opm" class="modal hide"><div class="sheet">
   <div class="h">Editar operador</div>
@@ -327,7 +321,6 @@ async function persistirEvento(shortOper, shortExec){
 /* ---- arranque: decide rol ---- */
 window.addEventListener("DOMContentLoaded", async () => {
   aplicarMarca();
-  $("odlink").value = localStorage.getItem("est_onedrive")||"";
   const params=new URLSearchParams(location.search);
   const evUid=params.get("ev"); const rolQ=params.get("rol");
   const m = location.hash.match(/[#&]c=([^&]+)/);
@@ -338,7 +331,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     const rec=await sbGet(evUid) || eventos()[evUid];
     if(rec&&rec.config){
       cfg=rec.config; cfg.uid=evUid; cfg.consec=rec.consec; saveJSON("est_config",cfg); cacheEvento(rec);
-      if(cfg.od && !localStorage.getItem("est_onedrive")){ localStorage.setItem("est_onedrive",cfg.od); $("odlink").value=cfg.od; }
       pintarWho();
       if(rolQ==="ex"){ editandoId=evUid; prefillExec(); show("exec"); $("eguardar").style.display=""; }   // ejecutivo -> editar
       else irALogin();                                       // operador -> capturar
@@ -346,7 +338,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     return;
   }
   cfg = fromExec || fromLink || loadJSON("est_config", null);
-  if(fromExec || fromLink){ saveJSON("est_config", cfg); if(cfg.od && !localStorage.getItem("est_onedrive")){ localStorage.setItem("est_onedrive",cfg.od); $("odlink").value=cfg.od; } }
+  if(fromExec || fromLink){ saveJSON("est_config", cfg); }
   pintarWho();
   const hash = location.hash.replace(/^#/,"");
   if(fromExec){ prefillExec(); show("exec"); }             // link viejo del EJECUTIVO (compatibilidad)
@@ -442,8 +434,7 @@ function saveConfigDesdeExec(){
   const uid=cfg&&cfg.uid, consec=cfg&&cfg.consec;   // preservar identidad del evento si ya existe
   cfg = { cl:$("ecliente").value.trim(), ev:$("eevento").value.trim(), fe:$("efecha").value, ci:$("eciudad").value.trim(),
           it:execItems.map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||""})),
-          marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked},   // marca definida por el ejecutivo, igual para todos
-          od:(localStorage.getItem("est_onedrive")||"") };
+          marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked} };   // marca definida por el ejecutivo, igual para todos
   if(uid) cfg.uid=uid; if(consec) cfg.consec=consec;
   saveJSON("est_config", cfg);
 }
@@ -678,11 +669,6 @@ $("zip").addEventListener("click", ()=>empaquetar("zip"));
 $("enviar").addEventListener("click", ()=>empaquetar("supabase"));
 $("compartir").addEventListener("click", ()=>empaquetar("compartir"));
 
-/* ---- Ajustes ---- */
-$("odlink").addEventListener("input", ()=>localStorage.setItem("est_onedrive",$("odlink").value.trim()));
-$("btnCfg").addEventListener("click", ()=>$("cfgm").classList.remove("hide"));
-$("cfgClose").addEventListener("click", ()=>$("cfgm").classList.add("hide"));
-$("cfgSave").addEventListener("click", ()=>{ localStorage.setItem("est_onedrive",$("odlink").value.trim()); $("cfgm").classList.add("hide"); });
 
 /* ---- lote ---- */
 function agregar(fileList, meta){
@@ -806,8 +792,7 @@ async function descargarZIP(listas, csv, exito){
   const zip=new JSZip(); listas.forEach(e=>zip.file(e.filename,e.blob)); zip.file("manifiesto.csv",csv);
   const blob=await zip.generateAsync({type:"blob"});
   const nombre=`Evidencias_${slug(cfg.cl)}_${slug(cfg.ev)}_${slug(operador.cedula)}.zip`;
-  const od=(localStorage.getItem("est_onedrive")||"").trim();
-  bajar(blob,nombre); $("sendInfo").innerHTML='ZIP «'+nombre+'» descargado.'+(od?' <a class="lnk" href="'+od+'" target="_blank" rel="noopener">Abrir carpeta OneDrive</a> y súbelo.':' Súbelo a tu carpeta OneDrive.'); exito();
+  bajar(blob,nombre); $("sendInfo").innerHTML='ZIP «'+nombre+'» descargado (respaldo).'; exito();
 }
 async function empaquetar(accion){   // accion: "supabase" | "compartir" | "zip"
   if(enviando) return;
