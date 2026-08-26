@@ -223,7 +223,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v18 · 26ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v19 · 26ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -973,6 +973,27 @@ async function sincronizarProgreso(silencioso){
   }catch(_){ if(lnk&&!silencioso) toast("Sin señal para actualizar el progreso"); }
   finally{ sincronizando=false; if(lnk) lnk.textContent="↻ Actualizar"; }
 }
+/* Antes se imprimían los ~370 códigos pendientes en un solo renglón: ilegible, y con el mismo
+   código repetido por aparecer en varios escenarios. Ahora un conteo por escenario, con el
+   detalle desplegable y acotado para que no vuelva a ser un muro de texto. */
+var faltAbierto=false;
+window.verFaltantes=()=>{ faltAbierto=!faltAbierto; actualizarGuia(); };
+function resumenFaltantes(faltan){
+  if(!faltan.length) return " · ¡todo listo! ✅";
+  const porCat={};
+  faltan.forEach(it=>{ const c=(it.cat||"").trim()||"Sin escenario"; (porCat[c]=porCat[c]||[]).push(it); });
+  const grupos=Object.entries(porCat).sort((a,b)=>b[1].length-a[1].length || a[0].localeCompare(b[0],"es"));
+  let h=` · faltan <b>${faltan.length}</b>`
+    +`<div class="mut" style="margin:3px 0 0">${grupos.map(([c,l])=>`${c} <b>${l.length}</b>`).join(" · ")}</div>`
+    +`<a class="lnk" style="font-size:12px" onclick="verFaltantes()">${faltAbierto?"ocultar detalle":"ver detalle"}</a>`;
+  if(faltAbierto){
+    const TOPE=12;   // por escenario: evita volver al muro de texto en listas de 400 ítems
+    h+=grupos.map(([c,l])=>`<div class="mut" style="margin:5px 0 0"><b>${escAttr(c)}</b><br>`
+      +l.slice(0,TOPE).map(it=>`${escAttr(it.codigo)}${it.req?" · "+escAttr(String(it.req).replace(/\s+/g," ").slice(0,30)):""}`).join("<br>")
+      +(l.length>TOPE?`<br>…y ${l.length-TOPE} más`:"")+`</div>`).join("");
+  }
+  return h;
+}
 /* Ficha del requerimiento seleccionado: evita que el operador tenga que devolverse a la
    cotización para saber DÓNDE va y CUÁNTO es. Todo sale de la plantilla del evento. */
 var carAbierta={};
@@ -1186,7 +1207,7 @@ function renderLista(){
     const faltan=items.filter(it=>fotosDeItem(it.iid)<3); const compl=total-faltan.length;
     const pct=total?Math.round(compl/total*100):0;
     const span=pi.querySelector(".bar>span"); if(span) span.style.width=pct+"%";
-    const lbl=pi.querySelector(".lbl"); if(lbl) lbl.innerHTML = total ? (`<b>${compl}/${total}</b> requerimientos completos`+(faltan.length?` · faltan: ${faltan.map(it=>it.codigo).join(", ")}`:` · ¡todo listo! ✅`)) : "Sin requerimientos cargados.";
+    const lbl=pi.querySelector(".lbl"); if(lbl) lbl.innerHTML = total ? (`<b>${compl}/${total}</b> requerimientos completos`+resumenFaltantes(faltan)) : "Sin requerimientos cargados.";
   }
   if($("item") && document.activeElement!==$("item")) poblarItemTop();   // refresca ✓/◔/○ en el selector
   guardarLote();   // respalda el lote en curso (IndexedDB) ante recargas
