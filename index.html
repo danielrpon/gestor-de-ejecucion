@@ -40,6 +40,11 @@
   .guia.ok{background:#e9f7ee;border-color:#7fca97;color:#155f2e}
   .guia .gcount{font-weight:700;font-size:13.5px} .guia .gtips{margin-top:5px;font-size:11.5px;opacity:.92}
   .guia .gtips b{font-weight:700}
+  .guia .gficha{margin-top:6px;padding-top:6px;border-top:1px dashed rgba(0,0,0,.18);font-size:12px;line-height:1.45}
+  .guia .gficha .fl{display:block;margin:2px 0}
+  .guia .gficha .fk{font-weight:700}
+  .guia .gficha .fcar.clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .guia .gficha .fmas{display:inline-block;margin-top:3px;font-weight:700;text-decoration:underline;cursor:pointer}
   input[type=file]{display:none}
   .tgl{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--txt);cursor:pointer} .tgl input{width:18px;height:18px;accent-color:var(--azul);flex:none}
   .opts{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:12px} .opts .row{flex:1 1 100%}
@@ -114,6 +119,10 @@
       <button class="btn sec" id="ebtnReq">Cargar lista de evidencias (Excel / CSV)</button>
       <input id="efileReq" type="file" accept=".xlsx,.xls,.csv">
       <div class="mut" id="ereqInfo">Carga un Excel/CSV o agrega manualmente. Columnas: proveedor · requerimiento · cantidad (el código lo asigna la app).</div>
+      <div style="height:8px"></div>
+      <button class="btn sec" id="ebtnFicha">Completar ficha desde plantilla (ubicación · cantidad · características)</button>
+      <input id="efileFicha" type="file" accept=".xlsx,.xls,.csv">
+      <div class="mut" id="efichaInfo">Rellena la ficha que ve el operador SIN agregar ni quitar requerimientos. Úsalo en eventos ya publicados.</div>
       <div class="h" style="margin-top:14px">Agregar evidencia manualmente</div>
       <div class="fld"><label>Proveedor</label><input id="miprov" type="text" autocomplete="off" placeholder="Ej.: Sonido Pro S.A.S." list="provList"><datalist id="provList"></datalist></div>
       <div class="fld" style="margin-top:8px"><label>Requerimiento</label><input id="mireq" type="text" autocomplete="off" placeholder="Ej.: Sistema de sonido"></div>
@@ -208,7 +217,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v11 · 25ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v12 · 26ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -353,11 +362,36 @@ function saveJSON(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(_
 const z = n => String(n).padStart(2,"0");
 const slug = s => (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "NA";
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
+const escAttr = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 let toastT=null;
 function toast(msg){ const t=$("toast"); if(!t) return; t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2600); }
 function copiarAlPortapapeles(url, etiqueta){ try{ if(navigator.clipboard){ navigator.clipboard.writeText(url); toast(etiqueta+" copiado ✓"); return; } }catch(_){} prompt(etiqueta+" — cópialo:", url); }
 function show(id){ ["home","exec","login","cap","admin"].forEach(s=>$(s).classList.toggle("hide", s!==id)); }
-function itemsCfg(){ return (cfg&&cfg.it)||[]; }
+/* --- IDENTIDAD DEL REQUERIMIENTO (iid) ---------------------------------------
+   El mismo codigo de cotizacion se repite en varios escenarios/categorias (p.ej. TE 0005 esta
+   en "Tarima Cincuentenario" y en "Tarima Plazoleta"). Usar solo el codigo como llave hacia que
+   fotografiar uno marcara ✓ el otro y que la evidencia quedara archivada en la categoria
+   equivocada. La llave real es codigo + categoria (+ ordinal si el par se repite dentro de la
+   misma categoria).
+
+   LLAVE DEL ITEM (iid), dentro del evento:   categoria|codigo|ordinal
+        "Tarima Plazoleta|TE 0005|1"     "Logistica|PE 0007|3"
+   LLAVE GLOBAL (item_id), la que viaja a la base:   evento_uid|categoria|codigo|ordinal
+        "a1b2c3d4|Tarima Plazoleta|TE 0005|1"
+   El evento_uid es inmutable (se asigna al crear el evento) y por FK arrastra cliente, evento,
+   fecha y consecutivo. A proposito NO se meten cliente/evento/fecha literales en la llave: son
+   editables desde el panel del ejecutivo y una llave construida sobre campos mutables se rompe
+   sola al renombrar el evento. Texto plano, sin slug -> reconstruible en SQL para migrar.       */
+function iidDe(codigo, cat, ord){ return [String(cat||"SIN-CATEGORIA"), String(codigo||"SIN-CODIGO"), (ord||1)].join("|"); }
+function anotarIids(arr){
+  if(!Array.isArray(arr)) return [];
+  if(arr.__iid) return arr;                       // ya anotado (memo por identidad del array)
+  const cta={};
+  arr.forEach(it=>{ const k=String(it.cat||"")+"\u0000"+String(it.codigo||""); cta[k]=(cta[k]||0)+1; it.iid=iidDe(it.codigo,it.cat,cta[k]); });
+  try{ Object.defineProperty(arr,"__iid",{value:true,enumerable:false}); }catch(_){}
+  return arr;
+}
+function itemsCfg(){ return anotarIids((cfg&&cfg.it)||[]); }
 
 /* encode/decode de configuración para el enlace */
 function encCfg(c){ return btoa(unescape(encodeURIComponent(JSON.stringify(c)))); }
@@ -416,6 +450,8 @@ $("brandWord").addEventListener("click", ()=>show("home"));
 /* ---- EJECUTIVO ---- */
 $("ebtnReq").addEventListener("click", ()=>$("efileReq").click());
 $("efileReq").addEventListener("change", e=>{ if(e.target.files[0]) cargarReq(e.target.files[0]); });
+$("ebtnFicha").addEventListener("click", ()=>$("efileFicha").click());
+$("efileFicha").addEventListener("change", e=>{ if(e.target.files[0]) completarFicha(e.target.files[0]); e.target.value=""; });
 ["ecliente","eevento"].forEach(id=>$(id).addEventListener("input", chequearGen));
 $("egen").addEventListener("click", generarAcceso);
 $("acCopy").addEventListener("click", ()=>{ if(navigator.clipboard) navigator.clipboard.writeText(invitacionTexto()); $("acCopy").textContent="Invitación copiada ✓"; toast("Invitación copiada ✓"); });
@@ -441,7 +477,7 @@ function nextCodigo(){ let mx=0; execItems.forEach(it=>{ const n=parseInt(String
 $("miadd").addEventListener("click", ()=>{ const req=$("mireq").value.trim(), cant=$("micant").value.trim(), prov=$("miprov").value.trim();
   if(!req){ alert("Escribe el requerimiento."); return; }
   execItems.push({codigo:nextCodigo(),req,cant,prov}); $("mireq").value=""; $("micant").value=""; renderExecItems(); $("mireq").focus(); });   // se conserva el proveedor para agregar varios del mismo
-function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||""})); renderExecItems();
+function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||""})); renderExecItems();
     const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; } if(typeof renderHistorial==="function") renderHistorial();
   editandoId=null; aplicarModoExec(); }   // por defecto: modo NUEVO (los que editan fijan editandoId DESPUÉS y llaman aplicarModoExec)
 /* Modo de la vista ejecutivo: EDITAR (editandoId fijado) muestra solo "Guardar cambios" + "Duplicar";
@@ -482,14 +518,20 @@ window.quitarExec=(i)=>{ execItems.splice(i,1); renderExecItems(); };
 if($("fltLimpiar")) $("fltLimpiar").addEventListener("click", ()=>{ $("fltBuscar").value=""; $("fltCat").value=""; $("fltProv").value=""; renderExecItems(); });
 /* Requerimientos ADICIONALES agregados por el operador en sitio (locales al dispositivo, por evento) */
 function adicKey(){ return "est_adic_"+(cfg?`${slug(cfg.cl)}|${slug(cfg.ev)}`:"NA"); }
-function adicionalesDelEvento(){ return loadJSON(adicKey(), []); }
+function adicionalesDelEvento(){ return anotarIids(loadJSON(adicKey(), [])); }
 function guardarAdicionales(arr){ saveJSON(adicKey(), arr); }
-function itemById(cod){ return itemsCfg().find(i=>i.codigo===cod) || adicionalesDelEvento().find(i=>i.codigo===cod) || null; }
+/* Busca por iid; si no aparece, cae al codigo (lotes guardados antes de la v12 y configs viejos). */
+function itemById(k){ if(!k) return null; const cfgIt=itemsCfg(), ad=anotarIids(adicionalesDelEvento());
+  return cfgIt.find(i=>i.iid===k) || ad.find(i=>i.iid===k) || cfgIt.find(i=>i.codigo===k) || ad.find(i=>i.codigo===k) || null; }
+function itemCod(k){ const it=itemById(k); return it?String(it.codigo||""):String(k||""); }   // el codigo de cotizacion que va a la base
 function itemCat(cod){ const it=itemById(cod); return it?(it.cat||""):""; }
 function itemCant(cod){ const it=itemById(cod); return it?(it.cant||""):""; }
 function itemReq(cod){ const it=itemById(cod); return it?(it.req||""):""; }
 function itemProv(cod){ const it=itemById(cod); return it?(it.prov||""):""; }
 function itemNit(cod){ const it=itemById(cod); return it?(it.nit||""):""; }
+function itemCar(cod){ const it=itemById(cod); return it?(it.car||""):""; }     // características / especificaciones
+function itemUm(cod){ const it=itemById(cod); return it?(it.um||""):""; }       // unidad de medida
+function itemDias(cod){ const it=itemById(cod); return it?(it.dias||""):""; }
 function itemAdic(cod){ const it=itemById(cod); return it&&it.adicional?it:null; }
 function proveedores(){ const s=new Set(); (execItems&&execItems.length?execItems:itemsCfg()).forEach(it=>{ const p=(it.prov||"").trim(); if(p) s.add(p); }); return [...s].sort((a,b)=>a.localeCompare(b,'es')); }
 function provDeItems(){ const s=new Set(); itemsCfg().forEach(it=>{ const p=(it.prov||"").trim(); if(p) s.add(p); }); return [...s].sort((a,b)=>a.localeCompare(b,'es')); }
@@ -511,12 +553,54 @@ function opTag(){ if(!operador) return "";
   const t=(ini||"OP")+(ced?"-"+ced:""); return slug(t); }
 
 let execItems = [];
+/* Lee la plantilla y devuelve {filas, items} con los mismos criterios de columnas.
+   Se usa tanto para CARGAR la lista como para COMPLETAR la ficha de un evento ya publicado. */
+async function parsearPlantilla(file){
+  const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:""});
+  const get=(o,n)=>{ for(const k in o){ if(n.includes(k.trim().toLowerCase())) return String(o[k]).trim(); } return ""; };
+  const items = rows.map(r=>({
+      codigo:get(r,["item_codigo","codigo","código","item","ítem","id","cod"]), req:get(r,["requerimiento","descripcion","descripción","detalle","concepto"]), cant:get(r,["cantidad","cant","qty","unidades"]), prov:get(r,["nombre proveedores","nombre proveedor","proveedor","provider","prov","proveedor_nombre","empresa","contratista"]), nit:get(r,["nit proveedor","nit","nit_proveedor","identificacion proveedor","identificación proveedor"]),
+      cat:get(r,["categoria","categoría","modulo","módulo","grupo","hoja"]),
+      car:get(r,["caracteristicas","características","especificaciones","observaciones","nota"]),
+      um:get(r,["unidad de medida","unidad_de_medida","unidad","um","medida"]),
+      dias:get(r,["dias","días","dias_servicio"]) })).filter(x=>x.req||x.codigo);
+  let mx=0; items.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx)mx=n; });
+  items.forEach(it=>{ if(!String(it.codigo).trim()){ mx++; it.codigo=String(mx).padStart(2,"0"); } });   // la app asigna código a los ítems sin código
+  return {rows, items, get};
+}
+/* Completa ubicación/cantidad/unidad/días/características de los ítems que YA tiene el evento.
+   NO agrega ni quita nada: pensado para eventos publicados donde el ejecutivo ya depuró la lista
+   (recargar la plantilla ahí revertiría esa depuración y borraría los ítems agregados a mano). */
+async function completarFicha(file){
+  const inf=$("efichaInfo");
+  try{
+    if(!execItems.length){ inf.textContent="Primero abre o carga un evento con requerimientos."; return; }
+    const {items} = await parsearPlantilla(file);
+    if(!items.length){ inf.textContent="No pude leer requerimientos en ese archivo."; return; }
+    const mapa={}; anotarIids(items).forEach(it=>{ mapa[it.iid]=it; });
+    let ok=0, sin=0;
+    anotarIids(execItems).forEach(it=>{
+      const m=mapa[it.iid];
+      if(!m){ sin++; return; }
+      let toco=false;
+      ["car","um","dias"].forEach(f=>{ if(!String(it[f]||"").trim() && String(m[f]||"").trim()){ it[f]=m[f]; toco=true; } });
+      if(!String(it.cant||"").trim() && String(m.cant||"").trim()){ it.cant=m.cant; toco=true; }
+      if(toco) ok++;
+    });
+    renderExecItems();
+    inf.textContent=`${ok} requerimiento${ok===1?"":"s"} completado${ok===1?"":"s"}${sin?` · ${sin} sin coincidencia en la plantilla`:""}. No se agregó ni se quitó ninguno — dale «Guardar cambios del evento».`;
+  }catch(err){ inf.textContent="No se pudo leer: "+err.message; }
+}
 async function cargarReq(file){
   try{
     const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:""});
     const get=(o,n)=>{ for(const k in o){ if(n.includes(k.trim().toLowerCase())) return String(o[k]).trim(); } return ""; };
-    execItems = rows.map(r=>({ codigo:get(r,["item_codigo","codigo","código","item","ítem","id","cod"]), req:get(r,["requerimiento","descripcion","descripción","detalle","concepto"]), cant:get(r,["cantidad","cant","qty","unidades"]), prov:get(r,["nombre proveedores","nombre proveedor","proveedor","provider","prov","proveedor_nombre","empresa","contratista"]), nit:get(r,["nit proveedor","nit","nit_proveedor","identificacion proveedor","identificación proveedor"]), cat:get(r,["categoria","categoría","modulo","módulo","grupo","hoja"]) })).filter(x=>x.req||x.codigo);
+    execItems = rows.map(r=>({ codigo:get(r,["item_codigo","codigo","código","item","ítem","id","cod"]), req:get(r,["requerimiento","descripcion","descripción","detalle","concepto"]), cant:get(r,["cantidad","cant","qty","unidades"]), prov:get(r,["nombre proveedores","nombre proveedor","proveedor","provider","prov","proveedor_nombre","empresa","contratista"]), nit:get(r,["nit proveedor","nit","nit_proveedor","identificacion proveedor","identificación proveedor"]), cat:get(r,["categoria","categoría","modulo","módulo","grupo","hoja"]),
+      car:get(r,["caracteristicas","características","especificaciones","observaciones","nota"]),
+      um:get(r,["unidad de medida","unidad_de_medida","unidad","um","medida"]),
+      dias:get(r,["dias","días","dias_servicio"]) })).filter(x=>x.req||x.codigo);
     let mx=0; execItems.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx)mx=n; });
     execItems.forEach(it=>{ if(!String(it.codigo).trim()){ mx++; it.codigo=String(mx).padStart(2,"0"); } });   // la app asigna código a los ítems sin código
     const c=rows.map(r=>get(r,["cliente","client"])).find(Boolean), e=rows.map(r=>get(r,["evento","nombre_evento"])).find(Boolean), ci=rows.map(r=>get(r,["ciudad","municipio"])).find(Boolean);
@@ -531,7 +615,7 @@ function chequearGen(){ $("egen").disabled = !(execItems.length && $("ecliente")
 function saveConfigDesdeExec(){
   const uid=cfg&&cfg.uid, consec=cfg&&cfg.consec;   // preservar identidad del evento si ya existe
   cfg = { cl:$("ecliente").value.trim(), ev:$("eevento").value.trim(), fe:$("efecha").value, ci:$("eciudad").value.trim(),
-          it:execItems.map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||""})),
+          it:execItems.map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||""})),
           marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked} };   // marca definida por el ejecutivo, igual para todos
   if(uid) cfg.uid=uid; if(consec) cfg.consec=consec;
   saveJSON("est_config", cfg);
@@ -633,20 +717,23 @@ async function adminCargarEventos(){
   try{
     const [rEv,rEvi]=await Promise.all([
       fetch(SB_URL+"/rest/v1/eventos?select=uid,consec,cl,ev,fe,config,short_oper,short_exec&order=consec.desc",{headers:adminHeaders()}),
-      fetch(SB_URL+"/rest/v1/evidencias?select=evento_uid,item",{headers:adminHeaders()})
+      fetch(SB_URL+"/rest/v1/evidencias?select=evento_uid,item,item_id,categoria",{headers:adminHeaders()})
     ]);
     if(rEv.status===401||rEvi.status===401){ adminSesExpirada(); return; }
     adminEventos=await rEv.json();
     const evis = rEvi.ok ? await rEvi.json() : [];
     const porEvento={}, porItem={};
-    evis.forEach(x=>{ porEvento[x.evento_uid]=(porEvento[x.evento_uid]||0)+1; porItem[x.evento_uid+"|"+x.item]=(porItem[x.evento_uid+"|"+x.item]||0)+1; });
+    // llave global por evidencia; si la fila es anterior a la Capa9 se reconstruye con categoria+item
+    evis.forEach(x=>{ porEvento[x.evento_uid]=(porEvento[x.evento_uid]||0)+1;
+      const k = x.item_id || (x.evento_uid+"|"+iidDe(x.item,x.categoria,1));
+      porItem[k]=(porItem[k]||0)+1; });
     if(!adminEventos.length){ l.innerHTML='<div class="mut">Aún no hay eventos.</div>'; return; }
     // ---- métricas por evento + totales globales (Dashboard) ----
     let gReq=0,gComp=0,gEvi=0; const metricas=adminEventos.map(e=>{
-      const items=(e.config&&e.config.it)||[];
+      const items=anotarIids((e.config&&e.config.it)||[]);
       const reg=porEvento[e.uid]||0;
-      const conEvi=items.filter(it=>(porItem[e.uid+"|"+it.codigo]||0)>=1).length;
-      const comp=items.filter(it=>(porItem[e.uid+"|"+it.codigo]||0)>=3).length;
+      const conEvi=items.filter(it=>(porItem[e.uid+"|"+it.iid]||0)>=1).length;
+      const comp=items.filter(it=>(porItem[e.uid+"|"+it.iid]||0)>=3).length;
       const pend=items.length-comp;
       const av=items.length?Math.round(comp/items.length*100):0;
       gReq+=items.length; gComp+=comp; gEvi+=reg;
@@ -760,7 +847,7 @@ $("lightbox").addEventListener("click", e=>{ if(e.target.id==="lightbox") $("lig
 /* Manifiesto CSV del evento (se genera desde la tabla -> siempre al día con todo lo enviado) */
 window.adminManifiesto=()=>{
   const arr=adminEvidencias; if(!arr.length){ toast("Sin evidencias"); return; }
-  const cols=["radicado","evento_consec","cliente","evento","item","requerimiento","proveedor","adicional","solicitado_por","justificacion","operador_nombre","operador_cedula","operador_celular","tipo","archivo","fecha","hora","lugar","lat","lon","creado"];
+  const cols=["radicado","evento_consec","cliente","evento","categoria","item","item_id","requerimiento","proveedor","adicional","solicitado_por","justificacion","operador_nombre","operador_cedula","operador_celular","tipo","archivo","fecha","hora","lugar","lat","lon","creado"];
   let csv=cols.join(",")+"\n";
   arr.forEach(e=>{ csv+=cols.map(c=>{ const v=(c==="evento_consec")?(e.consec?evConsecTag(e.consec):""):(e[c]!=null?e[c]:""); return csvCell(v); }).join(",")+"\n"; });
   bajar(new Blob([csv],{type:"text/csv"}), `manifiesto_${slug(arr[0].cliente||"")}_${slug(arr[0].evento||"")}.csv`);
@@ -771,7 +858,7 @@ window.adminFotosZIP=async()=>{
   if(!idx.length){ toast("Las fotos aún se están cargando…"); return; }
   toast("Generando ZIP…"); const zip=new JSZip();
   idx.forEach(j=>{ const f=adminFotoURLs[j]; if(f&&f.blob) zip.file(f.nombre||("foto_"+j+".jpg"), f.blob); });
-  const cols=["radicado","cliente","evento","item","requerimiento","operador_nombre","archivo","fecha","hora","lugar","creado"];
+  const cols=["radicado","cliente","evento","categoria","item","item_id","requerimiento","operador_nombre","archivo","fecha","hora","lugar","creado"];
   let csv=cols.join(",")+"\n"; arr.forEach(e=>{ csv+=cols.map(c=>csvCell(e[c]!=null?e[c]:"")).join(",")+"\n"; });
   zip.file("manifiesto.csv", csv);
   bajar(await zip.generateAsync({type:"blob"}), `fotos_${slug(arr[0].cliente||"")}_${slug(arr[0].evento||"")}.zip`);
@@ -781,11 +868,12 @@ window.adminFotosZIP=async()=>{
 /* ---- OPERADOR: captura ---- */
 function poblarItemTop(){
   const s=$("item"); const cur=s.value; s.innerHTML="<option value=''>— Elige un requerimiento —</option>";
-  itemsDelOperador().forEach(it=>{ const n=fotosDeItem(it.codigo); const mark = n>=3?"✓ ":(n>0?"◔ ":"○ ");   // ✓ completo · ◔ en progreso · ○ pendiente
-    const o=document.createElement("option"); o.value=it.codigo;
-    o.textContent=(it.adicional?"➕ ":"")+mark+(it.cat?`${it.cat} · `:"")+(it.req?`${it.codigo} · ${it.req}`:it.codigo)+(n>0&&n<3?`  (${n}/3)`:"");
+  itemsDelOperador().forEach(it=>{ const n=fotosDeItem(it.iid); const mark = n>=3?"✓ ":(n>0?"◔ ":"○ ");   // ✓ completo · ◔ en progreso · ○ pendiente
+    const o=document.createElement("option"); o.value=it.iid;   // iid, NO codigo: el mismo codigo vive en varios escenarios
+    const cta=String(it.cant||"").trim(), umd=String(it.um||"").trim();
+    o.textContent=(it.adicional?"➕ ":"")+mark+(it.cat?`${it.cat} · `:"")+(it.req?`${it.codigo} · ${it.req}`:it.codigo)+(cta?`  ×${cta}${umd?" "+umd:""}`:"")+(n>0&&n<3?`  (${n}/3)`:"");
     s.appendChild(o); });
-  s.value = (cur && itemsDelOperador().some(it=>it.codigo===cur)) ? cur : "";
+  s.value = (cur && itemsDelOperador().some(it=>it.iid===cur)) ? cur : "";
   itemAnterior = s.value;   // sincroniza el guardián de "mínimo 3 antes de cambiar"
 }
 function irACaptura(){
@@ -797,6 +885,8 @@ function irACaptura(){
   sincronizarProgreso(true);   // trae el progreso ya subido a la base (funciona entre dispositivos)
 }
 /* ---- Captura guiada por ítem (mínimo 3 fotos enfocadas) ---- */
+/* Ojo: el campo se sigue llamando "itemCodigo" por compatibilidad con lotes ya guardados en
+   IndexedDB, pero desde la v12 guarda el IID (categoria|codigo|ordinal), no el codigo pelado. */
 function enLoteDeItem(cod){ return cod ? batch.filter(e=>e.itemCodigo===cod && e.tipo==="foto").length : 0; }      // en el lote actual (sin enviar)
 function enviadasDeItem(cod){ if(!cod) return 0; try{ return counters[claveDe(cod)]||0; }catch(_){ return 0; } }   // ya enviadas en sesiones previas
 function fotosDeItem(cod){ return enLoteDeItem(cod)+enviadasDeItem(cod); }                                        // total = lote + enviadas
@@ -811,13 +901,35 @@ async function sincronizarProgreso(silencioso){
     const r=await fetchTO(SB_URL+"/rest/v1/rpc/progreso_evento",{method:"POST",headers:SB_H,body:JSON.stringify({p_uid:cfg.uid})},15000);
     if(r.ok){ const arr=await r.json();
       if(Array.isArray(arr)){
-        arr.forEach(row=>{ const cod=row.item; if(!cod) return; const n=parseInt(row.n,10)||0; const k=claveDe(cod); counters[k]=Math.max(counters[k]||0,n); });
+        arr.forEach(row=>{ const n=parseInt(row.n,10)||0;
+          // llave global tal cual la guarda la base; si la Capa9 aún no corre, se reconstruye con categoria+item (ordinal 1)
+          const k = row.item_id || (row.item ? `${cfg.uid}|${iidDe(row.item,row.categoria,1)}` : "");
+          if(!k) return; counters[k]=Math.max(counters[k]||0,n); });
         saveJSON("est_counters",counters); poblarItemTop(); if(typeof actualizarGuia==="function") actualizarGuia(); if(typeof renderLista==="function") renderLista();
         if(lnk&&!silencioso) toast("Progreso actualizado desde la base ✓");
       }
     } else if(lnk&&!silencioso){ toast("No se pudo actualizar (¿falta correr la Capa8?)"); }
   }catch(_){ if(lnk&&!silencioso) toast("Sin señal para actualizar el progreso"); }
   finally{ sincronizando=false; if(lnk) lnk.textContent="↻ Actualizar"; }
+}
+/* Ficha del requerimiento seleccionado: evita que el operador tenga que devolverse a la
+   cotización para saber DÓNDE va y CUÁNTO es. Todo sale de la plantilla del evento. */
+var carAbierta={};
+window.verMasCar=(k)=>{ carAbierta[k]=!carAbierta[k]; actualizarGuia(); };
+function fichaDeItem(iid){
+  const cat=itemCat(iid), cant=String(itemCant(iid)||"").trim(), um=String(itemUm(iid)||"").trim(),
+        dias=String(itemDias(iid)||"").trim(), car=String(itemCar(iid)||"").trim(), codigo=itemCod(iid);
+  const L=[];
+  if(cat)  L.push(`<span class="fl">📍 <span class="fk">Ubicación:</span> ${escAttr(cat)}</span>`);
+  const med=[cant?(cant+(um?" "+um:"")):"", (dias&&dias!=="0")?(dias+" día"+(dias==="1"?"":"s")):""].filter(Boolean).join(" · ");
+  if(med)  L.push(`<span class="fl">📦 <span class="fk">Cantidad:</span> ${escAttr(med)}</span>`);
+  if(car){
+    const largo=car.length>170, abierta=!!carAbierta[iid];
+    L.push(`<span class="fl">ℹ️ <span class="fk">Características:</span> <span class="fcar${largo&&!abierta?" clamp":""}">${escAttr(car)}</span>`
+      +(largo?`<a class="fmas" onclick="verMasCar('${escAttr(iid).replace(/'/g,"&#39;")}')">${abierta?"ver menos":"ver más"}</a>`:"")+`</span>`);
+  }
+  if(!L.length) return `<div class="gficha"><span class="fl">Código <b>${escAttr(codigo)}</b> — la plantilla no trae ubicación ni cantidad para este ítem.</span></div>`;
+  return `<div class="gficha">${L.join("")}</div>`;
 }
 function itemReqCorto(cod){ const r=itemReq(cod)||cod; return r.length>34?r.slice(0,34)+"…":r; }
 /* diccionario de rasgos distintivos por palabra clave (se busca en la descripción del ítem) */
@@ -861,12 +973,13 @@ function actualizarGuia(){
   const cod=$("item").value;
   if(!cod){ g.className="guia neutro"; g.innerHTML="Elige un requerimiento arriba para ver la guía y el contador de fotos."; return; }
   const enLote=enLoteDeItem(cod), enviadas=enviadasDeItem(cod), n=enLote+enviadas, meta=3, ok=n>=meta;
-  const it=itemsDelOperador().find(x=>x.codigo===cod); const nombre=(it&&it.req)?it.req:cod;
+  const it=itemsDelOperador().find(x=>x.iid===cod)||itemById(cod); const nombre=(it&&it.req)?it.req:cod;
   g.className="guia "+(ok?"ok":"falta");
   let head;
   if(enviadas>0 && enLote===0) head=`✅ ${nombre.slice(0,44)} — ${enviadas} ya enviada${enviadas===1?"":"s"} · listo`;
   else{ head=`${ok?"✅":"📸"} ${nombre.slice(0,44)} — ${enLote} en este lote`+(enviadas>0?` (+${enviadas} enviadas)`:"")+(ok?" · meta cumplida":` · faltan ${meta-n} para el mínimo de 3`); }
   g.innerHTML=`<div class="gcount">${head}</div>`
+    +fichaDeItem(cod)
     +`<div class="gtips"><b>Enfoca:</b> ${tipDeItem(nombre)}.<br>Que ocupe <b>≥60%</b> del encuadre · <b>no rotes</b> el teléfono · el plano abierto solo como contexto.</div>`;
 }
 let itemAnterior="";
@@ -891,9 +1004,10 @@ $("adSave").addEventListener("click", ()=>{
   const quien=$("adQuien").value.trim(); if(!quien){ alert("Indica quién solicitó el requerimiento adicional."); return; }
   const a=adicionalesDelEvento(); let mx=0; a.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx)mx=n; });
   const cod="A"+String(mx+1).padStart(2,"0");
-  a.push({codigo:cod, req, cant:$("adCant").value.trim(), prov:(operador&&operador.prov)||"", adicional:true, solicitadoPor:quien, justificacion:$("adNota").value.trim()});
+  a.push({codigo:cod, req, cant:$("adCant").value.trim(), prov:(operador&&operador.prov)||"", cat:"Adicionales", adicional:true, solicitadoPor:quien, justificacion:$("adNota").value.trim()});
   guardarAdicionales(a); $("adicm").classList.add("hide");
-  poblarItemTop(); $("item").value=cod; itemAnterior=cod; actualizarGuia(); renderLista();
+  const iid=iidDe(cod,"Adicionales",1);
+  poblarItemTop(); $("item").value=iid; itemAnterior=iid; actualizarGuia(); renderLista();
 });
 $("gpsEstado").addEventListener("click", pedirUbicacion);
 $("btnCap").addEventListener("click", abrirCamara);
@@ -944,7 +1058,9 @@ async function guardarLote(){ try{ const db=IDB.db||await idbOpen(); if(!db||!cf
 }catch(_){} }
 async function cargarLote(){ try{ const db=IDB.db||await idbOpen(); if(!db||!cfg) return;
   const rec=await new Promise(res=>{ const rq=db.transaction("lote","readonly").objectStore("lote").get(claveEvento()); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>res(null); });
-  if(rec&&rec.items&&rec.items.length){ batch=rec.items.map(e=>({...e,status:"listo"})); seq=Math.max(seq,rec.seq||0); }
+  if(rec&&rec.items&&rec.items.length){ batch=rec.items.map(e=>({...e,status:"listo"})); seq=Math.max(seq,rec.seq||0);
+    batch.forEach(e=>{ if(e.itemCodigo && String(e.itemCodigo).indexOf("|")<0){ const it=itemById(e.itemCodigo); if(it&&it.iid) e.itemCodigo=it.iid; } });   // lote guardado por la v11: pasar de codigo a iid
+  }
 }catch(_){} }
 function videoThumb(file){ return new Promise(res=>{
   try{ const v=document.createElement("video"); v.preload="metadata"; v.muted=true; v.playsInline=true;
@@ -978,10 +1094,10 @@ async function procesar(entry){
   }catch(err){ entry.status=(err&&err.message==="no-decode")?"HEIC no decodificable (usa Safari o JPG)":("error: "+(err&&err.message||err)); }
   renderLista();
 }
-function claveDe(cod){ return `${slug(cfg.cl)}|${slug(cfg.ev)}|${cod}`; }
-function calcularNombres(){ const u={}; batch.forEach(e=>{ if(!e.itemCodigo){ e.filename=""; return; } const base=counters[claveDe(e.itemCodigo)]||0; u[e.itemCodigo]=(u[e.itemCodigo]||0)+1; e.consec=base+u[e.itemCodigo]; const desc=slug(itemReq(e.itemCodigo)); const ot=opTag();
+function claveDe(iid){ return `${(cfg&&cfg.uid)||"SIN-UID"}|${iid}`; }   // = item_id de la base: llave global e inmutable
+function calcularNombres(){ const u={}; batch.forEach(e=>{ if(!e.itemCodigo){ e.filename=""; return; } const base=counters[claveDe(e.itemCodigo)]||0; u[e.itemCodigo]=(u[e.itemCodigo]||0)+1; e.consec=base+u[e.itemCodigo]; const desc=slug(itemReq(e.itemCodigo)); const cat=itemCat(e.itemCodigo); const ot=opTag();
   const fch=e.datos.fecha||(e.cargada?e.cargada.fecha:""); const hr=(e.datos.hora||(e.cargada?e.cargada.hora:"")).replace(/:/g,""); const fh=fch?("_"+fch+(hr?"_"+hr:"")):"";   // fecha/hora de captura (EXIF/dispositivo) o, si no hay, de carga
-  e.filename=`${slug(cfg.cl)}_${slug(cfg.ev)}_${e.itemCodigo}${desc&&desc!=="NA"?"_"+desc:""}${ot?"_"+ot:""}${fh}_${String(e.consec).padStart(3,"0")}.${e.ext||"jpg"}`; }); }
+  e.filename=`${slug(cfg.cl)}_${slug(cfg.ev)}_${cat?slug(cat)+"_":""}${itemCod(e.itemCodigo)}${desc&&desc!=="NA"?"_"+desc:""}${ot?"_"+ot:""}${fh}_${String(e.consec).padStart(3,"0")}.${e.ext||"jpg"}`; }); }
 function renderLista(){
   calcularNombres(); if(typeof actualizarGuia==="function") actualizarGuia(); const c=$("list"); c.innerHTML="";
   const listas=batch.filter(e=>e.status==="listo").length;
@@ -989,7 +1105,7 @@ function renderLista(){
   $("cnt").innerHTML = batch.length ? (`${listas}/${batch.length} listas`+(sinReq?` · <span style="color:#b3261e">${sinReq} sin requerimiento</span>`:"")) : "Aún no agregas evidencias.";
   $("enviar").disabled=listas===0;
   batch.forEach(e=>{
-    const opts=`<option value="" ${!e.itemCodigo?"selected":""}>— Selecciona requerimiento —</option>`+itemsDelOperador().map(it=>`<option value="${it.codigo}" ${it.codigo===e.itemCodigo?"selected":""}>${it.codigo}${it.req?" · "+it.req.slice(0,26):""}</option>`).join("");
+    const opts=`<option value="" ${!e.itemCodigo?"selected":""}>— Selecciona requerimiento —</option>`+itemsDelOperador().map(it=>`<option value="${escAttr(it.iid)}" ${it.iid===e.itemCodigo?"selected":""}>${it.cat?it.cat+" · ":""}${it.codigo}${it.req?" · "+it.req.slice(0,26):""}</option>`).join("");
     const d=document.createElement("div"); d.className="ev";
     const badge=e.tipo==="video"?`<span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-size:22px;text-shadow:0 1px 4px #000">▶</span>`:"";
     const thumbHtml=e.thumb?`<div style="position:relative;flex:none;width:66px;height:66px"><img src="${e.thumb}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#000">${badge}</div>`
@@ -1003,7 +1119,7 @@ function renderLista(){
   });
   const pi=$("prog");
   if(pi){ const items=itemsDelOperador(); const total=items.length;
-    const faltan=items.filter(it=>fotosDeItem(it.codigo)<3); const compl=total-faltan.length;
+    const faltan=items.filter(it=>fotosDeItem(it.iid)<3); const compl=total-faltan.length;
     const pct=total?Math.round(compl/total*100):0;
     const span=pi.querySelector(".bar>span"); if(span) span.style.width=pct+"%";
     const lbl=pi.querySelector(".lbl"); if(lbl) lbl.innerHTML = total ? (`<b>${compl}/${total}</b> requerimientos completos`+(faltan.length?` · faltan: ${faltan.map(it=>it.codigo).join(", ")}`:` · ¡todo listo! ✅`)) : "Sin requerimientos cargados.";
@@ -1034,7 +1150,7 @@ function construirCSV(listas, radicado){
   let csv="radicado,operador_cedula,operador_nombre,operador_celular,operador_proveedor,cliente,evento,evento_consec,evento_fecha,evento_ciudad,categoria,item,cantidad,proveedor,proveedor_nit,adicional,solicitado_por,justificacion,tipo,archivo,fecha,hora,lugar,lat,lon\n";
   const evc=cfg.consec?evConsecTag(cfg.consec):""; const rad=radicado||"";
   listas.forEach(e=>{ const ad=itemAdic(e.itemCodigo);
-    csv+=[rad,operador.cedula,operador.nombre,operador.celular,(operador.prov||""),cfg.cl,cfg.ev,evc,cfg.fe||"",cfg.ci||"",itemCat(e.itemCodigo),e.itemCodigo,itemCant(e.itemCodigo),itemProv(e.itemCodigo),itemNit(e.itemCodigo),(ad?"SI":""),(ad?ad.solicitadoPor:""),(ad?ad.justificacion:""),e.tipo||"foto",e.filename,e.datos.fecha,e.datos.hora,e.datos.lugar,e.datos.lat,e.datos.lon].map(csvCell).join(",")+"\n"; });
+    csv+=[rad,operador.cedula,operador.nombre,operador.celular,(operador.prov||""),cfg.cl,cfg.ev,evc,cfg.fe||"",cfg.ci||"",itemCat(e.itemCodigo),itemCod(e.itemCodigo),itemCant(e.itemCodigo),itemProv(e.itemCodigo),itemNit(e.itemCodigo),(ad?"SI":""),(ad?ad.solicitadoPor:""),(ad?ad.justificacion:""),e.tipo||"foto",e.filename,e.datos.fecha,e.datos.hora,e.datos.lugar,e.datos.lat,e.datos.lon].map(csvCell).join(",")+"\n"; });
   return csv;
 }
 async function descargarZIP(listas, csv, exito){
@@ -1112,14 +1228,17 @@ async function subirEvidencia(e, radicado){
     }
     const ad=itemAdic(e.itemCodigo)||{};
     const row={ radicado:radicado||"", evento_uid:cfg.uid||"", consec:cfg.consec||null, cliente:cfg.cl, evento:cfg.ev,
-      categoria:itemCat(e.itemCodigo), item:e.itemCodigo, requerimiento:itemReq(e.itemCodigo), proveedor:itemProv(e.itemCodigo), proveedor_nit:itemNit(e.itemCodigo),
+      categoria:itemCat(e.itemCodigo), item:itemCod(e.itemCodigo), item_id:claveDe(e.itemCodigo), requerimiento:itemReq(e.itemCodigo), proveedor:itemProv(e.itemCodigo), proveedor_nit:itemNit(e.itemCodigo),
       adicional:!!itemAdic(e.itemCodigo), solicitado_por:ad.solicitadoPor||"", justificacion:ad.justificacion||"",
       operador_nombre:operador.nombre, operador_cedula:operador.cedula, operador_celular:operador.celular,
       tipo:e.tipo||"foto", archivo:e.filename, storage_path:"evidencias/"+path,
       fecha:e.datos.fecha||"", hora:e.datos.hora||"", lugar:e.datos.lugar||"", lat:e.datos.lat, lon:e.datos.lon };
     let ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row)}, 15000);
-    if(!ins.ok){ const row2=Object.assign({},row); delete row2.radicado; delete row2.categoria; delete row2.proveedor_nit;   // por si columnas radicado/categoria/proveedor_nit aún no existen: reintentar sin ellas
-      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row2)}, 15000); }
+    if(!ins.ok){   // reintento escalonado: primero soltar SOLO item_id (Capa9 sin correr) para NO perder la categoria
+      const row1=Object.assign({},row); delete row1.item_id;
+      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row1)}, 15000);
+      if(!ins.ok){ const row2=Object.assign({},row1); delete row2.radicado; delete row2.categoria; delete row2.proveedor_nit;   // último recurso: columnas viejas
+        ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row2)}, 15000); } }
     if(!ins.ok) ultimoErr="registrar dato: HTTP "+ins.status;
     return ins.ok;
   }catch(err){ ultimoErr=(err&&err.name==="AbortError")?"tiempo agotado (señal muy lenta)":("red: "+((err&&err.name)||"error")); return false; }
