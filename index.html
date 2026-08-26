@@ -123,7 +123,7 @@
       <div style="height:8px"></div>
       <button class="btn sec" id="ebtnFicha">Completar ficha desde plantilla (ubicación · cantidad · características)</button>
       <input id="efileFicha" type="file" accept=".xlsx,.xls,.csv">
-      <div class="mut" id="efichaInfo">Rellena la ficha que ve el operador SIN agregar ni quitar requerimientos. Úsalo en eventos ya publicados.</div>
+      <div class="mut" id="efichaInfo">Rellena la ficha que ve el operador (cantidad · unidad · días · características) SIN agregar ni quitar requerimientos, y guarda solo. Úsalo en eventos ya publicados.</div>
       <div class="h" style="margin-top:14px">Agregar evidencia manualmente</div>
       <div class="fld"><label>Proveedor</label><input id="miprov" type="text" autocomplete="off" placeholder="Ej.: Sonido Pro S.A.S." list="provList"><datalist id="provList"></datalist></div>
       <div class="fld" style="margin-top:8px"><label>Requerimiento</label><input id="mireq" type="text" autocomplete="off" placeholder="Ej.: Sistema de sonido"></div>
@@ -218,7 +218,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v15 · 26ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v16 · 26ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -590,7 +590,14 @@ async function completarFicha(file){
       if(toco) ok++;
     });
     renderExecItems();
-    inf.textContent=`${ok} requerimiento${ok===1?"":"s"} completado${ok===1?"":"s"}${sin?` · ${sin} sin coincidencia en la plantilla`:""}. No se agregó ni se quitó ninguno — dale «Guardar cambios del evento».`;
+    if(!ok){ inf.textContent=`No encontré coincidencias entre la plantilla y los ${execItems.length} requerimientos del evento, o la ficha ya estaba completa. No se guardó nada.`; return; }
+    inf.textContent=`${ok} requerimiento${ok===1?"":"s"} completado${ok===1?"":"s"}${sin?` · ${sin} sin coincidencia`:""} · guardando…`;
+    if(editandoId){   // guardar de una: si se deja para después, se pierde el trabajo al salir de la pantalla
+      await guardarEventoEditado();
+      inf.textContent=`✅ ${ok} requerimiento${ok===1?"":"s"} con ficha completa${sin?` · ${sin} sin coincidencia`:""} · guardado en el evento.`;
+    } else {
+      inf.textContent=`${ok} requerimiento${ok===1?"":"s"} completado${ok===1?"":"s"} — dale «Generar acceso» para publicar el evento.`;
+    }
   }catch(err){ inf.textContent="No se pudo leer: "+err.message; }
 }
 async function cargarReq(file){
