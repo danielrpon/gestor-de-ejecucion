@@ -43,7 +43,7 @@
   .guia .gficha{margin-top:6px;padding-top:6px;border-top:1px dashed rgba(0,0,0,.18);font-size:12px;line-height:1.45}
   .guia .gficha .fl{display:block;margin:2px 0}
   .guia .gficha .fk{font-weight:700}
-  .guia .gficha .fcar.clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .guia .gficha .fcar.clamp{display:-webkit-box;-webkit-line-clamp:7;-webkit-box-orient:vertical;overflow:hidden}
   .guia .gficha .fmas{display:inline-block;margin-top:3px;font-weight:700;text-decoration:underline;cursor:pointer}
   .cchip{display:inline-block;background:#eef2fb;color:var(--azul);border:1px solid #d6e0f5;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:700;line-height:1.6;vertical-align:middle}
   input[type=file]{display:none}
@@ -218,7 +218,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v13 · 26ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v14 · 26ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -926,15 +926,15 @@ function fichaDeItem(iid){
   const cat=itemCat(iid), cant=String(itemCant(iid)||"").trim(), um=String(itemUm(iid)||"").trim(),
         dias=String(itemDias(iid)||"").trim(), car=String(itemCar(iid)||"").trim(), codigo=itemCod(iid);
   const L=[];
-  if(cat)  L.push(`<span class="fl">📍 <span class="fk">Ubicación:</span> ${escAttr(cat)}</span>`);
+  if(cat)  L.push(`<span class="fl">🎪 <span class="fk">Escenario:</span> ${escAttr(cat)}</span>`);
   const med=[cant?(cant+(um?" "+um:"")):"", (dias&&dias!=="0")?(dias+" día"+(dias==="1"?"":"s")):""].filter(Boolean).join(" · ");
   if(med)  L.push(`<span class="fl">📦 <span class="fk">Cantidad:</span> ${escAttr(med)}</span>`);
   if(car){
-    const largo=car.length>170, abierta=!!carAbierta[iid];
-    L.push(`<span class="fl">ℹ️ <span class="fk">Características:</span> <span class="fcar${largo&&!abierta?" clamp":""}">${escAttr(car)}</span>`
+    const largo=car.length>350, abierta=!!carAbierta[iid];   // p90 = 360 chars: ~9 de cada 10 se ven completas sin desplegar
+    L.push(`<span class="fl">📍 <span class="fk">Ubicación y detalle:</span> <span class="fcar${largo&&!abierta?" clamp":""}">${escAttr(car)}</span>`
       +(largo?`<a class="fmas" onclick="verMasCar('${escAttr(iid).replace(/'/g,"&#39;")}')">${abierta?"ver menos":"ver más"}</a>`:"")+`</span>`);
   }
-  if(!L.length) return `<div class="gficha"><span class="fl">Código <b>${escAttr(codigo)}</b> — la plantilla no trae ubicación ni cantidad para este ítem.</span></div>`;
+  if(!L.length) return `<div class="gficha"><span class="fl">Código <b>${escAttr(codigo)}</b> — la plantilla no trae escenario, cantidad ni detalle para este ítem.</span></div>`;
   return `<div class="gficha">${L.join("")}</div>`;
 }
 function itemReqCorto(cod){ const r=itemReq(cod)||cod; return r.length>34?r.slice(0,34)+"…":r; }
