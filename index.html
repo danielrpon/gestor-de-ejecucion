@@ -140,6 +140,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="egen" disabled>Generar acceso para operadores</button>
       <button class="btn" id="eguardar" style="margin-top:10px;display:none">Guardar cambios del evento</button>
+      <div id="eDuplicar" style="display:none;text-align:center;margin-top:10px"><a class="lnk" id="eDuplicarLink" style="font-size:13px;color:var(--muted)">Duplicar como evento nuevo</a></div>
       <div id="acWrap" class="hide">
         <div class="invite">
           <div class="it">Invitación · Captura de evidencias</div>
@@ -207,7 +208,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v10 · 25ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v11 · 25ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -394,7 +395,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     if(rec&&rec.config){
       cfg=rec.config; cfg.uid=evUid; cfg.consec=rec.consec; saveJSON("est_config",cfg); cacheEvento(rec);
       pintarWho();
-      if(rolQ==="ex"){ editandoId=evUid; prefillExec(); show("exec"); $("eguardar").style.display=""; }   // ejecutivo -> editar
+      if(rolQ==="ex"){ prefillExec(); editandoId=evUid; aplicarModoExec(); show("exec"); }   // ejecutivo -> editar (editandoId DESPUÉS de prefillExec, que lo resetea)
       else irALogin();                                       // operador -> capturar
     } else { cfg=loadJSON("est_config",null); pintarWho(); if($("homeHint")) $("homeHint").textContent="No pude cargar el evento. Revisa tu conexión y vuelve a abrir el enlace."; show("home"); }
     return;
@@ -420,6 +421,7 @@ $("egen").addEventListener("click", generarAcceso);
 $("acCopy").addEventListener("click", ()=>{ if(navigator.clipboard) navigator.clipboard.writeText(invitacionTexto()); $("acCopy").textContent="Invitación copiada ✓"; toast("Invitación copiada ✓"); });
 $("acGo").addEventListener("click", ()=>{ saveConfigDesdeExec(); irALogin(); });
 $("eguardar").addEventListener("click", guardarEventoEditado);
+if($("eDuplicarLink")) $("eDuplicarLink").addEventListener("click", async ()=>{ if(!confirm("Esto CREA un evento NUEVO con enlace nuevo (no actualiza el actual).\n\n¿Continuar?")) return; await generarAcceso(); });
 $("acCopyExec").addEventListener("click", ()=>{ const u=$("acLinkExec").textContent; if(navigator.clipboard&&u) navigator.clipboard.writeText(u); $("acCopyExec").textContent="Enlace del ejecutivo copiado ✓"; toast("Enlace del ejecutivo copiado ✓"); });
 $("verHist").addEventListener("click", ()=>{ const l=$("histList"); l.classList.toggle("hide"); const abierto=!l.classList.contains("hide"); if(abierto) renderHistorial(); $("verHist").textContent=(abierto?"▾":"▸")+" Configuración de eventos"; });
 async function renderHistorial(){
@@ -441,7 +443,13 @@ $("miadd").addEventListener("click", ()=>{ const req=$("mireq").value.trim(), ca
   execItems.push({codigo:nextCodigo(),req,cant,prov}); $("mireq").value=""; $("micant").value=""; renderExecItems(); $("mireq").focus(); });   // se conserva el proveedor para agregar varios del mismo
 function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||""})); renderExecItems();
     const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; } if(typeof renderHistorial==="function") renderHistorial();
-  if($("eguardar")){ editandoId=null; $("eguardar").style.display="none"; } }   // "Guardar" solo aparece al entrar por "editar" del historial
+  editandoId=null; aplicarModoExec(); }   // por defecto: modo NUEVO (los que editan fijan editandoId DESPUÉS y llaman aplicarModoExec)
+/* Modo de la vista ejecutivo: EDITAR (editandoId fijado) muestra solo "Guardar cambios" + "Duplicar";
+   NUEVO muestra solo "Generar acceso". Unifica ambas puertas de entrada (enlace y "Editar"). */
+function aplicarModoExec(){ const ed=!!editandoId;
+  if($("eguardar")) $("eguardar").style.display=ed?"":"none";
+  if($("egen")) $("egen").style.display=ed?"none":"";
+  if($("eDuplicar")) $("eDuplicar").style.display=ed?"":"none"; }
 const fnorm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");   // sin acentos, minúsculas
 function llenarSelectFiltro(sel, valores){ if(!sel) return; const prev=sel.value; sel.innerHTML=""; const o0=document.createElement("option"); o0.value=""; o0.textContent=(sel.id==="fltCat"?"Todas las categorías":"Todos los proveedores"); sel.appendChild(o0); valores.forEach(v=>{ const o=document.createElement("option"); o.value=v; o.textContent=v; sel.appendChild(o); }); sel.value=valores.includes(prev)?prev:""; }
 function renderExecItems(){
@@ -534,7 +542,7 @@ async function generarAcceso(){
   saveConfigDesdeExec();
   cfg.uid=nuevoUid(); cfg.consec=await nextConsec(); saveJSON("est_config",cfg);
   accesoLink=linkOper(cfg.uid); accesoExec=linkExec(cfg.uid); accesoCorto="";
-  editandoId=null; $("eguardar").style.display="none";   // "Guardar" solo desde el historial (editar)
+  editandoId=cfg.uid; aplicarModoExec();   // el evento ya existe: pasa a modo EDITAR (más cambios se guardan en sitio, sin re-duplicar)
   await mostrarAcceso(cfg.consec);
 }
 /* Panel de acceso: consecutivo + ambos enlaces (operador + ejecutivo) acortados; guarda en Supabase. */
@@ -555,7 +563,7 @@ async function editarEvento(uid){
   if(!rec||!rec.config){ alert("No pude abrir ese evento (¿sin conexión?). Intenta de nuevo."); return; }
   cfg=rec.config; cfg.uid=uid; cfg.consec=rec.consec; saveJSON("est_config",cfg); cacheEvento(rec);
   prefillExec(); show("exec");
-  editandoId=uid; $("eguardar").style.display="";   // se setea DESPUÉS de prefillExec (que lo resetea)
+  editandoId=uid; aplicarModoExec();   // se setea DESPUÉS de prefillExec (que lo resetea)
   $("acWrap").classList.add("hide"); window.scrollTo(0,0);
 }
 /* Guardar cambios: MISMO uid/consecutivo -> el MISMO enlace sirve el contenido actualizado (link estable). */
