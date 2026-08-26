@@ -120,6 +120,14 @@
       <div class="fld" style="margin-top:8px"><label>Cantidad</label><input id="micant" type="number" min="1" placeholder="1"></div>
       <div class="mut" id="miCodHint">La app asigna el código automáticamente (siguiente consecutivo).</div>
       <button class="btn sec" id="miadd" style="margin-top:8px">Agregar a la lista</button>
+      <div id="execFiltros" class="hide" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+        <div class="fld"><input id="fltBuscar" type="text" autocomplete="off" placeholder="🔍 Buscar por código, requerimiento, proveedor o categoría"></div>
+        <div class="row" style="margin-top:8px">
+          <div><label>Categoría</label><select id="fltCat"></select></div>
+          <div><label>Proveedor</label><select id="fltProv"></select></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span class="mut" id="fltInfo"></span><a class="lnk" id="fltLimpiar" style="font-size:13px">Limpiar filtros</a></div>
+      </div>
       <div id="execList" class="list" style="margin-top:10px"></div>
       <div class="h" style="margin-top:16px">Marca de agua (aplica a TODOS los operadores del evento)</div>
       <div class="opts">
@@ -199,7 +207,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v8 · 25ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v9 · 25ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -434,17 +442,36 @@ $("miadd").addEventListener("click", ()=>{ const req=$("mireq").value.trim(), ca
 function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||""})); renderExecItems();
     const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; } if(typeof renderHistorial==="function") renderHistorial();
   if($("eguardar")){ editandoId=null; $("eguardar").style.display="none"; } }   // "Guardar" solo aparece al entrar por "editar" del historial
+const fnorm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");   // sin acentos, minúsculas
+function llenarSelectFiltro(sel, valores){ if(!sel) return; const prev=sel.value; sel.innerHTML=""; const o0=document.createElement("option"); o0.value=""; o0.textContent=(sel.id==="fltCat"?"Todas las categorías":"Todos los proveedores"); sel.appendChild(o0); valores.forEach(v=>{ const o=document.createElement("option"); o.value=v; o.textContent=v; sel.appendChild(o); }); sel.value=valores.includes(prev)?prev:""; }
 function renderExecItems(){
   const c=$("execList"); c.innerHTML="";
-  execItems.forEach((it,idx)=>{ const d=document.createElement("div"); d.className="ev";
-    d.innerHTML=`<div class="in"><b style="color:var(--azul)">${it.codigo}</b> · ${it.req||"(sin descripción)"}${it.cant?` &nbsp;<span class="mut" style="margin:0">x${it.cant}</span>`:""}${it.prov||it.nit?`<div class="mut" style="margin:2px 0 0">${it.prov||""}${it.nit?`${it.prov?" · ":""}NIT ${it.nit}`:""}</div>`:""}<div class="ac"><a class="lnk" onclick="quitarExec(${idx})">quitar</a></div></div>`;
+  // poblar filtros (categorías y proveedores presentes en la lista)
+  const cats=[...new Set(execItems.map(i=>(i.cat||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
+  const provs=[...new Set(execItems.map(i=>(i.prov||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
+  llenarSelectFiltro($("fltCat"), cats); llenarSelectFiltro($("fltProv"), provs);
+  if($("execFiltros")) $("execFiltros").classList.toggle("hide", execItems.length<6);   // filtros solo si vale la pena
+  const q=fnorm($("fltBuscar")&&$("fltBuscar").value), fc=($("fltCat")&&$("fltCat").value)||"", fp=($("fltProv")&&$("fltProv").value)||"";
+  let mostrados=0;
+  execItems.forEach((it,idx)=>{
+    if(fc && (it.cat||"").trim()!==fc) return;
+    if(fp && (it.prov||"").trim()!==fp) return;
+    if(q && !fnorm([it.codigo,it.req,it.prov,it.nit,it.cat].join(" ")).includes(q)) return;
+    mostrados++;
+    const d=document.createElement("div"); d.className="ev";
+    d.innerHTML=`<div class="in"><b style="color:var(--azul)">${it.codigo}</b> · ${it.req||"(sin descripción)"}${it.cant?` &nbsp;<span class="mut" style="margin:0">x${it.cant}</span>`:""}${it.cat?` <span class="mut" style="margin:0">· ${it.cat}</span>`:""}${it.prov||it.nit?`<div class="mut" style="margin:2px 0 0">${it.prov||""}${it.nit?`${it.prov?" · ":""}NIT ${it.nit}`:""}</div>`:""}<div class="ac"><a class="lnk" onclick="quitarExec(${idx})">quitar</a></div></div>`;
     c.appendChild(d); });
-  const n=execItems.length; if(n) $("ereqInfo").textContent = n+(n===1?" evidencia en la lista.":" evidencias en la lista.");
+  const n=execItems.length;
+  if(n) $("ereqInfo").textContent = n+(n===1?" evidencia en la lista.":" evidencias en la lista.");
+  if($("fltInfo")){ const filtrando=q||fc||fp; $("fltInfo").textContent = filtrando?`Mostrando ${mostrados} de ${n}`:`${n} en total`; }
+  if(mostrados===0 && n){ c.innerHTML='<div class="mut" style="padding:8px 2px">Ningún requerimiento coincide con el filtro.</div>'; }
   if($("miCodHint")) $("miCodHint").textContent = "La app asignará el código "+nextCodigo()+" a la próxima evidencia.";
   const dl=$("provList"); if(dl){ dl.innerHTML=""; proveedores().forEach(p=>{ const o=document.createElement("option"); o.value=p; dl.appendChild(o); }); }
   chequearGen();
 }
 window.quitarExec=(i)=>{ execItems.splice(i,1); renderExecItems(); };
+["fltBuscar","fltCat","fltProv"].forEach(id=>{ const el=$(id); if(el) el.addEventListener(id==="fltBuscar"?"input":"change", renderExecItems); });
+if($("fltLimpiar")) $("fltLimpiar").addEventListener("click", ()=>{ $("fltBuscar").value=""; $("fltCat").value=""; $("fltProv").value=""; renderExecItems(); });
 /* Requerimientos ADICIONALES agregados por el operador en sitio (locales al dispositivo, por evento) */
 function adicKey(){ return "est_adic_"+(cfg?`${slug(cfg.cl)}|${slug(cfg.ev)}`:"NA"); }
 function adicionalesDelEvento(){ return loadJSON(adicKey(), []); }
