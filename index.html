@@ -45,6 +45,7 @@
   .guia .gficha .fk{font-weight:700}
   .guia .gficha .fcar.clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   .guia .gficha .fmas{display:inline-block;margin-top:3px;font-weight:700;text-decoration:underline;cursor:pointer}
+  .cchip{display:inline-block;background:#eef2fb;color:var(--azul);border:1px solid #d6e0f5;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:700;line-height:1.6;vertical-align:middle}
   input[type=file]{display:none}
   .tgl{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--txt);cursor:pointer} .tgl input{width:18px;height:18px;accent-color:var(--azul);flex:none}
   .opts{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:12px} .opts .row{flex:1 1 100%}
@@ -217,7 +218,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v12 · 26ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v13 · 26ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -788,32 +789,37 @@ window.adminAbrir=async(i)=>{
     const opt=(vals,ph)=>`<option value="">${ph}</option>`+vals.map(v=>{const val=Array.isArray(v)?v[0]:v,txt=Array.isArray(v)?v[1]:v;return `<option value="${String(val).replace(/"/g,"&quot;")}">${txt}</option>`;}).join("");
     const provs=[...new Set(arr.map(e=>(e.proveedor||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
     const opers=[...new Set(arr.map(e=>(e.operador_nombre||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
-    const reqs=[...new Map(arr.filter(e=>e.item).map(e=>[e.item,e.item+(e.requerimiento?" · "+e.requerimiento.slice(0,26):"")])).entries()].sort((a,b)=>String(a[0]).localeCompare(String(b[0]),"es"));
+    const cats=[...new Set(arr.map(e=>(e.categoria||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
+    // se indexa por la llave del requerimiento, no por el código: el mismo código vive en varios escenarios
+    const reqs=[...new Map(arr.filter(e=>e.item).map(e=>[eviKey(e),(e.categoria?e.categoria+" · ":"")+e.item+(e.requerimiento?" · "+e.requerimiento.slice(0,26):"")])).entries()].sort((a,b)=>String(a[1]).localeCompare(String(b[1]),"es"));
     const cab=`<div class="mut" style="margin-bottom:6px">${arr.length} evidencia(s) · toca una foto para verla grande</div>`
       +`<div style="display:flex;gap:16px;margin-bottom:10px"><a class="lnk" onclick="adminManifiesto()">⬇ Manifiesto (CSV)</a><a class="lnk" onclick="adminFotosZIP()">⬇ Fotos (ZIP)</a></div>`
       +`<div style="border-top:1px solid var(--line);padding-top:10px;margin-bottom:10px">`
         +`<div class="fld"><input id="adFltBuscar" type="text" autocomplete="off" placeholder="🔍 Buscar por requerimiento, proveedor, operador, archivo o radicado"></div>`
         +`<div class="row" style="margin-top:8px"><div><label>Proveedor</label><select id="adFltProv">${opt(provs,"Todos")}</select></div><div><label>Operador</label><select id="adFltOper">${opt(opers,"Todos")}</select></div></div>`
+        +`<div class="fld" style="margin-top:8px"><label>Escenario / categoría</label><select id="adFltCat">${opt(cats,"Todos")}</select></div>`
         +`<div class="fld" style="margin-top:8px"><label>Requerimiento</label><select id="adFltReq">${opt(reqs,"Todos")}</select></div>`
         +`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span class="mut" id="adFltInfo"></span><a class="lnk" id="adFltLimpiar" style="font-size:13px">Limpiar filtros</a></div>`
       +`</div><div id="adEviList" class="list"></div>`;
     l.innerHTML=cab;
-    ["adFltBuscar","adFltProv","adFltOper","adFltReq"].forEach(id=>{ const el=$(id); if(el) el.addEventListener(id==="adFltBuscar"?"input":"change", renderAdminEvidencias); });
-    if($("adFltLimpiar")) $("adFltLimpiar").addEventListener("click", ()=>{ ["adFltBuscar","adFltProv","adFltOper","adFltReq"].forEach(id=>{ if($(id)) $(id).value=""; }); renderAdminEvidencias(); });
+    ["adFltBuscar","adFltProv","adFltOper","adFltCat","adFltReq"].forEach(id=>{ const el=$(id); if(el) el.addEventListener(id==="adFltBuscar"?"input":"change", renderAdminEvidencias); });
+    if($("adFltLimpiar")) $("adFltLimpiar").addEventListener("click", ()=>{ ["adFltBuscar","adFltProv","adFltOper","adFltCat","adFltReq"].forEach(id=>{ if($(id)) $(id).value=""; }); renderAdminEvidencias(); });
     renderAdminEvidencias();
   }catch(_){ l.innerHTML='<div class="mut">Error al cargar evidencias.</div>'; }
 };
+function eviKey(e){ return e.item_id || ((e.evento_uid||"")+"|"+iidDe(e.item,e.categoria,1)); }
 function renderAdminEvidencias(){
   const cont=$("adEviList"); if(!cont) return;
-  const q=fnorm($("adFltBuscar")&&$("adFltBuscar").value), fp=($("adFltProv")&&$("adFltProv").value)||"", fo=($("adFltOper")&&$("adFltOper").value)||"", fr=($("adFltReq")&&$("adFltReq").value)||"";
+  const q=fnorm($("adFltBuscar")&&$("adFltBuscar").value), fp=($("adFltProv")&&$("adFltProv").value)||"", fo=($("adFltOper")&&$("adFltOper").value)||"", fc=($("adFltCat")&&$("adFltCat").value)||"", fr=($("adFltReq")&&$("adFltReq").value)||"";
   let vis=0, html="";
   adminEvidencias.forEach((e,j)=>{
     if(fp && (e.proveedor||"").trim()!==fp) return;
     if(fo && (e.operador_nombre||"").trim()!==fo) return;
-    if(fr && (e.item||"")!==fr) return;
+    if(fc && (e.categoria||"").trim()!==fc) return;
+    if(fr && eviKey(e)!==fr) return;
     if(q && !fnorm([e.item,e.requerimiento,e.proveedor,e.proveedor_nit,e.operador_nombre,e.operador_cedula,e.archivo,e.radicado,e.categoria].join(" ")).includes(q)) return;
     vis++;
-    html+=`<div class="ev"><div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})"><img id="adimg${j}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5"></div><div class="in"><b>${e.item||""}</b> · ${(e.requerimiento||"").slice(0,38)}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${e.operador_nombre||""}${e.operador_cedula?" · "+e.operador_cedula:""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+e.radicado:""}</div><div class="fn" style="margin-top:3px">${e.archivo||""}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${(e.lugar||"").slice(0,60)}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvidencia(${j})">borrar</a></div></div></div>`;
+    html+=`<div class="ev"><div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})"><img id="adimg${j}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5"></div><div class="in">${e.categoria?`<span class="cchip">${escAttr(e.categoria)}</span> `:""}<b>${e.item||""}</b> · ${(e.requerimiento||"").slice(0,38)}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${e.operador_nombre||""}${e.operador_cedula?" · "+e.operador_cedula:""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+e.radicado:""}</div><div class="fn" style="margin-top:3px">${e.archivo||""}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${(e.lugar||"").slice(0,60)}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvidencia(${j})">borrar</a></div></div></div>`;
   });
   cont.innerHTML = vis ? html : '<div class="mut" style="padding:8px 2px">Ninguna evidencia coincide con el filtro.</div>';
   if($("adFltInfo")){ const f=q||fp||fo||fr; $("adFltInfo").textContent = f ? `Mostrando ${vis} de ${adminEvidencias.length}` : `${adminEvidencias.length} evidencia(s)`; }
