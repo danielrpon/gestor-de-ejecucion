@@ -45,6 +45,11 @@
   .guia .gficha .fk{font-weight:700}
   .guia .gficha .fcar.clamp{display:-webkit-box;-webkit-line-clamp:7;-webkit-box-orient:vertical;overflow:hidden}
   .guia .gficha .fmas{display:inline-block;margin-top:3px;font-weight:700;text-decoration:underline;cursor:pointer}
+  .xbox{border:1px solid #f0b26b;background:#fff8ee;border-radius:10px;padding:9px 11px;margin-bottom:10px}
+  .xbox .xt{font-weight:800;color:#7a4a12;font-size:13px;margin-bottom:5px}
+  .xbox .xr{border-top:1px dashed #e3c79c;padding:6px 0 2px;font-size:12.5px;line-height:1.45}
+  .xbox .xr:first-of-type{border-top:0}
+  .xbox .xk{font-weight:700}
   .cchip{display:inline-block;background:#eef2fb;color:var(--azul);border:1px solid #d6e0f5;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:700;line-height:1.6;vertical-align:middle}
   input[type=file]{display:none}
   .tgl{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--txt);cursor:pointer} .tgl input{width:18px;height:18px;accent-color:var(--azul);flex:none}
@@ -218,7 +223,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v17 · 26ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v18 · 26ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -729,39 +734,42 @@ async function adminCargarEventos(){
   try{
     const [rEv,rEvi]=await Promise.all([
       fetch(SB_URL+"/rest/v1/eventos?select=uid,consec,cl,ev,fe,config,short_oper,short_exec&order=consec.desc",{headers:adminHeaders()}),
-      fetch(SB_URL+"/rest/v1/evidencias?select=evento_uid,item,item_id,categoria",{headers:adminHeaders()})
+      fetch(SB_URL+"/rest/v1/evidencias?select=evento_uid,item,item_id,categoria,adicional",{headers:adminHeaders()})
     ]);
     if(rEv.status===401||rEvi.status===401){ adminSesExpirada(); return; }
     adminEventos=await rEv.json();
     const evis = rEvi.ok ? await rEvi.json() : [];
     const porEvento={}, porItem={};
     // llave global por evidencia; si la fila es anterior a la Capa9 se reconstruye con categoria+item
+    const extrasPorEvento={};
     evis.forEach(x=>{ porEvento[x.evento_uid]=(porEvento[x.evento_uid]||0)+1;
       const k = x.item_id || (x.evento_uid+"|"+iidDe(x.item,x.categoria,1));
-      porItem[k]=(porItem[k]||0)+1; });
+      porItem[k]=(porItem[k]||0)+1;
+      if(x.adicional){ (extrasPorEvento[x.evento_uid]=extrasPorEvento[x.evento_uid]||new Set()).add(k); } });
     if(!adminEventos.length){ l.innerHTML='<div class="mut">Aún no hay eventos.</div>'; return; }
     // ---- métricas por evento + totales globales (Dashboard) ----
-    let gReq=0,gComp=0,gEvi=0; const metricas=adminEventos.map(e=>{
+    let gReq=0,gComp=0,gEvi=0,gExtra=0; const metricas=adminEventos.map(e=>{
       const items=anotarIids((e.config&&e.config.it)||[]);
       const reg=porEvento[e.uid]||0;
       const conEvi=items.filter(it=>(porItem[e.uid+"|"+it.iid]||0)>=1).length;
       const comp=items.filter(it=>(porItem[e.uid+"|"+it.iid]||0)>=3).length;
       const pend=items.length-comp;
       const av=items.length?Math.round(comp/items.length*100):0;
-      gReq+=items.length; gComp+=comp; gEvi+=reg;
-      return {n:items.length,reg,conEvi,comp,pend,av};
+      const extras=(extrasPorEvento[e.uid]||new Set()).size;   // adicionales creados en sitio, no están en el config
+      gReq+=items.length; gComp+=comp; gEvi+=reg; gExtra+=extras;
+      return {n:items.length,reg,conEvi,comp,pend,av,extras};
     });
     const gAv=gReq?Math.round(gComp/gReq*100):0;
     const kpi=(v,t)=>`<div style="flex:1;min-width:70px;text-align:center;border:1px solid var(--bd,#e3e3e3);border-radius:10px;padding:8px 4px"><div style="font-size:20px;font-weight:800;color:var(--azul)">${v}</div><div class="mut" style="margin:2px 0 0;font-size:11px">${t}</div></div>`;
     const bar=av=>`<div style="height:7px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0 2px"><div style="height:100%;width:${av}%;background:${av>=100?'#1a9e56':(av>0?'var(--azul)':'#e9e9ee')}"></div></div>`;
     const dash=`<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">`
-      +kpi(adminEventos.length,"Eventos")+kpi(gReq,"Requerimientos")+kpi(gEvi,"Evidencias")+kpi(gComp+"/"+gReq,"Completos ≥3")+kpi(gAv+"%","Avance")
+      +kpi(adminEventos.length,"Eventos")+kpi(gReq,"Requerimientos")+kpi(gEvi,"Evidencias")+kpi(gComp+"/"+gReq,"Completos ≥3")+kpi(gAv+"%","Avance")+kpi(gExtra,"Extras en sitio")
       +`</div>`;
     l.innerHTML=dash+adminEventos.map((e,i)=>{
       const m=metricas[i];
       return `<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}`
         +bar(m.av)
-        +`<div class="mut" style="margin:2px 0 0">Requerimientos: <b>${m.n}</b> · Con evidencia: <b>${m.conEvi}</b> · Completos ≥3: <b>${m.comp}</b> · Pendientes: <b>${m.pend}</b> · Evidencias: <b>${m.reg}</b> · Avance: <b>${m.av}%</b></div>`
+        +`<div class="mut" style="margin:2px 0 0">Requerimientos: <b>${m.n}</b> · Con evidencia: <b>${m.conEvi}</b> · Completos ≥3: <b>${m.comp}</b> · Pendientes: <b>${m.pend}</b> · Evidencias: <b>${m.reg}</b> · Avance: <b>${m.av}%</b>${m.extras?` · <span style="color:var(--oro-d)">Extras en sitio: <b>${m.extras}</b></span>`:""}</div>`
         +`<div class="ac"><a class="lnk" onclick="adminCopiar(${i},'oper')">link operador</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link ejecutivo</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a></div></div></div>`;
     }).join("");
   }catch(_){ l.innerHTML='<div class="mut">Error al cargar.</div>'; }
@@ -803,7 +811,8 @@ window.adminAbrir=async(i)=>{
     const cats=[...new Set(arr.map(e=>(e.categoria||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
     // se indexa por la llave del requerimiento, no por el código: el mismo código vive en varios escenarios
     const reqs=[...new Map(arr.filter(e=>e.item).map(e=>[eviKey(e),(e.categoria?e.categoria+" · ":"")+e.item+(e.requerimiento?" · "+e.requerimiento.slice(0,26):"")])).entries()].sort((a,b)=>String(a[1]).localeCompare(String(b[1]),"es"));
-    const cab=`<div class="mut" style="margin-bottom:6px">${arr.length} evidencia(s) · toca una foto para verla grande</div>`
+    const cab=bloqueExtras(arr)
+      +`<div class="mut" style="margin-bottom:6px">${arr.length} evidencia(s) · toca una foto para verla grande</div>`
       +`<div style="display:flex;gap:16px;margin-bottom:10px"><a class="lnk" onclick="adminManifiesto()">⬇ Manifiesto (CSV)</a><a class="lnk" onclick="adminFotosZIP()">⬇ Fotos (ZIP)</a></div>`
       +`<div style="border-top:1px solid var(--line);padding-top:10px;margin-bottom:10px">`
         +`<div class="fld"><input id="adFltBuscar" type="text" autocomplete="off" placeholder="🔍 Buscar por requerimiento, proveedor, operador, archivo o radicado"></div>`
@@ -819,6 +828,41 @@ window.adminAbrir=async(i)=>{
   }catch(_){ l.innerHTML='<div class="mut">Error al cargar evidencias.</div>'; }
 };
 function eviKey(e){ return e.item_id || ((e.evento_uid||"")+"|"+iidDe(e.item,e.categoria,1)); }
+/* Los requerimientos ADICIONALES los crea el operador en sitio y viven en el localStorage de su
+   celular: NO están en eventos.config, así que el tablero no los conocía. Aquí se reconstruyen
+   desde las propias evidencias (que sí traen adicional/solicitado_por/justificacion/cantidad),
+   sin que el operador tenga que escribir en el config -> se mantiene su rol de solo-inserción. */
+function extrasDeEvidencias(arr){
+  const m=new Map();
+  (arr||[]).forEach(e=>{ if(!e.adicional) return; const k=eviKey(e);
+    let x=m.get(k);
+    if(!x){ x={k, item:e.item||"", req:e.requerimiento||"", cant:e.cantidad||"", prov:e.proveedor||"", nit:e.proveedor_nit||"",
+               quien:e.solicitado_por||"", nota:e.justificacion||"", oper:e.operador_nombre||"", fotos:0, primera:e.creado||""}; m.set(k,x); }
+    if((e.tipo||"foto")==="foto") x.fotos++;
+    if(!x.quien && e.solicitado_por) x.quien=e.solicitado_por;
+    if(!x.nota && e.justificacion) x.nota=e.justificacion;
+    if(!x.cant && e.cantidad) x.cant=e.cantidad;
+  });
+  return [...m.values()].sort((a,b)=>String(a.primera).localeCompare(String(b.primera)));
+}
+function bloqueExtras(arr){
+  const x=extrasDeEvidencias(arr); if(!x.length) return "";
+  return `<div class="xbox"><div class="xt">➕ ${x.length} requerimiento${x.length===1?"":"s"} adicional${x.length===1?"":"es"} reportado${x.length===1?"":"s"} en sitio</div>`
+    +x.map(e=>`<div class="xr"><b>${escAttr(e.item)}</b> · ${escAttr(e.req)}${e.cant?` <span class="xk">×${escAttr(e.cant)}</span>`:""} <span class="mut" style="margin:0">· ${e.fotos} foto${e.fotos===1?"":"s"}</span>`
+      +`<div class="mut" style="margin:1px 0 0">Solicitado por: <b>${escAttr(e.quien||"—")}</b>${e.prov?` · Proveedor: ${escAttr(e.prov)}`:""}${e.oper?` · Capturó: ${escAttr(e.oper)}`:""}</div>`
+      +(e.nota?`<div class="mut" style="margin:1px 0 0">Justificación: ${escAttr(e.nota)}</div>`:"")
+      +`</div>`).join("")
+    +`<div class="ac" style="margin-top:6px"><a class="lnk" onclick="adminExtrasCSV()">⬇ Extras (CSV)</a></div></div>`;
+}
+/* CSV solo de los extras: es lo que se cobra aparte, así que se entrega suelto. */
+window.adminExtrasCSV=()=>{
+  const x=extrasDeEvidencias(adminEvidencias); if(!x.length){ toast("Sin adicionales"); return; }
+  const ev=adminEventos[adminEventoActual]||{};
+  const cols=["item","requerimiento","cantidad","proveedor","proveedor_nit","solicitado_por","justificacion","operador","fotos"];
+  let csv=cols.join(",")+"\n";
+  x.forEach(e=>{ csv+=[e.item,e.req,e.cant,e.prov,e.nit,e.quien,e.nota,e.oper,e.fotos].map(csvCell).join(",")+"\n"; });
+  bajar(new Blob([csv],{type:"text/csv"}), `extras_${slug(ev.cl||"")}_${slug(ev.ev||"")}.csv`);
+};
 function renderAdminEvidencias(){
   const cont=$("adEviList"); if(!cont) return;
   const q=fnorm($("adFltBuscar")&&$("adFltBuscar").value), fp=($("adFltProv")&&$("adFltProv").value)||"", fo=($("adFltOper")&&$("adFltOper").value)||"", fc=($("adFltCat")&&$("adFltCat").value)||"", fr=($("adFltReq")&&$("adFltReq").value)||"";
@@ -864,7 +908,7 @@ $("lightbox").addEventListener("click", e=>{ if(e.target.id==="lightbox") $("lig
 /* Manifiesto CSV del evento (se genera desde la tabla -> siempre al día con todo lo enviado) */
 window.adminManifiesto=()=>{
   const arr=adminEvidencias; if(!arr.length){ toast("Sin evidencias"); return; }
-  const cols=["radicado","evento_consec","cliente","evento","categoria","item","item_id","requerimiento","proveedor","adicional","solicitado_por","justificacion","operador_nombre","operador_cedula","operador_celular","tipo","archivo","fecha","hora","lugar","lat","lon","creado"];
+  const cols=["radicado","evento_consec","cliente","evento","categoria","item","item_id","requerimiento","cantidad","proveedor","adicional","solicitado_por","justificacion","operador_nombre","operador_cedula","operador_celular","tipo","archivo","fecha","hora","lugar","lat","lon","creado"];
   let csv=cols.join(",")+"\n";
   arr.forEach(e=>{ csv+=cols.map(c=>{ const v=(c==="evento_consec")?(e.consec?evConsecTag(e.consec):""):(e[c]!=null?e[c]:""); return csvCell(v); }).join(",")+"\n"; });
   bajar(new Blob([csv],{type:"text/csv"}), `manifiesto_${slug(arr[0].cliente||"")}_${slug(arr[0].evento||"")}.csv`);
