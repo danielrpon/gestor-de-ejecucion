@@ -216,14 +216,14 @@
       </div>
     </div>
     <div class="card">
-      <div class="h" style="justify-content:space-between;align-items:center">Progreso del evento <a class="lnk" id="syncProg" style="font-size:13px;font-weight:600">↻ Actualizar</a></div>
+      <div class="h" style="justify-content:space-between;align-items:center">Progreso del evento <a class="lnk" id="syncProg" style="font-size:13px;font-weight:600" title="Trae a este teléfono las fotos que ya subieron los demás operadores">↻ Traer avance de otros equipos</a></div>
       <div id="prog" class="prog"><div class="bar"><span></span></div><div class="lbl"></div></div>
       <div class="cnt" id="cnt">Aún no agregas fotos.</div>
       <div class="list" id="list"></div>
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v19 · 26ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v20 · 26ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -971,13 +971,23 @@ async function sincronizarProgreso(silencioso){
       }
     } else if(lnk&&!silencioso){ toast("No se pudo actualizar (¿falta correr la Capa8?)"); }
   }catch(_){ if(lnk&&!silencioso) toast("Sin señal para actualizar el progreso"); }
-  finally{ sincronizando=false; if(lnk) lnk.textContent="↻ Actualizar"; }
+  finally{ sincronizando=false; if(lnk) lnk.textContent="↻ Traer avance de otros equipos"; }
 }
 /* Antes se imprimían los ~370 códigos pendientes en un solo renglón: ilegible, y con el mismo
    código repetido por aparecer en varios escenarios. Ahora un conteo por escenario, con el
    detalle desplegable y acotado para que no vuelva a ser un muro de texto. */
 var faltAbierto=false;
-window.verFaltantes=()=>{ faltAbierto=!faltAbierto; actualizarGuia(); };
+/* El bloque de progreso se pinta aparte: actualizarGuia() se devuelve temprano cuando no hay
+   requerimiento seleccionado, así que colgar de ahí el "ver detalle" lo dejaba sin repintar. */
+function pintarProgreso(){
+  const pi=$("prog"); if(!pi) return;
+  const items=itemsDelOperador(); const total=items.length;
+  const faltan=items.filter(it=>fotosDeItem(it.iid)<3); const compl=total-faltan.length;
+  const pct=total?Math.round(compl/total*100):0;
+  const span=pi.querySelector(".bar>span"); if(span) span.style.width=pct+"%";
+  const lbl=pi.querySelector(".lbl"); if(lbl) lbl.innerHTML = total ? (`<b>${compl}/${total}</b> requerimientos completos`+resumenFaltantes(faltan)) : "Sin requerimientos cargados.";
+}
+window.verFaltantes=()=>{ faltAbierto=!faltAbierto; pintarProgreso(); };
 function resumenFaltantes(faltan){
   if(!faltan.length) return " · ¡todo listo! ✅";
   const porCat={};
@@ -1202,13 +1212,7 @@ function renderLista(){
        <div class="ac">${e.status==="listo"&&e.itemCodigo?`<a class="lnk" onclick="descargarUno(${e.id})">descargar</a>`:""}<a class="lnk" onclick="quitar(${e.id})">quitar</a></div></div>`;
     c.appendChild(d);
   });
-  const pi=$("prog");
-  if(pi){ const items=itemsDelOperador(); const total=items.length;
-    const faltan=items.filter(it=>fotosDeItem(it.iid)<3); const compl=total-faltan.length;
-    const pct=total?Math.round(compl/total*100):0;
-    const span=pi.querySelector(".bar>span"); if(span) span.style.width=pct+"%";
-    const lbl=pi.querySelector(".lbl"); if(lbl) lbl.innerHTML = total ? (`<b>${compl}/${total}</b> requerimientos completos`+resumenFaltantes(faltan)) : "Sin requerimientos cargados.";
-  }
+  pintarProgreso();
   if($("item") && document.activeElement!==$("item")) poblarItemTop();   // refresca ✓/◔/○ en el selector
   guardarLote();   // respalda el lote en curso (IndexedDB) ante recargas
 }
