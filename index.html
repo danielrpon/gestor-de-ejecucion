@@ -218,7 +218,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v14 · 26ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v15 · 26ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -923,10 +923,9 @@ async function sincronizarProgreso(silencioso){
 var carAbierta={};
 window.verMasCar=(k)=>{ carAbierta[k]=!carAbierta[k]; actualizarGuia(); };
 function fichaDeItem(iid){
-  const cat=itemCat(iid), cant=String(itemCant(iid)||"").trim(), um=String(itemUm(iid)||"").trim(),
+  const cant=String(itemCant(iid)||"").trim(), um=String(itemUm(iid)||"").trim(),
         dias=String(itemDias(iid)||"").trim(), car=String(itemCar(iid)||"").trim(), codigo=itemCod(iid);
   const L=[];
-  if(cat)  L.push(`<span class="fl">🎪 <span class="fk">Escenario:</span> ${escAttr(cat)}</span>`);
   const med=[cant?(cant+(um?" "+um:"")):"", (dias&&dias!=="0")?(dias+" día"+(dias==="1"?"":"s")):""].filter(Boolean).join(" · ");
   if(med)  L.push(`<span class="fl">📦 <span class="fk">Cantidad:</span> ${escAttr(med)}</span>`);
   if(car){
@@ -934,7 +933,7 @@ function fichaDeItem(iid){
     L.push(`<span class="fl">📍 <span class="fk">Ubicación y detalle:</span> <span class="fcar${largo&&!abierta?" clamp":""}">${escAttr(car)}</span>`
       +(largo?`<a class="fmas" onclick="verMasCar('${escAttr(iid).replace(/'/g,"&#39;")}')">${abierta?"ver menos":"ver más"}</a>`:"")+`</span>`);
   }
-  if(!L.length) return `<div class="gficha"><span class="fl">Código <b>${escAttr(codigo)}</b> — la plantilla no trae escenario, cantidad ni detalle para este ítem.</span></div>`;
+  if(!L.length) return `<div class="gficha"><span class="fl">Código <b>${escAttr(codigo)}</b> — la plantilla no trae cantidad ni detalle para este ítem.</span></div>`;
   return `<div class="gficha">${L.join("")}</div>`;
 }
 function itemReqCorto(cod){ const r=itemReq(cod)||cod; return r.length>34?r.slice(0,34)+"…":r; }
