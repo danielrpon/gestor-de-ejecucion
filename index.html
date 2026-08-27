@@ -229,7 +229,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v21 · 27ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v22 · 27ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -1156,6 +1156,8 @@ $("opSave").addEventListener("click", ()=>{ const n=$("onom").value.trim(),c=$("
     nuevo.prov=p; }
   operador=nuevo; saveJSON("est_operador",operador); pintarWho(); $("opm").classList.add("hide"); poblarItemTop(); $("ctx").textContent=(cfg.cl||"—")+" · "+(cfg.ev||"—")+(operador.prov?("  ·  "+operador.prov):""); renderLista(); });
 $("enviar").addEventListener("click", ()=>empaquetar("supabase"));
+/* Si el geocoder falló por falta de señal, al reconectar se completan las direcciones y se re-sella. */
+window.addEventListener("online", ()=>{ if(batch.some(e=>e.status==="listo"&&e.datos&&e.datos.lat!=null&&!e.datos.lugar)) redibujarTodas(); });
 
 
 /* ---- lote ---- */
@@ -1236,7 +1238,8 @@ function renderLista(){
     const badge=e.tipo==="video"?`<span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-size:22px;text-shadow:0 1px 4px #000">▶</span>`:"";
     const thumbHtml=e.thumb?`<div style="position:relative;flex:none;width:66px;height:66px"><img src="${e.thumb}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#000">${badge}</div>`
       :`<div style="width:66px;height:66px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px;background:#f0f0f0;border-radius:7px">${e.tipo==="video"?"▶":"…"}</div>`;
-    const sinUbi = (e.status==="listo" && e.datos && e.datos.lat==null) ? ' <span style="color:#b3261e" title="Sin coordenadas: el sello no lleva dirección">⚠ sin ubicación</span>' : '';
+    const sinUbi = (e.status==="listo" && e.datos && e.datos.lat==null) ? ' <span style="color:#b3261e" title="Sin coordenadas: el sello no lleva dirección">⚠ sin ubicación</span>'
+      : ((e.status==="listo" && e.datos && !e.datos.lugar) ? ' <span style="color:#7a4a12" title="Hay GPS pero ningún geocoder respondió; el sello quedó con coordenadas. Se reintenta al recuperar señal.">⚠ sin dirección</span>' : '');
     const fnHtml = (e.status!=="listo" ? '<span style="color:var(--muted)">'+e.status+'</span>'
       : (!e.itemCodigo ? '<span style="color:#b3261e">Asigna un requerimiento ↑</span>' : e.filename)) + sinUbi;
     d.innerHTML=thumbHtml+
@@ -1558,18 +1561,34 @@ function textoMarca(d){ if(!d) return "";
   return L.join("\n"); }
 async function geocodeThrottled(lat,lon){ const k=lat.toFixed(5)+","+lon.toFixed(5); if(geoCache[k]) return geoCache[k];
   const p=geoChain.then(async()=>{ await sleep(1100); if(geoCache[k]) return geoCache[k]; const r=await geocode(lat,lon); if(r) geoCache[k]=r; return r; }); geoChain=p.catch(()=>{}); return p; }
-/* Devuelve {txt, lineas}: `txt` es la dirección de una línea que viaja al CSV y a la base (compat),
-   `lineas` es el desglose que se estampa en la foto al estilo Timestamp. */
+/* Devuelve {txt, lineas, fuente}: `txt` es la dirección de una línea que viaja al CSV y a la base
+   (compat), `lineas` es el desglose que se estampa en la foto al estilo Timestamp.
+   Tres proveedores en cascada porque ninguno solo es confiable en campo. */
 async function geocode(lat,lon){
-  const r = (await geoNominatim(lat,lon)) || (await geoRespaldo(lat,lon));
+  let r=await geoNominatim(lat,lon), f="nominatim";
+  if(!r){ r=await geoPhoton(lat,lon); f="photon"; }
+  if(!r){ r=await geoRespaldo(lat,lon); f="bigdatacloud"; }
   if(!r) return null;
   const lineas=r.filter(Boolean);
-  return lineas.length?{txt:lineas.join(", "), lineas}:null;
+  return lineas.length?{txt:lineas.join(", "), lineas, fuente:f}:null;
 }
-/* Nominatim: el único gratuito y sin llave que llega a calle + número + código postal. */
+/* JSONP, no fetch: nominatim.openstreetmap.org responde 200 pero SIN Access-Control-Allow-Origin,
+   así que todo fetch desde el navegador muere por CORS (era el bug de la v21: la foto terminaba
+   sellada con coordenadas). Con json_callback el mismo endpoint sí manda ACAO y funciona. */
+let jsonpN=0;
+function jsonp(url,ms){ return new Promise(res=>{
+  const cb="__geo"+(++jsonpN); let sc=document.createElement("script"), t=null, listo=false;
+  const limpiar=()=>{ if(listo) return; listo=true; try{ delete window[cb]; }catch(_){ window[cb]=undefined; }
+    if(sc&&sc.parentNode) sc.parentNode.removeChild(sc); sc=null; if(t) clearTimeout(t); };
+  window[cb]=d=>{ limpiar(); res(d); };
+  sc.onerror=()=>{ limpiar(); res(null); };
+  t=setTimeout(()=>{ limpiar(); res(null); }, ms||9000);
+  sc.src=url+"&json_callback="+cb; document.head.appendChild(sc);
+}); }
+/* Nominatim: el único gratuito y sin llave que llega a calle + número de placa + código postal. */
 async function geoNominatim(lat,lon){
-  try{ const url=`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1&accept-language=es`;
-    const j=await (await fetch(url,{headers:{"Accept":"application/json"}})).json(); const a=j.address||{};
+  try{ const j=await jsonp(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1&accept-language=es`);
+    if(!j||!j.address) return null; const a=j.address;
     // Punto de interés (parque, coliseo, centro comercial): sólo cuando el resultado NO es una vía o una casa.
     const tipo=j.addresstype||"";
     const poi=(["road","house_number","postcode","place","residential"].indexOf(tipo)<0 && j.name) ? j.name
@@ -1581,6 +1600,26 @@ async function geoNominatim(lat,lon){
     if(ciudad)ciudad=ciudad.replace(/^Per[íi]metro Urbano\s+/,""); if(barrio)barrio=barrio.replace(/^Comuna\s+\d+\s*-\s*/,"");
     const p=[]; if(poi&&poi!==road)p.push(poi); if(road)p.push(road); if(barrio&&barrio!==ciudad)p.push(barrio);
     if(ciudad)p.push(ciudad+(a.postcode?" "+a.postcode:"")); if(depto&&depto!==ciudad)p.push(depto); if(pais)p.push(pais);
+    return p.length?p:null; }catch(_){ return null; }
+}
+/* Photon (Komoot, datos OSM): sí manda ACAO, llega a calle y a veces al número. Primer respaldo. */
+async function geoPhoton(lat,lon){
+  try{ const j=await (await fetch(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lon}&limit=1`)).json();
+    const f=j&&j.features&&j.features[0]; if(!f) return null; const q=f.properties||{};
+    const esPoi=["amenity","leisure","tourism","shop","building","office"].indexOf(q.osm_key)>=0;
+    const poi=esPoi?(q.name||""):"";
+    let road=q.street||((q.type==="street"||q.osm_key==="highway")?(q.name||""):"");
+    if(road && q.housenumber) road+=" #"+q.housenumber;
+    const barrio=q.district||q.locality||"", ciudad=q.city||q.county||"", depto=q.state||"", pais=q.country||"";
+    const p=[]; if(poi&&poi!==road)p.push(poi); if(road)p.push(road); if(barrio&&barrio!==ciudad)p.push(barrio);
+    if(ciudad)p.push(ciudad+(q.postcode?" "+q.postcode:"")); if(depto&&depto!==ciudad)p.push(depto); if(pais)p.push(pais);
+    return p.length?p:null; }catch(_){ return null; }
+}
+/* Último respaldo: llega a barrio/ciudad, nunca a la calle. Mejor eso que unas coordenadas. */
+async function geoRespaldo(lat,lon){
+  try{ const j=await (await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=es`)).json();
+    const p=[]; if(j.locality&&j.locality!==j.city)p.push(j.locality);
+    if(j.city)p.push(j.city+(j.postcode?" "+j.postcode:"")); if(j.principalSubdivision)p.push(j.principalSubdivision); if(j.countryName)p.push(j.countryName);
     return p.length?p:null; }catch(_){ return null; }
 }
 /* Respaldo cuando Nominatim no responde (corta por cuota o no hay señal): llega a barrio/ciudad, no a la calle. */
