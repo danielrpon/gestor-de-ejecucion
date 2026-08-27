@@ -211,6 +211,7 @@
       <input id="vidf" type="file" accept="video/*" capture="environment">
       <input id="gal" type="file" accept="image/*" multiple>
       <div class="gpschip off" id="gpsChip"><span id="gpsEstado"><b>Toca aquí para activar la ubicación.</b></span></div>
+      <div class="mut" id="geoDiag" style="font-size:11px;margin-top:4px"></div>
       <div class="guia falta hide" id="inAppAviso" style="margin-top:8px">Abriste el enlace <b>dentro de WhatsApp</b>. Ese navegador bloquea la ubicación y la cámara. Toca <b>⋯ → Abrir en Safari</b> (iPhone) o <b>⋮ → Abrir en Chrome</b> (Android) y vuelve a entrar por el mismo enlace.</div>
       <!-- posición/tamaño/marca ahora los define el EJECUTIVO; estos inputs quedan ocultos y los lee el dibujo de marca -->
       <div class="opts hide">
@@ -229,7 +230,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v22 · 27ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v23 · 27ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -1564,14 +1565,30 @@ async function geocodeThrottled(lat,lon){ const k=lat.toFixed(5)+","+lon.toFixed
 /* Devuelve {txt, lineas, fuente}: `txt` es la dirección de una línea que viaja al CSV y a la base
    (compat), `lineas` es el desglose que se estampa en la foto al estilo Timestamp.
    Tres proveedores en cascada porque ninguno solo es confiable en campo. */
+/* Cada proveedor reporta por qué falló: sin esto, "no hay dirección" es indistinguible de
+   "no hay señal", "el proveedor cortó" o "el navegador lo bloqueó". */
+let geoDiag="";
+function pintarGeoDiag(){ const el=$("geoDiag"); if(el) el.textContent=geoDiag; }
 async function geocode(lat,lon){
-  let r=await geoNominatim(lat,lon), f="nominatim";
-  if(!r){ r=await geoPhoton(lat,lon); f="photon"; }
-  if(!r){ r=await geoRespaldo(lat,lon); f="bigdatacloud"; }
-  if(!r) return null;
-  const lineas=r.filter(Boolean);
-  return lineas.length?{txt:lineas.join(", "), lineas, fuente:f}:null;
+  for(let intento=1; intento<=2; intento++){
+    const d=[];
+    let r=await geoNominatim(lat,lon,d), f="nominatim";
+    if(!r){ r=await geoPhoton(lat,lon,d); f="photon"; }
+    if(!r){ r=await geoRespaldo(lat,lon,d); f="bigdatacloud"; }
+    if(r){ const lineas=r.filter(Boolean);
+      if(lineas.length){ geoDiag="Dirección por "+f+" ✓"; pintarGeoDiag(); return {txt:lineas.join(", "), lineas, fuente:f}; } }
+    geoDiag="Sin dirección — "+d.join(" · ")+(intento===1?" · reintentando":"");
+    pintarGeoDiag();
+    if(intento===1) await sleep(2500);
+  }
+  return null;
 }
+/* fetch con tope de espera: en red móvil una petición colgada bloquea toda la cadena. */
+async function fetchT(url,ms){ const c=("AbortController" in window)?new AbortController():null;
+  const t=c?setTimeout(()=>c.abort(),ms||9000):null;
+  try{ const r=await fetch(url,c?{signal:c.signal}:undefined); if(t)clearTimeout(t);
+    if(!r.ok) throw new Error("HTTP "+r.status); return await r.json(); }
+  finally{ if(t)clearTimeout(t); } }
 /* JSONP, no fetch: nominatim.openstreetmap.org responde 200 pero SIN Access-Control-Allow-Origin,
    así que todo fetch desde el navegador muere por CORS (era el bug de la v21: la foto terminaba
    sellada con coordenadas). Con json_callback el mismo endpoint sí manda ACAO y funciona. */
@@ -1582,13 +1599,13 @@ function jsonp(url,ms){ return new Promise(res=>{
     if(sc&&sc.parentNode) sc.parentNode.removeChild(sc); sc=null; if(t) clearTimeout(t); };
   window[cb]=d=>{ limpiar(); res(d); };
   sc.onerror=()=>{ limpiar(); res(null); };
-  t=setTimeout(()=>{ limpiar(); res(null); }, ms||9000);
+  t=setTimeout(()=>{ limpiar(); res(null); }, ms||12000);
   sc.src=url+"&json_callback="+cb; document.head.appendChild(sc);
 }); }
 /* Nominatim: el único gratuito y sin llave que llega a calle + número de placa + código postal. */
-async function geoNominatim(lat,lon){
-  try{ const j=await jsonp(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1&accept-language=es`);
-    if(!j||!j.address) return null; const a=j.address;
+async function geoNominatim(lat,lon,d){
+  try{ const j=await jsonp(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1&accept-language=es`,12000);
+    if(!j||!j.address){ if(d)d.push("nominatim: sin respuesta"); return null; } const a=j.address;
     // Punto de interés (parque, coliseo, centro comercial): sólo cuando el resultado NO es una vía o una casa.
     const tipo=j.addresstype||"";
     const poi=(["road","house_number","postcode","place","residential"].indexOf(tipo)<0 && j.name) ? j.name
@@ -1597,15 +1614,16 @@ async function geoNominatim(lat,lon){
     if(road && a.house_number) road+=" #"+a.house_number;
     let barrio=a.neighbourhood||a.suburb||a.quarter||a.city_district;
     let ciudad=a.city||a.town||a.municipality||a.village,depto=a.state||a.region||a.state_district,pais=a.country;
-    if(ciudad)ciudad=ciudad.replace(/^Per[íi]metro Urbano\s+/,""); if(barrio)barrio=barrio.replace(/^Comuna\s+\d+\s*-\s*/,"");
+    if(ciudad)ciudad=ciudad.replace(/^Per\S+\s+Urbano\s+/i,"");   // sin acento literal: la respuesta puede venir con la í descompuesta (NFD) y el reemplazo fallaba if(barrio)barrio=barrio.replace(/^Comuna\s+\d+\s*-\s*/,"");
     const p=[]; if(poi&&poi!==road)p.push(poi); if(road)p.push(road); if(barrio&&barrio!==ciudad)p.push(barrio);
     if(ciudad)p.push(ciudad+(a.postcode?" "+a.postcode:"")); if(depto&&depto!==ciudad)p.push(depto); if(pais)p.push(pais);
-    return p.length?p:null; }catch(_){ return null; }
+    if(!p.length && d) d.push("nominatim: respuesta sin dirección");
+    return p.length?p:null; }catch(e){ if(d)d.push("nominatim: "+(e&&e.message||"error")); return null; }
 }
-/* Photon (Komoot, datos OSM): sí manda ACAO, llega a calle y a veces al número. Primer respaldo. */
-async function geoPhoton(lat,lon){
-  try{ const j=await (await fetch(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lon}&limit=1`)).json();
-    const f=j&&j.features&&j.features[0]; if(!f) return null; const q=f.properties||{};
+/* Photon (Komoot, datos OSM): llega a calle y a veces al número. Primer respaldo. */
+async function geoPhoton(lat,lon,d){
+  try{ const j=await fetchT(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lon}&limit=1`,9000);
+    const f=j&&j.features&&j.features[0]; if(!f){ if(d)d.push("photon: sin resultados"); return null; } const q=f.properties||{};
     const esPoi=["amenity","leisure","tourism","shop","building","office"].indexOf(q.osm_key)>=0;
     const poi=esPoi?(q.name||""):"";
     let road=q.street||((q.type==="street"||q.osm_key==="highway")?(q.name||""):"");
@@ -1613,14 +1631,16 @@ async function geoPhoton(lat,lon){
     const barrio=q.district||q.locality||"", ciudad=q.city||q.county||"", depto=q.state||"", pais=q.country||"";
     const p=[]; if(poi&&poi!==road)p.push(poi); if(road)p.push(road); if(barrio&&barrio!==ciudad)p.push(barrio);
     if(ciudad)p.push(ciudad+(q.postcode?" "+q.postcode:"")); if(depto&&depto!==ciudad)p.push(depto); if(pais)p.push(pais);
-    return p.length?p:null; }catch(_){ return null; }
+    if(!p.length && d) d.push("photon: respuesta sin dirección");
+    return p.length?p:null; }catch(e){ if(d)d.push("photon: "+(e&&e.message||"error")); return null; }
 }
 /* Último respaldo: llega a barrio/ciudad, nunca a la calle. Mejor eso que unas coordenadas. */
-async function geoRespaldo(lat,lon){
-  try{ const j=await (await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=es`)).json();
+async function geoRespaldo(lat,lon,d){
+  try{ const j=await fetchT(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=es`,9000);
     const p=[]; if(j.locality&&j.locality!==j.city)p.push(j.locality);
     if(j.city)p.push(j.city+(j.postcode?" "+j.postcode:"")); if(j.principalSubdivision)p.push(j.principalSubdivision); if(j.countryName)p.push(j.countryName);
-    return p.length?p:null; }catch(_){ return null; }
+    if(!p.length && d) d.push("bigdatacloud: respuesta sin dirección");
+    return p.length?p:null; }catch(e){ if(d)d.push("bigdatacloud: "+(e&&e.message||"error")); return null; }
 }
 /* Respaldo cuando Nominatim no responde (corta por cuota o no hay señal): llega a barrio/ciudad, no a la calle. */
 async function geoRespaldo(lat,lon){
