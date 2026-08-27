@@ -44,6 +44,11 @@
   .guia .gficha .fl{display:block;margin:2px 0}
   .guia .gficha .fk{font-weight:700}
   .guia .gficha .fcar.clamp{display:-webkit-box;-webkit-line-clamp:7;-webkit-box-orient:vertical;overflow:hidden}
+  .gpschip{margin-top:8px;border-radius:9px;padding:8px 11px;font-size:12.5px;line-height:1.35;font-weight:600;cursor:pointer;border:1px solid var(--line)}
+  .gpschip.ok{background:#e9f7ee;border-color:#7fca97;color:#155f2e}
+  .gpschip.busca{background:#f4f6fa;border-color:var(--line);color:var(--muted)}
+  .gpschip.off{background:#fff4e5;border-color:#f0b26b;color:#7a4a12}
+  .gpschip.den{background:#fdecec;border-color:#e79a9a;color:#b3261e}
   .guia .gficha .fmas{display:inline-block;margin-top:3px;font-weight:700;text-decoration:underline;cursor:pointer}
   .xbox{border:1px solid #f0b26b;background:#fff8ee;border-radius:10px;padding:9px 11px;margin-bottom:10px}
   .xbox .xt{font-weight:800;color:#7a4a12;font-size:13px;margin-bottom:5px}
@@ -150,7 +155,7 @@
           <div><label>Posición</label><select id="emPos"><option value="bl">Inf. izq.</option><option value="br">Inf. der.</option><option value="tl">Sup. izq.</option><option value="tr">Sup. der.</option></select></div>
           <div><label>Tamaño</label><select id="emEsc"><option value="2.6">Pequeño</option><option value="3.4" selected>Medio</option><option value="4.4">Grande</option><option value="5.6">Muy grande</option></select></div>
         </div>
-        <label class="tgl"><input id="emOn" type="checkbox" checked> Aplicar marca de agua (dirección · fecha · hora)</label>
+        <label class="tgl"><input id="emOn" type="checkbox" checked> Aplicar marca de agua (fecha · hora · dirección)</label>
       </div>
       <div style="height:14px"></div>
       <button class="btn" id="egen" disabled>Generar acceso para operadores</button>
@@ -205,14 +210,15 @@
       <input id="capf" type="file" accept="image/*" capture="environment">
       <input id="vidf" type="file" accept="video/*" capture="environment">
       <input id="gal" type="file" accept="image/*" multiple>
-      <div class="mut" id="gpsEstado" style="margin-top:6px;cursor:pointer"><b>Toca aquí para activar la ubicación.</b></div>
+      <div class="gpschip off" id="gpsChip"><span id="gpsEstado"><b>Toca aquí para activar la ubicación.</b></span></div>
+      <div class="guia falta hide" id="inAppAviso" style="margin-top:8px">Abriste el enlace <b>dentro de WhatsApp</b>. Ese navegador bloquea la ubicación y la cámara. Toca <b>⋯ → Abrir en Safari</b> (iPhone) o <b>⋮ → Abrir en Chrome</b> (Android) y vuelve a entrar por el mismo enlace.</div>
       <!-- posición/tamaño/marca ahora los define el EJECUTIVO; estos inputs quedan ocultos y los lee el dibujo de marca -->
       <div class="opts hide">
         <div class="row">
           <div><label>Posición</label><select id="pos"><option value="bl">Inf. izq.</option><option value="br">Inf. der.</option><option value="tl">Sup. izq.</option><option value="tr">Sup. der.</option></select></div>
           <div><label>Tamaño</label><select id="esc"><option value="2.6">Pequeño</option><option value="3.4" selected>Medio</option><option value="4.4">Grande</option><option value="5.6">Muy grande</option></select></div>
         </div>
-        <label class="tgl"><input id="marca" type="checkbox" checked> Aplicar marca de agua (dirección · fecha · hora)</label>
+        <label class="tgl"><input id="marca" type="checkbox" checked> Aplicar marca de agua (fecha · hora · dirección)</label>
       </div>
     </div>
     <div class="card">
@@ -223,7 +229,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v20 · 26ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v21 · 27ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -272,6 +278,24 @@
   <div class="mut">Queda marcado como ADICIONAL y viaja en el manifiesto con la justificación y quién lo pidió.</div>
   <div style="height:12px"></div>
   <div class="btn2"><button class="btn sec" id="adClose">Cerrar</button><button class="btn" id="adSave">Agregar</button></div>
+</div></div>
+
+<!-- UBICACIÓN OBLIGATORIA -->
+<div id="gpsm" class="modal hide"><div class="sheet">
+  <div style="font-size:38px;line-height:1;text-align:center">📍</div>
+  <div class="h" style="justify-content:center;margin-top:6px">Activa la ubicación</div>
+  <div class="mut" style="text-align:center;margin-top:0">Cada evidencia se sella con la dirección, la fecha y la hora. Sin ubicación la foto no sirve como soporte ante el cliente.</div>
+  <div class="guia neutro" id="gpsMsg" style="text-align:center;font-weight:600">Toca «Permitir ubicación» y acepta el aviso del navegador.</div>
+  <div class="guia falta hide" id="gpsHelp">
+    <b>iPhone (Safari):</b> Ajustes → Privacidad y seguridad → Localización → Safari → <b>Al usar la app</b>; y en Safari toca <b>ᴀA</b> (barra de direcciones) → Ajustes del sitio web → Ubicación → <b>Permitir</b>.<br>
+    <b>Android (Chrome):</b> toca el <b>candado</b> junto a la dirección → Permisos → Ubicación → <b>Permitir</b>, y revisa que la ubicación del teléfono esté encendida.<br>
+    Después vuelve aquí y toca <b>Reintentar</b>.
+  </div>
+  <div style="height:12px"></div>
+  <button class="btn" id="gpsRetry">Permitir ubicación / Reintentar</button>
+  <div style="text-align:center;margin-top:10px"><a class="lnk" id="gpsSkip">Continuar sin ubicación (queda registrado)</a></div>
+  <div style="height:10px"></div>
+  <button class="btn sec" id="gpsClose">Cerrar</button>
 </div></div>
 
 <!-- CÁMARA -->
@@ -703,7 +727,7 @@ $("lentrar").addEventListener("click", ()=>{
   operador=o; saveJSON("est_operador",o); pintarWho(); irACaptura();
 });
 $("reconfig").addEventListener("click", ()=>{ prefillExec(); show("exec"); });
-$("salir").addEventListener("click", ()=>{ if(operador){ $("lnom").value=operador.nombre; $("lced").value=operador.cedula; $("lcel").value=operador.celular; } show("login"); });
+$("salir").addEventListener("click", ()=>{ detenerWatch(); if(operador){ $("lnom").value=operador.nombre; $("lced").value=operador.cedula; $("lcel").value=operador.celular; } show("login"); });
 
 /* ---- ADMINISTRADOR: visualizador (login + eventos + evidencias con fotos) ---- */
 let adminSes = loadJSON("est_admin_ses", null);
@@ -941,7 +965,9 @@ function irACaptura(){
   poblarItemTop();
   const mk=(cfg&&cfg.marca)||{}; $("pos").value=mk.pos||"bl"; $("esc").value=mk.esc||"3.4"; $("marca").checked=mk.on!==false;   // marca fijada por el ejecutivo
   $("ctx").textContent = (cfg.cl||"—")+" · "+(cfg.ev||"—")+((operador&&operador.prov)?("  ·  "+operador.prov):"");
-  batch=[]; renderLista(); show("cap"); window.scrollTo(0,0); pedirUbicacion(); actualizarGuia();
+  batch=[]; renderLista(); show("cap"); window.scrollTo(0,0);
+  if(IN_APP) $("inAppAviso").classList.remove("hide");
+  sinGpsHasta=0; pedirUbicacion(); vigilarPermisoGPS(); actualizarGuia();
   cargarLote().then(()=>{ if(batch.length){ renderLista(); actualizarGuia(); } });   // restaura el lote en curso si quedó de una sesión anterior
   sincronizarProgreso(true);   // trae el progreso ya subido a la base (funciona entre dispositivos)
 }
@@ -1104,9 +1130,14 @@ $("adSave").addEventListener("click", ()=>{
   const iid=iidDe(cod,"Adicionales",1);
   poblarItemTop(); $("item").value=iid; itemAnterior=iid; actualizarGuia(); renderLista();
 });
-$("gpsEstado").addEventListener("click", pedirUbicacion);
-$("btnCap").addEventListener("click", abrirCamara);
-$("btnGal").addEventListener("click", ()=>$("gal").click());
+$("gpsChip").addEventListener("click", ()=>{ sinGpsHasta=0; abrirGpsModal(null); });
+$("gpsRetry").addEventListener("click", ()=>{ if(gpsFresco()) return cerrarGpsModal(true);   // gesto vivo -> la cámara puede abrir
+  geoDenied=false; geoPromise=null; pedirUbicacion(); pintarGpsModal(); });
+/* Seguir sin ubicación es decisión del operador y dura 15 min: si el permiso llega antes, se retoma solo. */
+$("gpsSkip").addEventListener("click", ()=>{ sinGpsHasta=Date.now()+15*60000; actualizarEstadoGPS(); cerrarGpsModal(true); });
+$("gpsClose").addEventListener("click", ()=>cerrarGpsModal(false));
+$("btnCap").addEventListener("click", ()=>conUbicacion(abrirCamara));
+$("btnGal").addEventListener("click", ()=>conUbicacion(()=>$("gal").click()));
 function metaDispositivo(coords){ const now=new Date(); return coords?{fecha:`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`,hora:`${z(now.getHours())}:${z(now.getMinutes())}`,lat:coords.latitude,lon:coords.longitude}:null; }
 $("capf").addEventListener("change", async e=>{ const files=[...e.target.files]; e.target.value=""; const coords=await posActual(); agregar(files, metaDispositivo(coords)); });
 $("vidf").addEventListener("change", async e=>{ const files=[...e.target.files]; e.target.value=""; const coords=await posActual(); agregar(files, metaDispositivo(coords)); });
@@ -1169,8 +1200,8 @@ async function procesar(entry){
   try{
     if(entry.tipo==="video"){
       const m=entry.meta||{};
-      let lugar=""; if(m.lat!=null){ const d=await geocodeThrottled(m.lat,m.lon); lugar=d||""; }
-      entry.datos={fecha:m.fecha||"",hora:m.hora||"",lugar,lat:(m.lat!=null?m.lat:null),lon:(m.lon!=null?m.lon:null)};
+      let lugar="",lugLin=[]; if(m.lat!=null){ const d=await geocodeThrottled(m.lat,m.lon); if(d){ lugar=d.txt; lugLin=d.lineas; } }
+      entry.datos={fecha:m.fecha||"",hora:m.hora||"",lugar,lugLin,lat:(m.lat!=null?m.lat:null),lon:(m.lon!=null?m.lon:null)};
       entry.thumb=await videoThumb(entry.file); entry.blob=entry.file;   // el video va sin marca (sin re-encode)
       entry.status="listo"; renderLista(); return;
     }
@@ -1181,9 +1212,9 @@ async function procesar(entry){
       try{ const d=await exifr.parse(entry.file,["DateTimeOriginal","CreateDate"]); const f=d&&(d.DateTimeOriginal||d.CreateDate); if(f instanceof Date){ ex.fecha=`${f.getFullYear()}-${z(f.getMonth()+1)}-${z(f.getDate())}`; ex.hora=`${z(f.getHours())}:${z(f.getMinutes())}`; } }catch(_){}
       try{ const g=await exifr.gps(entry.file); if(g&&typeof g.latitude==="number"){ ex.lat=g.latitude; ex.lon=g.longitude; } }catch(_){}
     }
-    let lugar=""; if(ex.lat!=null){ const d=await geocodeThrottled(ex.lat,ex.lon); lugar=d||""; }
-    entry.datos={fecha:ex.fecha,hora:ex.hora,lugar,lat:ex.lat,lon:ex.lon};
-    const texto=[lugar,ex.fecha,ex.hora].filter(Boolean).join("   ·   ");
+    let lugar="",lugLin=[]; if(ex.lat!=null){ const d=await geocodeThrottled(ex.lat,ex.lon); if(d){ lugar=d.txt; lugLin=d.lineas; } }
+    entry.datos={fecha:ex.fecha,hora:ex.hora,lugar,lugLin,lat:ex.lat,lon:ex.lon};
+    const texto=textoMarca(entry.datos);
     const out=await dibujar(bitmap,texto,$("marca").checked);
     entry.blob=out.blob; entry.thumb=out.thumb; entry.status="listo";
   }catch(err){ entry.status=(err&&err.message==="no-decode")?"HEIC no decodificable (usa Safari o JPG)":("error: "+(err&&err.message||err)); }
@@ -1205,8 +1236,9 @@ function renderLista(){
     const badge=e.tipo==="video"?`<span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-size:22px;text-shadow:0 1px 4px #000">▶</span>`:"";
     const thumbHtml=e.thumb?`<div style="position:relative;flex:none;width:66px;height:66px"><img src="${e.thumb}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#000">${badge}</div>`
       :`<div style="width:66px;height:66px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px;background:#f0f0f0;border-radius:7px">${e.tipo==="video"?"▶":"…"}</div>`;
-    const fnHtml = e.status!=="listo" ? '<span style="color:var(--muted)">'+e.status+'</span>'
-      : (!e.itemCodigo ? '<span style="color:#b3261e">Asigna un requerimiento ↑</span>' : e.filename);
+    const sinUbi = (e.status==="listo" && e.datos && e.datos.lat==null) ? ' <span style="color:#b3261e" title="Sin coordenadas: el sello no lleva dirección">⚠ sin ubicación</span>' : '';
+    const fnHtml = (e.status!=="listo" ? '<span style="color:var(--muted)">'+e.status+'</span>'
+      : (!e.itemCodigo ? '<span style="color:#b3261e">Asigna un requerimiento ↑</span>' : e.filename)) + sinUbi;
     d.innerHTML=thumbHtml+
       `<div class="in"><select onchange="cambiarItem(${e.id},this.value)">${opts}</select><div class="fn">${fnHtml}</div>
        <div class="ac">${e.status==="listo"&&e.itemCodigo?`<a class="lnk" onclick="descargarUno(${e.id})">descargar</a>`:""}<a class="lnk" onclick="quitar(${e.id})">quitar</a></div></div>`;
@@ -1226,8 +1258,8 @@ async function redibujarTodas(){
   if(redibujando) return; redibujando=true;
   try{ for(const e of batch){ if(e.tipo==="video"||e.status!=="listo"||!e.datos) continue;
     try{
-      if(e.datos.lat!=null && !e.datos.lugar){ const d=await geocodeThrottled(e.datos.lat,e.datos.lon); if(d) e.datos.lugar=d; }
-      const bmp=await decodificar(e.file); const texto=[e.datos.lugar,e.datos.fecha,e.datos.hora].filter(Boolean).join("   ·   ");
+      if(e.datos.lat!=null && !e.datos.lugar){ const d=await geocodeThrottled(e.datos.lat,e.datos.lon); if(d){ e.datos.lugar=d.txt; e.datos.lugLin=d.lineas; } }
+      const bmp=await decodificar(e.file); const texto=textoMarca(e.datos);
       const out=await dibujar(bmp,texto,$("marca").checked); e.blob=out.blob; e.thumb=out.thumb;
     }catch(_){} } }
   finally{ redibujando=false; renderLista(); }
@@ -1375,14 +1407,55 @@ function bajar(blob,nombre){ const a=document.createElement("a"); a.href=URL.cre
 let stream=null, facing="environment", modo="foto", mediaRec=null, chunks=[], grabando=false, descartarGrab=false;
 /* GPS single-flight: UNA sola solicitud a la vez (evita el PERMISSION_DENIED espurio de iOS
    por pedir watchPosition + getCurrentPosition al tiempo). Cachea la última posición 2 min. */
-let lastCoords=null, lastCoordsT=0, geoDenied=false, geoBuscando=false, geoPromise=null;
+let lastCoords=null, lastCoordsT=0, geoDenied=false, geoBuscando=false, geoPromise=null, watchId=null, gpsTras=null, sinGpsHasta=0;
+/* Los navegadores embebidos (WhatsApp, Instagram, Facebook) casi nunca entregan GPS: si el enlace
+   se abrió ahí, ninguna cantidad de permisos sirve; hay que mandar al operador a Safari/Chrome. */
+const IN_APP=/(FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|MicroMessenger)/i.test(navigator.userAgent||"");
 function gpsFresco(){ return lastCoords && (Date.now()-lastCoordsT)<120000; }
-function fijarPos(coords){ lastCoords=coords; lastCoordsT=Date.now(); geoDenied=false; geoBuscando=false; actualizarEstadoGPS(); }
-function actualizarEstadoGPS(){ const el=$("gpsEstado"); if(!el) return;
-  if(gpsFresco()){ el.textContent="Ubicación lista ✓"; el.style.color="#1a7f37"; }
-  else if(geoBuscando){ el.textContent="Buscando ubicación…"; el.style.color="var(--muted)"; }
-  else if(geoDenied){ el.innerHTML="Ubicación bloqueada por Safari. Cierra TODAS las pestañas de esta página, vuelve a abrir el enlace y toca <b>Permitir</b> cuando pregunte. <b>Toca aquí para reintentar.</b>"; el.style.color="#b3261e"; }
-  else { el.innerHTML="<b>Toca aquí para activar la ubicación.</b>"; el.style.color="var(--azul)"; } }
+function sinGpsVigente(){ return Date.now()<sinGpsHasta; }
+function fijarPos(coords){ lastCoords=coords; lastCoordsT=Date.now(); geoDenied=false; geoBuscando=false; iniciarWatch(); actualizarEstadoGPS(); }
+/* Con el permiso ya concedido, mantener la posición caliente: al disparar la foto ya hay fix.
+   El watch arranca SÓLO después del primer fix bueno (pedirlo junto al getCurrentPosition inicial
+   es lo que producía el PERMISSION_DENIED espurio de iOS). */
+function iniciarWatch(){ if(watchId!=null||!navigator.geolocation) return;
+  try{ watchId=navigator.geolocation.watchPosition(
+    p=>{ lastCoords=p.coords; lastCoordsT=Date.now(); geoDenied=false; actualizarEstadoGPS(); },
+    err=>{ if(err&&err.code===1){ geoDenied=true; actualizarEstadoGPS(); } },
+    {enableHighAccuracy:true, timeout:20000, maximumAge:30000}); }catch(_){} }
+function detenerWatch(){ if(watchId!=null){ try{ navigator.geolocation.clearWatch(watchId); }catch(_){} watchId=null; } }
+function actualizarEstadoGPS(){ const el=$("gpsEstado"), ch=$("gpsChip"); if(!el) return;
+  let cls="off";
+  if(gpsFresco()){ el.innerHTML="Ubicación lista ✓"+(lastCoords&&lastCoords.accuracy?` <span style="font-weight:600;opacity:.75">(±${Math.round(lastCoords.accuracy)} m)</span>`:""); cls="ok"; }
+  else if(geoBuscando){ el.textContent="Buscando ubicación…"; cls="busca"; }
+  else if(geoDenied){ el.innerHTML="⚠ Ubicación bloqueada. <b>Toca aquí para desbloquearla.</b>"; cls="den"; }
+  else if(sinGpsVigente()){ el.innerHTML="⚠ Capturando SIN ubicación. <b>Toca aquí para activarla.</b>"; cls="den"; }
+  else { el.innerHTML="<b>Toca aquí para activar la ubicación.</b>"; cls="off"; }
+  if(ch) ch.className="gpschip "+cls;
+  pintarGpsModal(); }
+/* Permiso vigilado: si el sistema ya lo tiene concedido pedimos posición sin molestar, y si el
+   operador lo cambia desde los ajustes del navegador el chip se actualiza solo. */
+function vigilarPermisoGPS(){ try{ if(!navigator.permissions||!navigator.permissions.query) return;
+  navigator.permissions.query({name:"geolocation"}).then(st=>{
+    const ap=()=>{ if(st.state==="denied"){ geoDenied=true; detenerWatch(); actualizarEstadoGPS(); }
+      else { geoDenied=false; pedirUbicacion(); } };
+    ap(); st.onchange=ap; }).catch(()=>{}); }catch(_){} }
+/* ---- Puerta de ubicación ----
+   La web NO puede forzar el permiso (lo concede el navegador). Lo que sí se puede, y es lo que hace
+   esto: pedirlo dentro de un gesto, NO abrir la cámara sin él, y explicar cómo desbloquearlo.
+   Importante: no se hace await del GPS antes de getUserMedia — en iOS eso consume el gesto del
+   usuario y la cámara falla. Por eso la acción se reanuda con el toque del botón del modal. */
+function abrirGpsModal(tras){ gpsTras=tras||null; $("gpsm").classList.remove("hide"); pintarGpsModal(); pedirUbicacion(); }
+function cerrarGpsModal(seguir){ $("gpsm").classList.add("hide"); const t=gpsTras; gpsTras=null; if(seguir&&t){ try{ t(); }catch(_){} } }
+function pintarGpsModal(){ const m=$("gpsMsg"); if(!m||$("gpsm").classList.contains("hide")) return;
+  const h=$("gpsHelp"), b=$("gpsRetry"), sk=$("gpsSkip");
+  b.textContent = gpsFresco() ? (gpsTras?"Continuar y capturar":"Listo") : "Permitir ubicación / Reintentar";
+  m.className = "guia "+(gpsFresco()?"ok":"neutro"); m.style.textAlign="center"; m.style.fontWeight="600";
+  sk.style.display = gpsFresco() ? "none" : "";
+  if(gpsFresco()){ m.textContent="Ubicación lista ✓"; h.classList.add("hide"); }
+  else if(geoBuscando){ m.textContent="Buscando ubicación… si estás bajo cubierta, acércate a una puerta o ventana."; h.classList.add("hide"); }
+  else if(geoDenied){ m.textContent="El navegador tiene bloqueada la ubicación de esta página."; h.classList.remove("hide"); }
+  else { m.textContent="Toca «Permitir ubicación» y acepta el aviso del navegador."; h.classList.add("hide"); } }
+function conUbicacion(accion){ if(gpsFresco()||sinGpsVigente()) return accion(); abrirGpsModal(accion); }
 /* Una única petición encadenada: alta precisión y, si falla por señal, baja precisión (wifi/celda). */
 function pedirUbicacion(){
   if(!navigator.geolocation) return Promise.resolve(null);
@@ -1461,7 +1534,8 @@ async function dibujar(src,texto,conMarca){
   if(conMarca && texto){
     const fpx=Math.max(14,Math.round(H*parseFloat($("esc").value)/100)); ctx.font=`700 ${fpx}px Montserrat,-apple-system,sans-serif`;
     const pad=Math.round(fpx*0.5),mg=Math.round(fpx*0.6),lh=Math.round(fpx*1.32);
-    const lines=wrap(ctx,texto,W-2*mg-2*pad),tw=Math.max(...lines.map(l=>ctx.measureText(l).width));
+    const lines=[]; String(texto).split("\n").forEach(t=>{ wrap(ctx,t,W-2*mg-2*pad).forEach(l=>lines.push(l)); });
+    const tw=Math.max(...lines.map(l=>ctx.measureText(l).width));
     const bw=tw+2*pad,bh=lines.length*lh+2*pad,pos=$("pos").value;
     let x=(pos==="br"||pos==="tr")?W-bw-mg:mg, y=(pos==="tl"||pos==="tr")?mg:H-bh-mg;
     ctx.fillStyle="rgba(0,0,0,0.55)"; ctx.fillRect(x,y,bw,bh); ctx.fillStyle=VERDE; ctx.fillRect(x,y,Math.max(4,pad/2),bh);
@@ -1470,16 +1544,51 @@ async function dibujar(src,texto,conMarca){
   const s=Math.min(1,420/Math.max(W,H)); const tc=document.createElement("canvas"); tc.width=Math.round(W*s); tc.height=Math.round(H*s); tc.getContext("2d").drawImage(cv,0,0,tc.width,tc.height);
   const thumb=tc.toDataURL("image/jpeg",0.7); const blob=await new Promise(res=>cv.toBlob(res,"image/jpeg",0.9)); return {blob,thumb};
 }
+/* Sello al estilo Timestamp: fecha y hora arriba, y debajo una línea por nivel de la dirección.
+   Si el geocoder no respondió pero sí hay GPS, se estampan las coordenadas: nunca una foto muda. */
+function hora12(h){ if(!h) return ""; const p=String(h).split(":"); let H=parseInt(p[0],10); if(isNaN(H)) return h;
+  const su=H<12?"a. m.":"p. m."; H=H%12||12; return `${H}:${p[1]||"00"} ${su}`; }
+function textoMarca(d){ if(!d) return "";
+  const L=[]; const f=String(d.fecha||"").split("-");
+  const fh=[(f.length===3?`${f[2]}/${f[1]}/${f[0]}`:(d.fecha||"")), hora12(d.hora)].filter(Boolean).join(", ");
+  if(fh) L.push(fh);
+  const lin=(d.lugLin&&d.lugLin.length)?d.lugLin:(d.lugar?[d.lugar]:[]);
+  lin.forEach(x=>L.push(x));
+  if(!lin.length && d.lat!=null) L.push(`${(+d.lat).toFixed(6)}, ${(+d.lon).toFixed(6)}`);
+  return L.join("\n"); }
 async function geocodeThrottled(lat,lon){ const k=lat.toFixed(5)+","+lon.toFixed(5); if(geoCache[k]) return geoCache[k];
   const p=geoChain.then(async()=>{ await sleep(1100); if(geoCache[k]) return geoCache[k]; const r=await geocode(lat,lon); if(r) geoCache[k]=r; return r; }); geoChain=p.catch(()=>{}); return p; }
+/* Devuelve {txt, lineas}: `txt` es la dirección de una línea que viaja al CSV y a la base (compat),
+   `lineas` es el desglose que se estampa en la foto al estilo Timestamp. */
 async function geocode(lat,lon){
+  const r = (await geoNominatim(lat,lon)) || (await geoRespaldo(lat,lon));
+  if(!r) return null;
+  const lineas=r.filter(Boolean);
+  return lineas.length?{txt:lineas.join(", "), lineas}:null;
+}
+/* Nominatim: el único gratuito y sin llave que llega a calle + número + código postal. */
+async function geoNominatim(lat,lon){
   try{ const url=`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1&accept-language=es`;
-    const a=(await (await fetch(url,{headers:{"Accept":"application/json"}})).json()).address||{};
-    let road=a.road||a.pedestrian||a.footway,barrio=a.neighbourhood||a.suburb||a.quarter||a.city_district;
+    const j=await (await fetch(url,{headers:{"Accept":"application/json"}})).json(); const a=j.address||{};
+    // Punto de interés (parque, coliseo, centro comercial): sólo cuando el resultado NO es una vía o una casa.
+    const tipo=j.addresstype||"";
+    const poi=(["road","house_number","postcode","place","residential"].indexOf(tipo)<0 && j.name) ? j.name
+              : (a.amenity||a.leisure||a.tourism||a.shop||a.office||"");
+    let road=a.road||a.pedestrian||a.footway||"";
+    if(road && a.house_number) road+=" #"+a.house_number;
+    let barrio=a.neighbourhood||a.suburb||a.quarter||a.city_district;
     let ciudad=a.city||a.town||a.municipality||a.village,depto=a.state||a.region||a.state_district,pais=a.country;
     if(ciudad)ciudad=ciudad.replace(/^Per[íi]metro Urbano\s+/,""); if(barrio)barrio=barrio.replace(/^Comuna\s+\d+\s*-\s*/,"");
-    const p=[]; if(road)p.push(road); if(barrio&&barrio!==ciudad)p.push(barrio); if(ciudad)p.push(ciudad); if(depto&&depto!==ciudad)p.push(depto); if(pais)p.push(pais);
-    return p.join(", ")||null; }catch(_){ return null; }
+    const p=[]; if(poi&&poi!==road)p.push(poi); if(road)p.push(road); if(barrio&&barrio!==ciudad)p.push(barrio);
+    if(ciudad)p.push(ciudad+(a.postcode?" "+a.postcode:"")); if(depto&&depto!==ciudad)p.push(depto); if(pais)p.push(pais);
+    return p.length?p:null; }catch(_){ return null; }
+}
+/* Respaldo cuando Nominatim no responde (corta por cuota o no hay señal): llega a barrio/ciudad, no a la calle. */
+async function geoRespaldo(lat,lon){
+  try{ const j=await (await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=es`)).json();
+    const p=[]; if(j.locality&&j.locality!==j.city)p.push(j.locality);
+    if(j.city)p.push(j.city+(j.postcode?" "+j.postcode:"")); if(j.principalSubdivision)p.push(j.principalSubdivision); if(j.countryName)p.push(j.countryName);
+    return p.length?p:null; }catch(_){ return null; }
 }
 </script>
 </body>
