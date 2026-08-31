@@ -230,7 +230,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v24 · 30ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v25 · 30ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -1143,10 +1143,18 @@ $("gpsSkip").addEventListener("click", ()=>{ sinGpsHasta=Date.now()+15*60000; ac
 $("gpsClose").addEventListener("click", ()=>cerrarGpsModal(false));
 $("btnCap").addEventListener("click", ()=>conUbicacion(abrirCamara));
 $("btnGal").addEventListener("click", ()=>conUbicacion(()=>$("gal").click()));
+/* NaN es typeof "number" y NaN != null es true: por eso un GPS corrupto en el EXIF se colaba
+   por todos los filtros y terminaba estampado como "NaN, NaN". Se valida con Number.isFinite. */
+function esNum(v){ return typeof v==="number" ? isFinite(v) : (v!=null && v!=="" && isFinite(+v)); }
+function num(v){ return esNum(v) ? +v : null; }
 function metaDispositivo(coords){ const now=new Date(); return coords?{fecha:`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`,hora:`${z(now.getHours())}:${z(now.getMinutes())}`,lat:coords.latitude,lon:coords.longitude}:null; }
 $("capf").addEventListener("change", async e=>{ const files=[...e.target.files]; e.target.value=""; const coords=await posActual(); agregar(files, metaDispositivo(coords)); });
 $("vidf").addEventListener("change", async e=>{ const files=[...e.target.files]; e.target.value=""; const coords=await posActual(); agregar(files, metaDispositivo(coords)); });
-$("gal").addEventListener("change", e=>{ agregar(e.target.files); e.target.value=""; });
+/* Android borra el GPS del EXIF al compartir, y varias cámaras de terceros (Timestamp y
+   similares) nunca lo escriben: sin este respaldo, toda foto subida desde la galería llega
+   sin ubicación. Se usa la posición actual sólo si la foto es del día — no para una foto vieja. */
+$("gal").addEventListener("change", async e=>{ const files=[...e.target.files]; e.target.value="";
+  const coords=await posActual(); agregar(files, null, metaDispositivo(coords)); });
 ["pos","esc","marca"].forEach(id=>$(id).addEventListener("change", redibujarTodas));   /* auto-refresh de la marca */
 $("who").addEventListener("click", ()=>{ if(!operador) return; $("onom").value=operador.nombre; $("oced").value=operador.cedula; $("ocel").value=operador.celular;
   if(hayProv()){ $("oprovWrap").classList.remove("hide"); llenarSelectProv($("oprov"), operador.prov);
@@ -1162,17 +1170,17 @@ $("opSave").addEventListener("click", ()=>{ const n=$("onom").value.trim(),c=$("
   operador=nuevo; saveJSON("est_operador",operador); pintarWho(); $("opm").classList.add("hide"); poblarItemTop(); $("ctx").textContent=(cfg.cl||"—")+" · "+(cfg.ev||"—")+(operador.prov?("  ·  "+operador.prov):""); renderLista(); });
 $("enviar").addEventListener("click", ()=>empaquetar("supabase"));
 /* Si el geocoder falló por falta de señal, al reconectar se completan las direcciones y se re-sella. */
-window.addEventListener("online", ()=>{ if(batch.some(e=>e.status==="listo"&&e.datos&&e.datos.lat!=null&&!e.datos.lugar)) redibujarTodas(); });
+window.addEventListener("online", ()=>{ if(batch.some(e=>e.status==="listo"&&e.datos&&esNum(e.datos.lat)&&!e.datos.lugar)) redibujarTodas(); });
 
 
 /* ---- lote ---- */
-function agregar(fileList, meta){
+function agregar(fileList, meta, metaResp){
   const cod=$("item").value;
   const now=new Date(); const cargada={fecha:`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`, hora:`${z(now.getHours())}:${z(now.getMinutes())}`};
   [...fileList].forEach(file=>{
     const video=/^video\//.test(file.type)||/\.(mp4|mov|m4v|3gp|webm|avi|mkv)$/i.test(file.name);
     const ext=video?((file.name.split(".").pop()||"mp4").toLowerCase()):"jpg";
-    const e={id:++seq,file,itemCodigo:cod,tipo:video?"video":"foto",ext,status:"procesando",blob:null,thumb:"",datos:{},filename:"",meta:meta||null,cargada};
+    const e={id:++seq,file,itemCodigo:cod,tipo:video?"video":"foto",ext,status:"procesando",blob:null,thumb:"",datos:{},filename:"",meta:meta||null,metaResp:metaResp||null,cargada};
     batch.push(e); procesar(e); });
   renderLista();
 }
@@ -1203,23 +1211,34 @@ function videoThumb(file){ return new Promise(res=>{
     v.onerror=()=>done(""); setTimeout(()=>done(""),4000); v.src=url;
   }catch(_){ res(""); }
 }); }
+/* "Del día": sin fecha EXIF se asume que sí (la foto acaba de salir de la cámara);
+   con fecha, se acepta hasta 36 h atrás para no ponerle la dirección de hoy a una foto vieja. */
+function fotoDelDia(fecha){ if(!fecha) return true;
+  const p=String(fecha).split("-"); if(p.length!==3) return true;
+  const t=new Date(+p[0],+p[1]-1,+p[2]).getTime();
+  return isFinite(t) && (Date.now()-t) < 36*3600*1000; }
 async function procesar(entry){
   try{
     if(entry.tipo==="video"){
       const m=entry.meta||{};
-      let lugar="",lugLin=[]; if(m.lat!=null){ const d=await geocodeThrottled(m.lat,m.lon); if(d){ lugar=d.txt; lugLin=d.lineas; } }
-      entry.datos={fecha:m.fecha||"",hora:m.hora||"",lugar,lugLin,lat:(m.lat!=null?m.lat:null),lon:(m.lon!=null?m.lon:null)};
+      const mla=num(m.lat), mlo=num(m.lon);
+      let lugar="",lugLin=[]; if(mla!=null&&mlo!=null){ const d=await geocodeThrottled(mla,mlo); if(d){ lugar=d.txt; lugLin=d.lineas; } }
+      entry.datos={fecha:m.fecha||"",hora:m.hora||"",lugar,lugLin,lat:mla,lon:mlo};
       entry.thumb=await videoThumb(entry.file); entry.blob=entry.file;   // el video va sin marca (sin re-encode)
       entry.status="listo"; renderLista(); return;
     }
     const bitmap=await decodificar(entry.file);
     let ex;
-    if(entry.meta){ ex={fecha:entry.meta.fecha||"",hora:entry.meta.hora||"",lat:entry.meta.lat,lon:entry.meta.lon}; }
+    if(entry.meta){ ex={fecha:entry.meta.fecha||"",hora:entry.meta.hora||"",lat:num(entry.meta.lat),lon:num(entry.meta.lon)}; }
     else{ ex={fecha:"",hora:"",lat:null,lon:null};
       try{ const d=await exifr.parse(entry.file,["DateTimeOriginal","CreateDate"]); const f=d&&(d.DateTimeOriginal||d.CreateDate); if(f instanceof Date){ ex.fecha=`${f.getFullYear()}-${z(f.getMonth()+1)}-${z(f.getDate())}`; ex.hora=`${z(f.getHours())}:${z(f.getMinutes())}`; } }catch(_){}
-      try{ const g=await exifr.gps(entry.file); if(g&&typeof g.latitude==="number"){ ex.lat=g.latitude; ex.lon=g.longitude; } }catch(_){}
+      try{ const g=await exifr.gps(entry.file); if(g&&esNum(g.latitude)&&esNum(g.longitude)){ ex.lat=+g.latitude; ex.lon=+g.longitude; } }catch(_){}
+      // Sin GPS utilizable en el EXIF: se usa la posición del teléfono si la foto es del día.
+      const r=entry.metaResp;
+      if(ex.lat==null && r && esNum(r.lat) && fotoDelDia(ex.fecha)){ ex.lat=+r.lat; ex.lon=+r.lon; if(!ex.fecha){ ex.fecha=r.fecha||""; ex.hora=r.hora||""; } }
     }
-    let lugar="",lugLin=[]; if(ex.lat!=null){ const d=await geocodeThrottled(ex.lat,ex.lon); if(d){ lugar=d.txt; lugLin=d.lineas; } }
+    ex.lat=num(ex.lat); ex.lon=num(ex.lon);
+    let lugar="",lugLin=[]; if(ex.lat!=null&&ex.lon!=null){ const d=await geocodeThrottled(ex.lat,ex.lon); if(d){ lugar=d.txt; lugLin=d.lineas; } }
     entry.datos={fecha:ex.fecha,hora:ex.hora,lugar,lugLin,lat:ex.lat,lon:ex.lon};
     const texto=textoMarca(entry.datos);
     const out=await dibujar(bitmap,texto,$("marca").checked);
@@ -1243,7 +1262,7 @@ function renderLista(){
     const badge=e.tipo==="video"?`<span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-size:22px;text-shadow:0 1px 4px #000">▶</span>`:"";
     const thumbHtml=e.thumb?`<div style="position:relative;flex:none;width:66px;height:66px"><img src="${e.thumb}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#000">${badge}</div>`
       :`<div style="width:66px;height:66px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px;background:#f0f0f0;border-radius:7px">${e.tipo==="video"?"▶":"…"}</div>`;
-    const sinUbi = (e.status==="listo" && e.datos && e.datos.lat==null) ? ' <span style="color:#b3261e" title="Sin coordenadas: el sello no lleva dirección">⚠ sin ubicación</span>'
+    const sinUbi = (e.status==="listo" && e.datos && !esNum(e.datos.lat)) ? ' <span style="color:#b3261e" title="Sin coordenadas: el sello no lleva dirección">⚠ sin ubicación</span>'
       : ((e.status==="listo" && e.datos && !e.datos.lugar) ? ' <span style="color:#7a4a12" title="Hay GPS pero ningún geocoder respondió; el sello quedó con coordenadas. Se reintenta al recuperar señal.">⚠ sin dirección</span>' : '');
     const fnHtml = (e.status!=="listo" ? '<span style="color:var(--muted)">'+e.status+'</span>'
       : (!e.itemCodigo ? '<span style="color:#b3261e">Asigna un requerimiento ↑</span>' : e.filename)) + sinUbi;
@@ -1266,7 +1285,7 @@ async function redibujarTodas(){
   if(redibujando) return; redibujando=true;
   try{ for(const e of batch){ if(e.tipo==="video"||e.status!=="listo"||!e.datos) continue;
     try{
-      if(e.datos.lat!=null && !e.datos.lugar){ const d=await geocodeThrottled(e.datos.lat,e.datos.lon); if(d){ e.datos.lugar=d.txt; e.datos.lugLin=d.lineas; } }
+      if(esNum(e.datos.lat) && !e.datos.lugar){ const d=await geocodeThrottled(e.datos.lat,e.datos.lon); if(d){ e.datos.lugar=d.txt; e.datos.lugLin=d.lineas; } }
       const bmp=await decodificar(e.file); const texto=textoMarca(e.datos);
       const out=await dibujar(bmp,texto,$("marca").checked); e.blob=out.blob; e.thumb=out.thumb;
     }catch(_){} } }
@@ -1573,16 +1592,17 @@ function textoMarca(d){ if(!d) return "";
   if(fh) L.push(fh);
   const lin=(d.lugLin&&d.lugLin.length)?d.lugLin:(d.lugar?[d.lugar]:[]);
   lin.forEach(x=>L.push(x));
-  if(!lin.length && d.lat!=null) L.push(`${(+d.lat).toFixed(6)}, ${(+d.lon).toFixed(6)}`);
+  if(!lin.length && esNum(d.lat) && esNum(d.lon)) L.push(`${(+d.lat).toFixed(6)}, ${(+d.lon).toFixed(6)}`);
   return L.join("\n"); }
 function geoKey(lat,lon){ return (+lat).toFixed(3)+","+(+lon).toFixed(3); }
 function metrosEntre(la1,lo1,la2,lo2){ const R=111320, dy=(la2-la1)*R, dx=(lo2-lo1)*R*Math.cos(la1*Math.PI/180); return Math.sqrt(dx*dx+dy*dy); }
 function geoCercano(lat,lon){ for(const k in geoCache){ const v=geoCache[k];
-  if(v&&v.lat!=null&&metrosEntre(lat,lon,v.lat,v.lon)<150) return v; } return null; }
+  if(v&&esNum(v.lat)&&metrosEntre(lat,lon,v.lat,v.lon)<150) return v; } return null; }
 function guardarGeoCache(){ try{ const ks=Object.keys(geoCache);
   if(ks.length>200) ks.slice(0,ks.length-200).forEach(k=>delete geoCache[k]);
   saveJSON("est_geocache",geoCache); }catch(_){} }
-async function geocodeThrottled(lat,lon){ const k=geoKey(lat,lon);
+async function geocodeThrottled(lat,lon){ if(!esNum(lat)||!esNum(lon)) return null;
+  const k=geoKey(lat,lon);
   if(geoCache[k]) return geoCache[k];
   const cerca=geoCercano(lat,lon); if(cerca){ geoDiag="Dirección reutilizada (mismo sitio) ✓"; pintarGeoDiag(); return cerca; }
   const p=geoChain.then(async()=>{ await sleep(1100);
