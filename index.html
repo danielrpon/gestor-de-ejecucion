@@ -109,10 +109,10 @@
   <div id="home" class="hide">
     <div class="card">
       <div class="h">¿Cómo vas a usar la app?</div>
-      <button class="btn" id="goExec">Ejecutivo de cuenta · Configurar operación</button>
+      <button class="btn" id="goExec">Productor · Configurar operación</button>
       <div style="height:10px"></div>
-      <button class="btn sec" id="goOper">Operador · Ingresar a capturar</button>
-      <div class="mut" id="homeHint">El operador normalmente entra escaneando el QR o abriendo el enlace que le comparte el ejecutivo.</div>
+      <button class="btn sec" id="goOper">Proveedor · Ingresar a capturar</button>
+      <div class="mut" id="homeHint">El proveedor normalmente entra escaneando el QR o abriendo el enlace que le comparte el productor.</div>
       <div class="mut" style="margin-top:8px"><a class="lnk" id="goAdmin">Soy administrador</a></div>
     </div>
   </div>
@@ -120,7 +120,7 @@
   <!-- EJECUTIVO · CONFIGURACIÓN -->
   <div id="exec" class="hide">
     <div class="card">
-      <div class="role">Ejecutivo de cuenta</div>
+      <div class="role">Productor</div>
       <div class="h">Configurar operación</div>
       <div class="fld"><label>Cliente</label><input id="ecliente" type="text" autocomplete="off"></div>
       <div class="fld"><label>Evento</label><input id="eevento" type="text" autocomplete="off"></div>
@@ -133,7 +133,7 @@
       <div style="height:8px"></div>
       <button class="btn sec" id="ebtnFicha">Completar ficha desde plantilla (ubicación · cantidad · características)</button>
       <input id="efileFicha" type="file" accept=".xlsx,.xls,.csv">
-      <div class="mut" id="efichaInfo">Rellena la ficha que ve el operador (cantidad · unidad · días · características) SIN agregar ni quitar requerimientos, y guarda solo. Úsalo en eventos ya publicados.</div>
+      <div class="mut" id="efichaInfo">Rellena la ficha que ve el proveedor (cantidad · unidad · días · características) SIN agregar ni quitar requerimientos, y guarda solo. Úsalo en eventos ya publicados.</div>
       <div class="h" style="margin-top:14px">Agregar evidencia manualmente</div>
       <div class="fld"><label>Proveedor</label><input id="miprov" type="text" autocomplete="off" placeholder="Ej.: Sonido Pro S.A.S." list="provList"><datalist id="provList"></datalist></div>
       <div class="fld" style="margin-top:8px"><label>Requerimiento</label><input id="mireq" type="text" autocomplete="off" placeholder="Ej.: Sistema de sonido"></div>
@@ -149,7 +149,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span class="mut" id="fltInfo"></span><a class="lnk" id="fltLimpiar" style="font-size:13px">Limpiar filtros</a></div>
       </div>
       <div id="execList" class="list" style="margin-top:10px"></div>
-      <div class="h" style="margin-top:16px">Marca de agua (aplica a TODOS los operadores del evento)</div>
+      <div class="h" style="margin-top:16px">Marca de agua (aplica a TODOS los proveedores del evento)</div>
       <div class="opts">
         <div class="row">
           <div><label>Posición</label><select id="emPos"><option value="bl">Inf. izq.</option><option value="br">Inf. der.</option><option value="tl">Sup. izq.</option><option value="tr">Sup. der.</option></select></div>
@@ -158,7 +158,7 @@
         <label class="tgl"><input id="emOn" type="checkbox" checked> Aplicar marca de agua (fecha · hora · dirección)</label>
       </div>
       <div style="height:14px"></div>
-      <button class="btn" id="egen" disabled>Generar acceso para operadores</button>
+      <button class="btn" id="egen" disabled>Generar acceso para proveedores</button>
       <button class="btn" id="eguardar" style="margin-top:10px;display:none">Guardar cambios del evento</button>
       <div id="eDuplicar" style="display:none;text-align:center;margin-top:10px"><a class="lnk" id="eDuplicarLink" style="font-size:13px;color:var(--muted)">Duplicar como evento nuevo</a></div>
       <div id="acWrap" class="hide">
@@ -168,11 +168,11 @@
           <div class="ie" id="invEv"></div>
           <div class="qrbox"><div id="acQR"></div></div>
           <div class="il" id="acLink"></div>
-          <div class="mut" style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">Enlace del <b>ejecutivo</b> (para re-editar este evento después):</div>
+          <div class="mut" style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">Enlace del <b>productor</b> (para re-editar este evento después):</div>
           <div class="il" id="acLinkExec" style="color:var(--muted)"></div>
         </div>
-        <div class="btn2"><button class="btn sec" id="acCopy">Copiar invitación (operador)</button><button class="btn" id="acGo">Continuar como operador</button></div>
-        <button class="btn sec" id="acCopyExec" style="margin-top:8px">Copiar enlace del ejecutivo</button>
+        <div class="btn2"><button class="btn sec" id="acCopy">Copiar invitación (proveedor)</button><button class="btn" id="acGo">Continuar como proveedor</button></div>
+        <button class="btn sec" id="acCopyExec" style="margin-top:8px">Copiar enlace del productor</button>
       </div>
       <div style="height:14px"></div>
       <a class="lnk" id="verHist">▸ Configuración de eventos</a>
@@ -184,16 +184,16 @@
   <div id="login" class="hide">
     <div class="card">
       <div class="banner"><b id="lbCli"></b><div class="s" id="lbEv"></div></div>
-      <div class="role">Operador</div>
+      <div class="role">Proveedor</div>
       <div class="h">Ingreso</div>
-      <div class="fld hide" id="lprovWrap"><label>Proveedor</label><select id="lprov"></select></div>
+      <div class="fld hide" id="lprovWrap"><label>Empresa proveedora</label><select id="lprov"></select></div>
       <div class="fld hide" id="lnitWrap"><label>NIT del proveedor (sin dígito de verificación)</label><input id="lnit" type="text" inputmode="numeric" autocomplete="off" placeholder="Ej: 900123456"></div>
       <div class="fld"><label>Nombre completo</label><input id="lnom" type="text" autocomplete="off"></div>
       <div class="fld"><label>Cédula</label><input id="lced" type="text" inputmode="numeric" autocomplete="off"></div>
       <div class="fld"><label>Celular</label><input id="lcel" type="text" inputmode="tel" autocomplete="off"></div>
       <div style="height:12px"></div>
       <button class="btn" id="lentrar">Ingresar</button>
-      <div class="mut">Sin contraseña. Se registra para saber quién cargó cada evidencia. <a class="lnk" id="reconfig">Soy el ejecutivo</a></div>
+      <div class="mut">Sin contraseña. Se registra para saber quién cargó cada evidencia. <a class="lnk" id="reconfig">Soy el productor</a></div>
     </div>
   </div>
 
@@ -223,16 +223,16 @@
       </div>
     </div>
     <div class="card">
-      <div class="h" style="justify-content:space-between;align-items:center">Progreso del evento <a class="lnk" id="syncProg" style="font-size:13px;font-weight:600" title="Trae a este teléfono las fotos que ya subieron los demás operadores">↻ Traer avance de otros equipos</a></div>
+      <div class="h" style="justify-content:space-between;align-items:center">Progreso del evento <a class="lnk" id="syncProg" style="font-size:13px;font-weight:600" title="Trae a este teléfono las fotos que ya subieron los demás proveedores">↻ Traer avance de otros equipos</a></div>
       <div id="prog" class="prog"><div class="bar"><span></span></div><div class="lbl"></div></div>
       <div class="cnt" id="cnt">Aún no agregas fotos.</div>
       <div class="list" id="list"></div>
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v28 · 30ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v29 · 30ago</div>
     </div>
-    <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
+    <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
 
   <!-- ADMINISTRADOR · VISUALIZADOR -->
@@ -258,13 +258,13 @@
 
 <!-- EDITAR OPERADOR -->
 <div id="opm" class="modal hide"><div class="sheet">
-  <div class="h">Editar operador</div>
-  <div class="fld hide" id="oprovWrap"><label>Proveedor</label><select id="oprov"></select></div>
+  <div class="h">Editar mis datos</div>
+  <div class="fld hide" id="oprovWrap"><label>Empresa proveedora</label><select id="oprov"></select></div>
   <div class="fld hide" id="onitWrap"><label>NIT del proveedor (sin dígito de verificación)</label><input id="onit" type="text" inputmode="numeric" autocomplete="off" placeholder="Ej: 900123456"></div>
   <div class="fld"><label>Nombre completo</label><input id="onom" type="text" autocomplete="off"></div>
   <div class="fld"><label>Cédula</label><input id="oced" type="text" inputmode="numeric" autocomplete="off"></div>
   <div class="fld"><label>Celular</label><input id="ocel" type="text" inputmode="tel" autocomplete="off"></div>
-  <div class="mut">La cédula y el nombre forman el identificador del operador en el nombre de cada evidencia.</div>
+  <div class="mut">La cédula y el nombre forman el identificador de quien captura en el nombre de cada evidencia.</div>
   <div style="height:12px"></div>
   <div class="btn2"><button class="btn sec" id="opClose">Cerrar</button><button class="btn" id="opSave">Guardar</button></div>
 </div></div>
@@ -495,7 +495,7 @@ $("acCopy").addEventListener("click", ()=>{ if(navigator.clipboard) navigator.cl
 $("acGo").addEventListener("click", ()=>{ saveConfigDesdeExec(); irALogin(); });
 $("eguardar").addEventListener("click", guardarEventoEditado);
 if($("eDuplicarLink")) $("eDuplicarLink").addEventListener("click", async ()=>{ if(!confirm("Esto CREA un evento NUEVO con enlace nuevo (no actualiza el actual).\n\n¿Continuar?")) return; await generarAcceso(); });
-$("acCopyExec").addEventListener("click", ()=>{ const u=$("acLinkExec").textContent; if(navigator.clipboard&&u) navigator.clipboard.writeText(u); $("acCopyExec").textContent="Enlace del ejecutivo copiado ✓"; toast("Enlace del ejecutivo copiado ✓"); });
+$("acCopyExec").addEventListener("click", ()=>{ const u=$("acLinkExec").textContent; if(navigator.clipboard&&u) navigator.clipboard.writeText(u); $("acCopyExec").textContent="Enlace del productor copiado ✓"; toast("Enlace del productor copiado ✓"); });
 $("verHist").addEventListener("click", ()=>{ const l=$("histList"); l.classList.toggle("hide"); const abierto=!l.classList.contains("hide"); if(abierto) renderHistorial(); $("verHist").textContent=(abierto?"▾":"▸")+" Configuración de eventos"; });
 async function renderHistorial(){
   const l=$("histList"); if(!l) return;
@@ -504,12 +504,12 @@ async function renderHistorial(){
   else arr=Object.values(eventos());                           // respaldo: cache local si no hay señal
   arr=arr.slice().sort((a,b)=>(b.consec||0)-(a.consec||0));
   if(!arr.length){ l.innerHTML='<div class="mut">Aún no hay eventos configurados.</div>'; return; }
-  l.innerHTML=arr.map(e=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.n_items||0} evidencias</div><div class="ac"><a class="lnk" onclick="copiarLinkEv('${e.uid}','oper')">link operador</a><a class="lnk" onclick="copiarLinkEv('${e.uid}','exec')">link ejecutivo</a><a class="lnk" onclick="editarEventoId('${e.uid}')">editar</a></div></div></div>`).join("");
+  l.innerHTML=arr.map(e=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.n_items||0} evidencias</div><div class="ac"><a class="lnk" onclick="copiarLinkEv('${e.uid}','oper')">link proveedor</a><a class="lnk" onclick="copiarLinkEv('${e.uid}','exec')">link productor</a><a class="lnk" onclick="editarEventoId('${e.uid}')">editar</a></div></div></div>`).join("");
 }
-window.copiarLinkEv=(uid,tipo)=>{ const u=tipo==="exec"?linkExec(uid):linkOper(uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del ejecutivo":"Enlace del operador")); };   // siempre el enlace directo ?ev=
+window.copiarLinkEv=(uid,tipo)=>{ const u=tipo==="exec"?linkExec(uid):linkOper(uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del productor":"Enlace del proveedor")); };   // siempre el enlace directo ?ev=
 window.editarEventoId=(uid)=>{ editarEvento(uid); };
 $("goExec").addEventListener("click", ()=>{ prefillExec(); show("exec"); });
-$("goOper").addEventListener("click", ()=>{ if(cfg) irALogin(); else $("homeHint").textContent="Aún no hay una operación configurada en este dispositivo. Pide el enlace o QR de acceso a tu ejecutivo."; });
+$("goOper").addEventListener("click", ()=>{ if(cfg) irALogin(); else $("homeHint").textContent="Aún no hay una operación configurada en este dispositivo. Pide el enlace o QR de acceso a tu productor."; });
 function nextCodigo(){ let mx=0; execItems.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx) mx=n; }); return String(mx+1).padStart(2,"0"); }
 $("miadd").addEventListener("click", ()=>{ const req=$("mireq").value.trim(), cant=$("micant").value.trim(), prov=$("miprov").value.trim();
   if(!req){ alert("Escribe el requerimiento."); return; }
@@ -681,7 +681,7 @@ async function generarAcceso(){
 async function mostrarAcceso(consec){
   $("invCli").textContent = evConsecTag(consec)+" · "+(cfg.cl || "—");
   $("invEv").textContent = [cfg.ev, cfg.fe, cfg.ci].filter(Boolean).join("  ·  ");
-  $("acWrap").classList.remove("hide"); $("acCopy").textContent="Copiar invitación (operador)";
+  $("acWrap").classList.remove("hide"); $("acCopy").textContent="Copiar invitación (proveedor)";
   accesoCorto=accesoLink;   // sin acortador: el enlace ?ev= ya es corto, DIRECTO y estable (sin página intermedia)
   $("acLink").textContent=accesoLink; $("acLinkExec").textContent=accesoExec;
   pintarQR(accesoLink);
@@ -706,7 +706,7 @@ async function guardarEventoEditado(){
   saveJSON("est_config",cfg);
   accesoLink=linkOper(cfg.uid); accesoExec=linkExec(cfg.uid); accesoCorto="";
   await mostrarAcceso(cfg.consec);
-  alert("Cambios guardados en "+evConsecTag(cfg.consec)+".\n\nEl enlace NO cambia: los operadores verán el contenido actualizado al reabrirlo.");
+  alert("Cambios guardados en "+evConsecTag(cfg.consec)+".\n\nEl enlace NO cambia: los proveedores verán el contenido actualizado al reabrirlo.");
 }
 function invitacionTexto(){
   const link = accesoCorto || accesoLink;
@@ -727,9 +727,9 @@ function irALogin(){
 $("lentrar").addEventListener("click", ()=>{
   const o={ nombre:$("lnom").value.trim(), cedula:$("lced").value.trim(), celular:$("lcel").value.trim() };
   if(!o.nombre||!o.cedula||!o.celular){ alert("Completa nombre, cédula y celular."); return; }
-  if(hayProv()){ const p=$("lprov").value; if(!p){ alert("Selecciona tu proveedor."); return; }
+  if(hayProv()){ const p=$("lprov").value; if(!p){ alert("Selecciona tu empresa proveedora."); return; }
     const nitReq=nitDeProveedor(p);
-    if(nitReq && !nitCoincide($("lnit").value, nitReq)){ alert("El NIT no corresponde al proveedor seleccionado.\n\nIngresa el NIT del proveedor (sin dígito de verificación) para continuar."); return; }
+    if(nitReq && !nitCoincide($("lnit").value, nitReq)){ alert("El NIT no corresponde a la empresa seleccionada.\n\nIngresa el NIT del proveedor (sin dígito de verificación) para continuar."); return; }
     o.prov=p; }
   operador=o; saveJSON("est_operador",o); pintarWho(); irACaptura();
 });
@@ -801,11 +801,11 @@ async function adminCargarEventos(){
       return `<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}`
         +bar(m.av)
         +`<div class="mut" style="margin:2px 0 0">Requerimientos: <b>${m.n}</b> · Con evidencia: <b>${m.conEvi}</b> · Completos ≥3: <b>${m.comp}</b> · Pendientes: <b>${m.pend}</b> · Evidencias: <b>${m.reg}</b> · Avance: <b>${m.av}%</b>${m.extras?` · <span style="color:var(--oro-d)">Extras en sitio: <b>${m.extras}</b></span>`:""}</div>`
-        +`<div class="ac"><a class="lnk" onclick="adminCopiar(${i},'oper')">link operador</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link ejecutivo</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a></div></div></div>`;
+        +`<div class="ac"><a class="lnk" onclick="adminCopiar(${i},'oper')">link proveedor</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link productor</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a></div></div></div>`;
     }).join("");
   }catch(_){ l.innerHTML='<div class="mut">Error al cargar.</div>'; }
 }
-window.adminCopiar=(i,tipo)=>{ const e=adminEventos[i]; if(!e) return; const u=tipo==="exec"?linkExec(e.uid):linkOper(e.uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del ejecutivo":"Enlace del operador")); };   // siempre el enlace directo ?ev= (nunca tinyurl viejo)
+window.adminCopiar=(i,tipo)=>{ const e=adminEventos[i]; if(!e) return; const u=tipo==="exec"?linkExec(e.uid):linkOper(e.uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del productor":"Enlace del proveedor")); };   // siempre el enlace directo ?ev= (nunca tinyurl viejo)
 window.adminBorrarEvento=async(i)=>{
   const ev=adminEventos[i]; if(!ev) return;
   if(!confirm(`⚠️ BORRAR EVENTO ${evConsecTag(ev.consec)}\n\n${ev.cl||""} — ${ev.ev||""}\n\nEsto elimina el evento Y TODAS sus evidencias y fotos. Es una acción DELICADA que NO se puede deshacer.\n\n¿Continuar?`)) return;
@@ -846,8 +846,8 @@ window.adminAbrir=async(i)=>{
       +`<div class="mut" style="margin-bottom:6px">${arr.length} evidencia(s) · toca una foto para verla grande</div>`
       +`<div style="display:flex;gap:16px;margin-bottom:10px"><a class="lnk" onclick="adminManifiesto()">⬇ Manifiesto (CSV)</a><a class="lnk" onclick="adminFotosZIP()">⬇ Fotos (ZIP)</a></div>`
       +`<div style="border-top:1px solid var(--line);padding-top:10px;margin-bottom:10px">`
-        +`<div class="fld"><input id="adFltBuscar" type="text" autocomplete="off" placeholder="🔍 Buscar por requerimiento, proveedor, operador, archivo o radicado"></div>`
-        +`<div class="row" style="margin-top:8px"><div><label>Proveedor</label><select id="adFltProv">${opt(provs,"Todos")}</select></div><div><label>Operador</label><select id="adFltOper">${opt(opers,"Todos")}</select></div></div>`
+        +`<div class="fld"><input id="adFltBuscar" type="text" autocomplete="off" placeholder="🔍 Buscar por requerimiento, proveedor, persona, archivo o radicado"></div>`
+        +`<div class="row" style="margin-top:8px"><div><label>Proveedor</label><select id="adFltProv">${opt(provs,"Todos")}</select></div><div><label>Quién capturó</label><select id="adFltOper">${opt(opers,"Todos")}</select></div></div>`
         +`<div class="fld" style="margin-top:8px"><label>Escenario / categoría</label><select id="adFltCat">${opt(cats,"Todos")}</select></div>`
         +`<div class="fld" style="margin-top:8px"><label>Requerimiento</label><select id="adFltReq">${opt(reqs,"Todos")}</select></div>`
         +`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span class="mut" id="adFltInfo"></span><a class="lnk" id="adFltLimpiar" style="font-size:13px">Limpiar filtros</a></div>`
@@ -1165,9 +1165,9 @@ $("who").addEventListener("click", ()=>{ if(!operador) return; $("onom").value=o
   $("opm").classList.remove("hide"); });
 $("opClose").addEventListener("click", ()=>$("opm").classList.add("hide"));
 $("opSave").addEventListener("click", ()=>{ const n=$("onom").value.trim(),c=$("oced").value.trim(),ce=$("ocel").value.trim(); if(!n||!c||!ce){ alert("Completa nombre, cédula y celular."); return; }
-  const nuevo={nombre:n,cedula:c,celular:ce}; if(hayProv()){ const p=$("oprov").value; if(!p){ alert("Selecciona tu proveedor."); return; }
+  const nuevo={nombre:n,cedula:c,celular:ce}; if(hayProv()){ const p=$("oprov").value; if(!p){ alert("Selecciona tu empresa proveedora."); return; }
     const nitReq=nitDeProveedor(p);
-    if(nitReq && !nitCoincide($("onit").value, nitReq)){ alert("El NIT no corresponde al proveedor seleccionado.\n\nIngresa el NIT del proveedor (sin dígito de verificación) para continuar."); return; }
+    if(nitReq && !nitCoincide($("onit").value, nitReq)){ alert("El NIT no corresponde a la empresa seleccionada.\n\nIngresa el NIT del proveedor (sin dígito de verificación) para continuar."); return; }
     nuevo.prov=p; }
   operador=nuevo; saveJSON("est_operador",operador); pintarWho(); $("opm").classList.add("hide"); poblarItemTop(); $("ctx").textContent=(cfg.cl||"—")+" · "+(cfg.ev||"—")+(operador.prov?("  ·  "+operador.prov):""); renderLista(); });
 $("enviar").addEventListener("click", ()=>empaquetar("supabase"));
@@ -1186,6 +1186,11 @@ function agregar(fileList, meta, metaResp){
     batch.push(e); procesar(e); });
   renderLista();
 }
+/* VOCABULARIO: en la interfaz el rol "operador" se llama PROVEEDOR y el "ejecutivo" se llama
+   PRODUCTOR (nomenclatura del cliente). Dentro del código, en las columnas de Supabase
+   (operador_nombre, operador_cedula…), en las claves de localStorage (est_operador) y en los
+   encabezados del CSV se conservan los nombres viejos a propósito: renombrarlos rompería los
+   datos ya cargados y las herramientas que consumen el manifiesto. */
 /* ---- Persistencia del lote en curso (IndexedDB): no perder capturas si se recarga la app.
    Guarda las evidencias LISTAS (con su blob) por evento. Todo va con guardas: si IDB falla,
    la app sigue funcionando igual, solo sin respaldo de sesión. ---- */
@@ -1490,7 +1495,7 @@ function textoResumen(r){
   if(r.fechaEv||r.ciudad) L.push("Fecha/lugar: "+[r.fechaEv,r.ciudad].filter(Boolean).join(" · "));
   L.push("Radicado: "+r.radicado);
   L.push("Enviado: "+r.cuando);
-  if(r.operador) L.push("Operador: "+r.operador+(r.prov?" · "+r.prov:""));
+  if(r.operador) L.push("Proveedor: "+r.operador+(r.prov?" · "+r.prov:""));
   L.push("");
   L.push("EN ESTE ENVÍO");
   L.push("• "+r.fotos+" foto(s)"+(r.videos?" y "+r.videos+" video(s)":""));
