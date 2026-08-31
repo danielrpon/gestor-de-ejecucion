@@ -230,7 +230,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v23 · 27ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v24 · 30ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -289,7 +289,7 @@
   <div class="guia neutro" id="gpsMsg" style="text-align:center;font-weight:600">Toca «Permitir ubicación» y acepta el aviso del navegador.</div>
   <div class="guia falta hide" id="gpsHelp">
     <b>iPhone (Safari):</b> Ajustes → Privacidad y seguridad → Localización → Safari → <b>Al usar la app</b>; y en Safari toca <b>ᴀA</b> (barra de direcciones) → Ajustes del sitio web → Ubicación → <b>Permitir</b>.<br>
-    <b>Android (Chrome):</b> toca el <b>candado</b> junto a la dirección → Permisos → Ubicación → <b>Permitir</b>, y revisa que la ubicación del teléfono esté encendida.<br>
+    <b>Android (Chrome):</b> 1) baja la barra de notificaciones y enciende <b>Ubicación</b>; 2) Ajustes del teléfono → Ubicación → <b>Precisión de la ubicación de Google: activada</b>; 3) en Chrome toca el <b>candado</b> (o ⚙) junto a la dirección → Permisos → Ubicación → <b>Permitir</b>; 4) Ajustes → Apps → Chrome → Permisos → Ubicación → <b>Permitir</b>.<br>
     Después vuelve aquí y toca <b>Reintentar</b>.
   </div>
   <div style="height:12px"></div>
@@ -386,7 +386,11 @@ let cfg = null;              // {cl, ev, it:[{codigo,req}], od}
 let operador = loadJSON("est_operador", null);
 let counters = loadJSON("est_counters", {});
 let batch = [], seq = 0;
-const geoCache = {}; let geoChain = Promise.resolve();
+/* Caché de direcciones. Antes la llave tenía 5 decimales (~1 m): como el GPS baila metro a metro,
+   CADA foto pedía una dirección nueva y los proveedores gratuitos empezaban a cortar (de ahí que
+   unas fotos trajeran dirección y otras no). Ahora la llave es de ~110 m y, además, se reutiliza
+   cualquier dirección ya resuelta a menos de 150 m: en un evento eso es una sola consulta. */
+let geoCache = loadJSON("est_geocache", {}) || {}; let geoChain = Promise.resolve();
 
 function loadJSON(k,d){ try{ return JSON.parse(localStorage.getItem(k))||d; }catch(_){ return d; } }
 function saveJSON(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(_){} }
@@ -1432,6 +1436,7 @@ function actualizarEstadoGPS(){ const el=$("gpsEstado"), ch=$("gpsChip"); if(!el
   if(gpsFresco()){ el.innerHTML="Ubicación lista ✓"+(lastCoords&&lastCoords.accuracy?` <span style="font-weight:600;opacity:.75">(±${Math.round(lastCoords.accuracy)} m)</span>`:""); cls="ok"; }
   else if(geoBuscando){ el.textContent="Buscando ubicación…"; cls="busca"; }
   else if(geoDenied){ el.innerHTML="⚠ Ubicación bloqueada. <b>Toca aquí para desbloquearla.</b>"; cls="den"; }
+  else if(gpsDiag){ el.innerHTML="⚠ Sin ubicación: "+gpsDiag+". <b>Toca aquí para reintentar.</b>"; cls="den"; }
   else if(sinGpsVigente()){ el.innerHTML="⚠ Capturando SIN ubicación. <b>Toca aquí para activarla.</b>"; cls="den"; }
   else { el.innerHTML="<b>Toca aquí para activar la ubicación.</b>"; cls="off"; }
   if(ch) ch.className="gpschip "+cls;
@@ -1458,24 +1463,34 @@ function pintarGpsModal(){ const m=$("gpsMsg"); if(!m||$("gpsm").classList.conta
   if(gpsFresco()){ m.textContent="Ubicación lista ✓"; h.classList.add("hide"); }
   else if(geoBuscando){ m.textContent="Buscando ubicación… si estás bajo cubierta, acércate a una puerta o ventana."; h.classList.add("hide"); }
   else if(geoDenied){ m.textContent="El navegador tiene bloqueada la ubicación de esta página."; h.classList.remove("hide"); }
+  else if(gpsDiag){ m.textContent="No se pudo obtener la ubicación: "+gpsDiag+"."; h.classList.remove("hide"); }
   else { m.textContent="Toca «Permitir ubicación» y acepta el aviso del navegador."; h.classList.add("hide"); } }
 function conUbicacion(accion){ if(gpsFresco()||sinGpsVigente()) return accion(); abrirGpsModal(accion); }
 /* Una única petición encadenada: alta precisión y, si falla por señal, baja precisión (wifi/celda). */
+/* El texto del error del navegador es lo único que distingue "el operador dijo que no" de
+   "la ubicación del teléfono está apagada" o "no hubo señal a tiempo". */
+let gpsDiag="";
+function motivoGPS(e){ const c=e&&e.code;
+  if(c===1) return "permiso denegado";
+  if(c===2) return "el teléfono no entregó posición (¿ubicación del sistema apagada?)";
+  if(c===3) return "tiempo agotado sin señal";
+  return (e&&e.message)||"error desconocido"; }
 function pedirUbicacion(){
-  if(!navigator.geolocation) return Promise.resolve(null);
+  if(!navigator.geolocation){ gpsDiag="este navegador no tiene geolocalización"; return Promise.resolve(null); }
   if(gpsFresco()) return Promise.resolve(lastCoords);
   if(geoPromise) return geoPromise;             // ya hay una en curso → reusar (single-flight)
   geoBuscando=true; geoDenied=false; actualizarEstadoGPS();
   geoPromise = new Promise(res=>{
     const fin=coords=>{ geoPromise=null; if(coords){ fijarPos(coords); } else { geoBuscando=false; actualizarEstadoGPS(); } res(coords||lastCoords||null); };
     navigator.geolocation.getCurrentPosition(
-      p=>fin(p.coords),
-      err=>{ if(err&&err.code===1){ geoDenied=true; fin(null); return; }   // permiso denegado real
+      p=>{ gpsDiag=""; fin(p.coords); },
+      err=>{ gpsDiag=motivoGPS(err); if(err&&err.code===1){ geoDenied=true; fin(null); return; }   // permiso denegado real
+        // 2º intento por wifi/celda: en Android bajo techo el alta precisión vence casi siempre
         navigator.geolocation.getCurrentPosition(
-          p2=>fin(p2.coords),
-          err2=>{ if(err2&&err2.code===1) geoDenied=true; fin(null); },
-          {enableHighAccuracy:false, timeout:12000, maximumAge:120000}); },
-      {enableHighAccuracy:true, timeout:10000, maximumAge:60000});
+          p2=>{ gpsDiag=""; fin(p2.coords); },
+          err2=>{ gpsDiag=motivoGPS(err2); if(err2&&err2.code===1) geoDenied=true; fin(null); },
+          {enableHighAccuracy:false, timeout:20000, maximumAge:300000}); },
+      {enableHighAccuracy:true, timeout:12000, maximumAge:60000});
   });
   return geoPromise; }
 $("camClose").addEventListener("click", cerrarCamara);
@@ -1560,8 +1575,23 @@ function textoMarca(d){ if(!d) return "";
   lin.forEach(x=>L.push(x));
   if(!lin.length && d.lat!=null) L.push(`${(+d.lat).toFixed(6)}, ${(+d.lon).toFixed(6)}`);
   return L.join("\n"); }
-async function geocodeThrottled(lat,lon){ const k=lat.toFixed(5)+","+lon.toFixed(5); if(geoCache[k]) return geoCache[k];
-  const p=geoChain.then(async()=>{ await sleep(1100); if(geoCache[k]) return geoCache[k]; const r=await geocode(lat,lon); if(r) geoCache[k]=r; return r; }); geoChain=p.catch(()=>{}); return p; }
+function geoKey(lat,lon){ return (+lat).toFixed(3)+","+(+lon).toFixed(3); }
+function metrosEntre(la1,lo1,la2,lo2){ const R=111320, dy=(la2-la1)*R, dx=(lo2-lo1)*R*Math.cos(la1*Math.PI/180); return Math.sqrt(dx*dx+dy*dy); }
+function geoCercano(lat,lon){ for(const k in geoCache){ const v=geoCache[k];
+  if(v&&v.lat!=null&&metrosEntre(lat,lon,v.lat,v.lon)<150) return v; } return null; }
+function guardarGeoCache(){ try{ const ks=Object.keys(geoCache);
+  if(ks.length>200) ks.slice(0,ks.length-200).forEach(k=>delete geoCache[k]);
+  saveJSON("est_geocache",geoCache); }catch(_){} }
+async function geocodeThrottled(lat,lon){ const k=geoKey(lat,lon);
+  if(geoCache[k]) return geoCache[k];
+  const cerca=geoCercano(lat,lon); if(cerca){ geoDiag="Dirección reutilizada (mismo sitio) ✓"; pintarGeoDiag(); return cerca; }
+  const p=geoChain.then(async()=>{ await sleep(1100);
+    if(geoCache[k]) return geoCache[k];
+    const cc=geoCercano(lat,lon); if(cc) return cc;
+    const r=await geocode(lat,lon);
+    if(r){ geoCache[k]={...r, lat:+lat, lon:+lon}; guardarGeoCache(); return geoCache[k]; }
+    return r; });
+  geoChain=p.catch(()=>{}); return p; }
 /* Devuelve {txt, lineas, fuente}: `txt` es la dirección de una línea que viaja al CSV y a la base
    (compat), `lineas` es el desglose que se estampa en la foto al estilo Timestamp.
    Tres proveedores en cascada porque ninguno solo es confiable en campo. */
