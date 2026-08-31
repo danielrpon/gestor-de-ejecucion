@@ -122,6 +122,7 @@
     <div class="card">
       <div class="role">Productor</div>
       <div class="h">Configurar operación</div>
+      <div class="guia neutro hide" id="execNuevo" style="margin-bottom:10px">Evento <b>nuevo</b>, en blanco. Para modificar uno que ya existe, ábrelo en <b>▸ Configuración de eventos</b> (al final) o con el enlace del productor.</div>
       <div class="fld"><label>Cliente</label><input id="ecliente" type="text" autocomplete="off"></div>
       <div class="fld"><label>Evento</label><input id="eevento" type="text" autocomplete="off"></div>
       <div class="fld"><label>Fecha del evento</label><input id="efecha" type="date"></div>
@@ -230,7 +231,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v29 · 30ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v30 · 30ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -508,18 +509,36 @@ async function renderHistorial(){
 }
 window.copiarLinkEv=(uid,tipo)=>{ const u=tipo==="exec"?linkExec(uid):linkOper(uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del productor":"Enlace del proveedor")); };   // siempre el enlace directo ?ev=
 window.editarEventoId=(uid)=>{ editarEvento(uid); };
-$("goExec").addEventListener("click", ()=>{ prefillExec(); show("exec"); });
+$("goExec").addEventListener("click", ()=>{ nuevoExec(); show("exec"); });
 $("goOper").addEventListener("click", ()=>{ if(cfg) irALogin(); else $("homeHint").textContent="Aún no hay una operación configurada en este dispositivo. Pide el enlace o QR de acceso a tu productor."; });
 function nextCodigo(){ let mx=0; execItems.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx) mx=n; }); return String(mx+1).padStart(2,"0"); }
 $("miadd").addEventListener("click", ()=>{ const req=$("mireq").value.trim(), cant=$("micant").value.trim(), prov=$("miprov").value.trim();
   if(!req){ alert("Escribe el requerimiento."); return; }
   execItems.push({codigo:nextCodigo(),req,cant,prov}); $("mireq").value=""; $("micant").value=""; renderExecItems(); $("mireq").focus(); });   // se conserva el proveedor para agregar varios del mismo
+/* Abrir el panel para CREAR. Antes se llamaba a prefillExec(), que precarga cliente, evento
+   e ítems del último evento del dispositivo y luego se declara "modo nuevo": el evento nuevo
+   nacía con los requerimientos del anterior pegados (le pasó a PINIC, que se quedó con los 3
+   ítems del "Evento de prueba"), y de ahí que el desplegable del proveedor mostrara empresas
+   que no eran de su evento. Para partir de una copia está "Duplicar como evento nuevo". */
+function nuevoExec(){
+  $("ecliente").value=""; $("eevento").value=""; $("efecha").value=""; $("eciudad").value="";
+  execItems=[]; renderExecItems();
+  $("emPos").value="bl"; $("emEsc").value="3.4"; $("emOn").checked=true;
+  if($("acWrap")) $("acWrap").classList.add("hide");
+  if($("ereqInfo")) $("ereqInfo").textContent="";
+  if(typeof renderHistorial==="function") renderHistorial();
+  if(typeof chequearGen==="function") chequearGen();
+  editandoId=null; aplicarModoExec();
+  if($("execNuevo")) $("execNuevo").classList.remove("hide");
+  window.scrollTo(0,0);
+}
 function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||""})); renderExecItems();
     const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; } if(typeof renderHistorial==="function") renderHistorial();
   editandoId=null; aplicarModoExec(); }   // por defecto: modo NUEVO (los que editan fijan editandoId DESPUÉS y llaman aplicarModoExec)
 /* Modo de la vista ejecutivo: EDITAR (editandoId fijado) muestra solo "Guardar cambios" + "Duplicar";
    NUEVO muestra solo "Generar acceso". Unifica ambas puertas de entrada (enlace y "Editar"). */
 function aplicarModoExec(){ const ed=!!editandoId;
+  if($("execNuevo")) $("execNuevo").classList.toggle("hide", ed);
   if($("eguardar")) $("eguardar").style.display=ed?"":"none";
   if($("egen")) $("egen").style.display=ed?"none":"";
   if($("eDuplicar")) $("eDuplicar").style.display=ed?"":"none"; }
@@ -733,7 +752,7 @@ $("lentrar").addEventListener("click", ()=>{
     o.prov=p; }
   operador=o; saveJSON("est_operador",o); pintarWho(); irACaptura();
 });
-$("reconfig").addEventListener("click", ()=>{ prefillExec(); show("exec"); });
+$("reconfig").addEventListener("click", ()=>{ nuevoExec(); show("exec"); });
 $("salir").addEventListener("click", ()=>{ detenerWatch(); if(operador){ $("lnom").value=operador.nombre; $("lced").value=operador.cedula; $("lcel").value=operador.celular; } show("login"); });
 
 /* ---- ADMINISTRADOR: visualizador (login + eventos + evidencias con fotos) ---- */
