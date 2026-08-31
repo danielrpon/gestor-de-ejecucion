@@ -230,7 +230,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v26 · 30ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v27 · 30ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -312,10 +312,12 @@
   <div style="font-size:44px;line-height:1">✅</div>
   <div class="h" style="color:var(--azul);justify-content:center;margin-top:6px">Envío exitoso</div>
   <div id="okRad" style="font-family:var(--mono);font-size:14px;font-weight:800;color:var(--txt);margin:2px 0"></div>
-  <div class="mut" id="okDet"></div>
+  <div class="guia ok" id="okDet" style="text-align:left"></div>
   <div style="height:14px"></div>
-  <button class="btn" id="okShare">Compartir por WhatsApp / correo</button>
-  <div style="text-align:center;margin-top:10px"><a class="lnk" id="okZip">Descargar comprobante (ZIP)</a></div>
+  <button class="btn" id="okShare">Enviar fotos + resumen por WhatsApp</button>
+  <div style="height:8px"></div>
+  <button class="btn sec" id="okTexto">Enviar solo el resumen (texto)</button>
+  <div style="text-align:center;margin-top:10px"><a class="lnk" id="okCopiar">copiar resumen</a> · <a class="lnk" id="okZip">Descargar comprobante (ZIP)</a></div>
   <div style="height:12px"></div>
   <button class="btn sec" id="okClose">Listo</button>
 </div></div>
@@ -1355,8 +1357,12 @@ function marcarSubidas(subidas){
 /* Compartir por WhatsApp/correo (canal humano). Sin await antes de share() -> gesto vivo en Android. */
 async function compartirMedia(listas, csv, exito){
   const media=listas.map(e=> new File([e.blob], e.filename, {type: e.tipo==="video" ? ((e.file&&e.file.type)||"video/mp4") : "image/jpeg"}));
+  const texto=(envioActual&&envioActual.texto)||"";
   if(navigator.canShare && navigator.canShare({files:media})){
-    try{ await navigator.share({files:media}); $("sendInfo").innerHTML="Compartido. Elige la app (WhatsApp, correo…)."; exito(); }
+    // El texto va sólo si el navegador acepta texto+archivos juntos; si no, se comparten los archivos
+    // y el resumen queda a un toque en "Enviar solo el resumen".
+    const payload = (texto && navigator.canShare({files:media, text:texto})) ? {files:media, text:texto, title:"Evidencias "+(cfg.ev||"")} : {files:media};
+    try{ await navigator.share(payload); $("sendInfo").innerHTML="Compartido. Elige la app (WhatsApp, correo…)."; exito(); }
     catch(err){ if(err&&err.name==="AbortError"){ $("sendInfo").textContent="Compartir cancelado."; } else { await descargarZIP(listas, csv, exito); } }
   } else { await descargarZIP(listas, csv, exito); }
 }
@@ -1402,10 +1408,11 @@ async function enviarASupabase(listas, exito){
     if(await subirEvidencia(listas[i], radicado)) ok++; else fallidos.push(listas[i]);
   }
   if(!fallidos.length){
-    envioActual={radicado, listas:listas.slice(), csv};
+    const r=resumenEnvio(radicado, listas);   // se calcula ANTES de que marcarSubidas() vacíe el lote
+    envioActual={radicado, listas:listas.slice(), csv, texto:textoResumen(r)};
     $("sendInfo").innerHTML=`<b style="color:#1a7f37">✅ Enviado. ${ok} evidencia(s) en la base.</b><br><span class="mut" style="font-size:12px">${radicado}</span>`;
     $("okRad").textContent="Radicado: "+radicado;
-    $("okDet").textContent=`${ok} evidencia(s) registradas en la base`;
+    $("okDet").innerHTML=htmlResumen(r);
     $("okm").classList.remove("hide");
     exito();
   }
@@ -1422,8 +1429,73 @@ async function enviarASupabase(listas, exito){
     $("failm").classList.remove("hide");
   }
 }
+/* Resumen del envío: lo que el ejecutivo necesita para dar por recibido el soporte sin
+   abrir la app — quién, qué evento, cuánto entró en ESTE radicado y cómo va el evento. */
+function resumenEnvio(radicado, listas){
+  const items=itemsDelOperador(), total=items.length;
+  const compl=items.filter(it=>fotosDeItem(it.iid)>=3).length;
+  const reqs=new Set(listas.map(e=>e.itemCodigo).filter(Boolean));
+  const adics=new Set(listas.filter(e=>itemAdic(e.itemCodigo)).map(e=>e.itemCodigo));
+  const t=new Date();
+  return { cliente:cfg.cl||"—", evento:cfg.ev||"—",
+    consec:(cfg&&cfg.consec)?evConsecTag(cfg.consec):"",
+    ciudad:cfg.ci||"", fechaEv:cfg.fe||"", radicado,
+    cuando:`${z(t.getDate())}/${z(t.getMonth()+1)}/${t.getFullYear()} ${hora12(z(t.getHours())+":"+z(t.getMinutes()))}`,
+    operador:(operador&&operador.nombre)||"", prov:(operador&&operador.prov)||"",
+    fotos:listas.filter(e=>e.tipo!=="video").length, videos:listas.filter(e=>e.tipo==="video").length,
+    reqs:reqs.size, adics:adics.size,
+    sinUbi:listas.filter(e=>e.datos&&!esNum(e.datos.lat)).length,
+    compl, total, faltan:Math.max(0,total-compl), pct: total?Math.round(compl/total*100):0 };
+}
+function textoResumen(r){
+  const L=[];
+  L.push("✅ EVIDENCIAS ENVIADAS");
+  L.push("");
+  L.push("Cliente: "+r.cliente);
+  L.push("Evento: "+r.evento+(r.consec?" ("+r.consec+")":""));
+  if(r.fechaEv||r.ciudad) L.push("Fecha/lugar: "+[r.fechaEv,r.ciudad].filter(Boolean).join(" · "));
+  L.push("Radicado: "+r.radicado);
+  L.push("Enviado: "+r.cuando);
+  if(r.operador) L.push("Operador: "+r.operador+(r.prov?" · "+r.prov:""));
+  L.push("");
+  L.push("EN ESTE ENVÍO");
+  L.push("• "+r.fotos+" foto(s)"+(r.videos?" y "+r.videos+" video(s)":""));
+  L.push("• "+r.reqs+" requerimiento(s) documentado(s)");
+  if(r.adics) L.push("• "+r.adics+" adicional(es) reportado(s) en sitio");
+  if(r.sinUbi) L.push("• ⚠ "+r.sinUbi+" sin ubicación (revisar GPS del equipo)");
+  L.push("");
+  L.push("AVANCE DEL EVENTO");
+  L.push("• "+r.compl+" de "+r.total+" requerimientos completos ("+r.pct+"%)");
+  if(r.faltan) L.push("• faltan "+r.faltan);
+  else L.push("• ¡evento completo! ✅");
+  return L.join("\n");
+}
+function htmlResumen(r){
+  return `<b>${escAttr(r.cliente)}</b> · ${escAttr(r.evento)}${r.consec?" ("+escAttr(r.consec)+")":""}`
+    + `<div style="margin-top:5px">${r.fotos} foto(s)${r.videos?" y "+r.videos+" video(s)":""} · <b>${r.reqs}</b> requerimiento(s) en este radicado`
+    + (r.adics?` · ${r.adics} adicional(es)`:"") + `</div>`
+    + (r.sinUbi?`<div style="color:#b3261e;margin-top:3px">⚠ ${r.sinUbi} sin ubicación</div>`:"")
+    + `<div style="margin-top:5px">Avance del evento: <b>${r.compl}/${r.total}</b> completos (${r.pct}%)`
+    + (r.faltan?` · faltan ${r.faltan}`:" · ¡todo listo! ✅")+`</div>`
+    + (r.operador?`<div class="mut" style="margin-top:5px">${escAttr(r.operador)}${r.prov?" · "+escAttr(r.prov):""} · ${r.cuando}</div>`:"");
+}
+/* WhatsApp con varios archivos suele descartar el texto que los acompaña; por eso el resumen
+   también se puede mandar solo (share sin archivos, o wa.me) y copiarse al portapapeles. */
+async function compartirResumen(){
+  const t=(envioActual&&envioActual.texto)||""; if(!t) return;
+  try{ if(navigator.share){ await navigator.share({title:"Evidencias "+(cfg.ev||""), text:t}); return; } }
+  catch(err){ if(err&&err.name==="AbortError") return; }
+  window.open("https://wa.me/?text="+encodeURIComponent(t), "_blank");
+}
+async function copiarResumen(){
+  const t=(envioActual&&envioActual.texto)||""; if(!t) return;
+  try{ await navigator.clipboard.writeText(t); $("okCopiar").textContent="copiado ✓"; setTimeout(()=>{ $("okCopiar").textContent="copiar resumen"; },2000); }
+  catch(_){ window.prompt("Copia el resumen:", t); }
+}
 $("okClose").addEventListener("click", ()=>$("okm").classList.add("hide"));
 $("okShare").addEventListener("click", ()=>{ if(envioActual) compartirMedia(envioActual.listas, envioActual.csv, ()=>{}); });
+$("okTexto").addEventListener("click", compartirResumen);
+$("okCopiar").addEventListener("click", copiarResumen);
 $("okZip").addEventListener("click", ()=>{ if(envioActual) descargarZIP(envioActual.listas, envioActual.csv, ()=>{}); });
 $("failClose").addEventListener("click", ()=>$("failm").classList.add("hide"));
 $("failRetry").addEventListener("click", ()=>{ $("failm").classList.add("hide"); empaquetar("supabase", true); });
