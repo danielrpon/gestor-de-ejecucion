@@ -230,7 +230,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v25 · 30ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v26 · 30ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -1619,14 +1619,20 @@ async function geocodeThrottled(lat,lon){ if(!esNum(lat)||!esNum(lon)) return nu
    "no hay señal", "el proveedor cortó" o "el navegador lo bloqueó". */
 let geoDiag="";
 function pintarGeoDiag(){ const el=$("geoDiag"); if(el) el.textContent=geoDiag; }
+/* Cada proveedor reporta cuánto detalle trae: 2 = calle o punto de interés, 1 = barrio,
+   0 = sólo ciudad. Hay sitios (urbanizaciones, veredas) donde Nominatim contesta sólo la
+   ciudad y Photon sí tiene la vía; quedarse con "el primero que responda" dejaba el sello
+   en "Rionegro 054047, Antioquia, Colombia". Se pregunta al siguiente y gana el más específico. */
 async function geocode(lat,lon){
   for(let intento=1; intento<=2; intento++){
-    const d=[];
-    let r=await geoNominatim(lat,lon,d), f="nominatim";
-    if(!r){ r=await geoPhoton(lat,lon,d); f="photon"; }
-    if(!r){ r=await geoRespaldo(lat,lon,d); f="bigdatacloud"; }
-    if(r){ const lineas=r.filter(Boolean);
-      if(lineas.length){ geoDiag="Dirección por "+f+" ✓"; pintarGeoDiag(); return {txt:lineas.join(", "), lineas, fuente:f}; } }
+    const d=[]; let best=null, f="";
+    const n=await geoNominatim(lat,lon,d); if(n){ best=n; f="nominatim"; }
+    if(!best || best.detalle<2){ const ph=await geoPhoton(lat,lon,d);
+      if(ph && (!best || ph.detalle>best.detalle)){ best=ph; f="photon"; } }
+    if(!best){ const b=await geoRespaldo(lat,lon,d); if(b){ best=b; f="bigdatacloud"; } }
+    if(best){ const lineas=(best.lineas||[]).filter(Boolean);
+      if(lineas.length){ geoDiag="Dirección por "+f+(best.detalle<2?" (sin calle en el mapa)":"")+" ✓"; pintarGeoDiag();
+        return {txt:lineas.join(", "), lineas, fuente:f}; } }
     geoDiag="Sin dirección — "+d.join(" · ")+(intento===1?" · reintentando":"");
     pintarGeoDiag();
     if(intento===1) await sleep(2500);
@@ -1668,13 +1674,13 @@ async function geoNominatim(lat,lon,d){
     const p=[]; if(poi&&poi!==road)p.push(poi); if(road)p.push(road); if(barrio&&barrio!==ciudad)p.push(barrio);
     if(ciudad)p.push(ciudad+(a.postcode?" "+a.postcode:"")); if(depto&&depto!==ciudad)p.push(depto); if(pais)p.push(pais);
     if(!p.length && d) d.push("nominatim: respuesta sin dirección");
-    return p.length?p:null; }catch(e){ if(d)d.push("nominatim: "+(e&&e.message||"error")); return null; }
+    return p.length?{lineas:p, detalle:(poi||road)?2:(barrio?1:0)}:null; }catch(e){ if(d)d.push("nominatim: "+(e&&e.message||"error")); return null; }
 }
 /* Photon (Komoot, datos OSM): llega a calle y a veces al número. Primer respaldo. */
 async function geoPhoton(lat,lon,d){
   try{ const j=await fetchT(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lon}&limit=1`,9000);
     const f=j&&j.features&&j.features[0]; if(!f){ if(d)d.push("photon: sin resultados"); return null; } const q=f.properties||{};
-    const esPoi=["amenity","leisure","tourism","shop","building","office"].indexOf(q.osm_key)>=0;
+    const esPoi=["amenity","leisure","tourism","shop","building","office","place"].indexOf(q.osm_key)>=0;
     const poi=esPoi?(q.name||""):"";
     let road=q.street||((q.type==="street"||q.osm_key==="highway")?(q.name||""):"");
     if(road && q.housenumber) road+=" #"+q.housenumber;
@@ -1682,7 +1688,7 @@ async function geoPhoton(lat,lon,d){
     const p=[]; if(poi&&poi!==road)p.push(poi); if(road)p.push(road); if(barrio&&barrio!==ciudad)p.push(barrio);
     if(ciudad)p.push(ciudad+(q.postcode?" "+q.postcode:"")); if(depto&&depto!==ciudad)p.push(depto); if(pais)p.push(pais);
     if(!p.length && d) d.push("photon: respuesta sin dirección");
-    return p.length?p:null; }catch(e){ if(d)d.push("photon: "+(e&&e.message||"error")); return null; }
+    return p.length?{lineas:p, detalle:(poi||road)?2:(barrio?1:0)}:null; }catch(e){ if(d)d.push("photon: "+(e&&e.message||"error")); return null; }
 }
 /* Último respaldo: llega a barrio/ciudad, nunca a la calle. Mejor eso que unas coordenadas. */
 async function geoRespaldo(lat,lon,d){
@@ -1690,7 +1696,7 @@ async function geoRespaldo(lat,lon,d){
     const p=[]; if(j.locality&&j.locality!==j.city)p.push(j.locality);
     if(j.city)p.push(j.city+(j.postcode?" "+j.postcode:"")); if(j.principalSubdivision)p.push(j.principalSubdivision); if(j.countryName)p.push(j.countryName);
     if(!p.length && d) d.push("bigdatacloud: respuesta sin dirección");
-    return p.length?p:null; }catch(e){ if(d)d.push("bigdatacloud: "+(e&&e.message||"error")); return null; }
+    return p.length?{lineas:p, detalle:(j.locality&&j.locality!==j.city)?1:0}:null; }catch(e){ if(d)d.push("bigdatacloud: "+(e&&e.message||"error")); return null; }
 }
 /* Respaldo cuando Nominatim no responde (corta por cuota o no hay señal): llega a barrio/ciudad, no a la calle. */
 async function geoRespaldo(lat,lon){
