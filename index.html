@@ -230,7 +230,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v27 · 30ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v28 · 30ago</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar operador</a></span></div>
   </div>
@@ -1245,6 +1245,7 @@ async function procesar(entry){
     const texto=textoMarca(entry.datos);
     const out=await dibujar(bitmap,texto,$("marca").checked);
     entry.blob=out.blob; entry.thumb=out.thumb; entry.status="listo";
+    if(!lugar && ex.lat!=null) programarCompletado();   // se resella sola en cuanto haya dirección
   }catch(err){ entry.status=(err&&err.message==="no-decode")?"HEIC no decodificable (usa Safari o JPG)":("error: "+(err&&err.message||err)); }
   renderLista();
 }
@@ -1294,6 +1295,39 @@ async function redibujarTodas(){
   finally{ redibujando=false; renderLista(); }
 }
 
+/* Re-sella UNA evidencia con los datos que ya tiene (no vuelve a pedir nada a la red). */
+async function resellar(e){
+  try{ const bmp=await decodificar(e.file);
+    const out=await dibujar(bmp, textoMarca(e.datos), $("marca").checked);
+    e.blob=out.blob; e.thumb=out.thumb; return true; }catch(_){ return false; }
+}
+/* Completa las direcciones que faltaron y vuelve a sellar sólo esas fotos. Barato: si la
+   dirección ya está en caché (o hay una a menos de 150 m) no toca la red. */
+let completando=false, tareaCompletar=null;
+function faltanDirecciones(){ return batch.some(e=>e.tipo!=="video"&&e.status==="listo"&&e.datos&&esNum(e.datos.lat)&&!e.datos.lugar); }
+async function completarDirecciones(){
+  if(completando) return; completando=true;
+  try{ let cambio=false;
+    for(const e of batch){
+      if(e.tipo==="video"||e.status!=="listo"||!e.datos) continue;
+      if(e.datos.lugar||!esNum(e.datos.lat)) continue;
+      const d=await geocodeThrottled(e.datos.lat, e.datos.lon);
+      if(d){ e.datos.lugar=d.txt; e.datos.lugLin=d.lineas; if(await resellar(e)) cambio=true; }
+    }
+    if(cambio) renderLista();
+  } finally{ completando=false; }
+}
+/* Si la primera consulta falló (señal irregular al llegar al sitio), se reintenta sola en
+   segundo plano en vez de dejar la foto sellada con coordenadas para siempre. */
+function programarCompletado(){
+  if(tareaCompletar) return;
+  const pasos=[5000,15000,40000]; let i=0;
+  const tic=()=>{ tareaCompletar=setTimeout(async()=>{
+    await completarDirecciones(); tareaCompletar=null;
+    if(faltanDirecciones() && ++i<pasos.length) tic();
+  }, pasos[i]); };
+  tic();
+}
 function csvCell(v){ v=String(v==null?"":v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 let enviando=false;
 function construirCSV(listas, radicado){
@@ -1512,13 +1546,18 @@ let lastCoords=null, lastCoordsT=0, geoDenied=false, geoBuscando=false, geoPromi
 const IN_APP=/(FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|MicroMessenger)/i.test(navigator.userAgent||"");
 function gpsFresco(){ return lastCoords && (Date.now()-lastCoordsT)<120000; }
 function sinGpsVigente(){ return Date.now()<sinGpsHasta; }
-function fijarPos(coords){ lastCoords=coords; lastCoordsT=Date.now(); geoDenied=false; geoBuscando=false; iniciarWatch(); actualizarEstadoGPS(); }
+function fijarPos(coords){ lastCoords=coords; lastCoordsT=Date.now(); geoDenied=false; geoBuscando=false; iniciarWatch(); actualizarEstadoGPS(); precalentarDireccion(coords); }
+/* La dirección se pide APENAS hay posición, no cuando ya se disparó la foto: así la primera
+   captura la encuentra en caché en vez de esperar (o rendirse) mientras el operador mira la
+   pantalla. Sin esto las 2-3 primeras fotos salían selladas con coordenadas. */
+function precalentarDireccion(coords){ if(!coords||!esNum(coords.latitude)) return;
+  try{ geocodeThrottled(coords.latitude, coords.longitude).then(()=>completarDirecciones()).catch(()=>{}); }catch(_){} }
 /* Con el permiso ya concedido, mantener la posición caliente: al disparar la foto ya hay fix.
    El watch arranca SÓLO después del primer fix bueno (pedirlo junto al getCurrentPosition inicial
    es lo que producía el PERMISSION_DENIED espurio de iOS). */
 function iniciarWatch(){ if(watchId!=null||!navigator.geolocation) return;
   try{ watchId=navigator.geolocation.watchPosition(
-    p=>{ lastCoords=p.coords; lastCoordsT=Date.now(); geoDenied=false; actualizarEstadoGPS(); },
+    p=>{ lastCoords=p.coords; lastCoordsT=Date.now(); geoDenied=false; actualizarEstadoGPS(); precalentarDireccion(p.coords); },   // al moverse de escenario, la dirección nueva se pide sola
     err=>{ if(err&&err.code===1){ geoDenied=true; actualizarEstadoGPS(); } },
     {enableHighAccuracy:true, timeout:20000, maximumAge:30000}); }catch(_){} }
 function detenerWatch(){ if(watchId!=null){ try{ navigator.geolocation.clearWatch(watchId); }catch(_){} watchId=null; } }
@@ -1592,7 +1631,7 @@ $("modoVideo").addEventListener("click", ()=>{ if(grabando||modo==="video") retu
 function setModoUI(){ $("modoFoto").classList.toggle("on",modo==="foto"); $("modoVideo").classList.toggle("on",modo==="video");
   const b=$("camShot"); if(modo==="foto"){ b.textContent="Capturar"; b.style.background=""; b.style.color=""; $("camhint").textContent="Encuadra la evidencia y captura."; }
   else{ b.textContent=grabando?"Detener":"Grabar"; b.style.background=grabando?"#d33":""; b.style.color=grabando?"#fff":""; $("camhint").textContent=grabando?"Grabando… toca Detener":"Toca Grabar para iniciar el video"; } }
-async function abrirCamara(){ pedirUbicacion(); modo="foto"; setModoUI(); if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ $("capf").click(); return; } $("camm").classList.remove("hide"); if(!await abrirStream(false)){ $("camm").classList.add("hide"); $("sendInfo").textContent="Cámara de la app bloqueada; se abrirá la cámara del teléfono. Para usar la guía, permite la cámara en Ajustes del navegador."; $("capf").click(); } }
+async function abrirCamara(){ pedirUbicacion(); if(gpsFresco()) precalentarDireccion(lastCoords); modo="foto"; setModoUI(); if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ $("capf").click(); return; } $("camm").classList.remove("hide"); if(!await abrirStream(false)){ $("camm").classList.add("hide"); $("sendInfo").textContent="Cámara de la app bloqueada; se abrirá la cámara del teléfono. Para usar la guía, permite la cámara en Ajustes del navegador."; $("capf").click(); } }
 async function abrirStream(conAudio){ try{ if(stream)stream.getTracks().forEach(t=>t.stop()); stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing}},audio:!!conAudio}); $("video").srcObject=stream; return true; }
   catch(_){ if(conAudio){ try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing}},audio:false}); $("video").srcObject=stream; return true; }catch(__){} } return false; } }
 function iniciarGrabacion(){
