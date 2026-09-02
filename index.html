@@ -231,7 +231,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v30 · 30ago</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v31 · 1sep</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -1268,7 +1268,8 @@ async function procesar(entry){
     entry.datos={fecha:ex.fecha,hora:ex.hora,lugar,lugLin,lat:ex.lat,lon:ex.lon};
     const texto=textoMarca(entry.datos);
     const out=await dibujar(bitmap,texto,$("marca").checked);
-    entry.blob=out.blob; entry.thumb=out.thumb; entry.status="listo";
+    entry.blob=out.blob; entry.thumb=out.thumb;
+    entry.status = out.vacio ? "⚠ salió en negro — vuelve a tomarla" : "listo";
     if(!lugar && ex.lat!=null) programarCompletado();   // se resella sola en cuanto haya dirección
   }catch(err){ entry.status=(err&&err.message==="no-decode")?"HEIC no decodificable (usa Safari o JPG)":("error: "+(err&&err.message||err)); }
   renderLista();
@@ -1700,8 +1701,25 @@ async function decodificar(file){
   throw new Error("no-decode");
 }
 function wrap(ctx,t,mw){ const w=t.split(" "),l=[]; let c=""; for(const x of w){ const q=c?c+" "+x:x; if(ctx.measureText(q).width<=mw||!c)c=q; else{ l.push(c); c=x; } } if(c)l.push(c); return l; }
+/* Tope de área del lienzo: por encima de ~16,7 MP iOS Safari devuelve un canvas VACÍO sin
+   lanzar error. Red de seguridad para equipos de 48-50 MP; se reduce SÓLO si la imagen lo
+   supera, así que una foto normal de 12 MP (4032x3024) no se toca. */
+const LIM_PX=16e6, DEST_PX=12e6;   // 16 MP = umbral (una foto de 12 MP, 4032x3024, no se toca); 12 MP = destino, con margen bajo el tope
+/* Un lienzo fallido sale de un color plano; una foto real, aunque sea de noche, tiene ruido.
+   Se muestrea la miniatura (barato) por fuera de la zona del sello. */
+function lienzoPlano(ctx,W,H){
+  try{
+    const alto=Math.max(1,Math.round(H*0.6));   // el sello va abajo: se mira la franja de arriba
+    const d=ctx.getImageData(0,0,W,alto).data; let mn=255,mx=0;
+    for(let i=0;i<d.length;i+=16){ const v=(d[i]+d[i+1]+d[i+2])/3; if(v<mn)mn=v; if(v>mx)mx=v; }
+    return (mx-mn)<=2;
+  }catch(_){ return false; }                    // ante cualquier fallo, no bloquear el envío
+}
 async function dibujar(src,texto,conMarca){
-  const W=src.naturalWidth||src.width, H=src.naturalHeight||src.height;
+  if(src&&typeof src.decode==="function"){ try{ await src.decode(); }catch(_){} }   // nunca estampar sobre una imagen a medio decodificar
+  const W0=src.naturalWidth||src.width, H0=src.naturalHeight||src.height;
+  const k=(W0*H0>LIM_PX)?Math.sqrt(DEST_PX/(W0*H0)):1;                              // k=1 => no se toca nada
+  const W=Math.round(W0*k), H=Math.round(H0*k);
   const cv=document.createElement("canvas"); cv.width=W; cv.height=H; const ctx=cv.getContext("2d"); ctx.drawImage(src,0,0,W,H);
   if(src&&typeof src.src==="string"&&src.src.indexOf("blob:")===0) URL.revokeObjectURL(src.src);
   if(conMarca && texto){
@@ -1715,7 +1733,14 @@ async function dibujar(src,texto,conMarca){
     ctx.fillStyle="#fff"; ctx.textBaseline="top"; lines.forEach((l,i)=>ctx.fillText(l,x+pad,y+pad+i*lh+(lh-fpx)/2));
   }
   const s=Math.min(1,420/Math.max(W,H)); const tc=document.createElement("canvas"); tc.width=Math.round(W*s); tc.height=Math.round(H*s); tc.getContext("2d").drawImage(cv,0,0,tc.width,tc.height);
-  const thumb=tc.toDataURL("image/jpeg",0.7); const blob=await new Promise(res=>cv.toBlob(res,"image/jpeg",0.9)); return {blob,thumb};
+  const thumb=tc.toDataURL("image/jpeg",0.7); const blob=await new Promise(res=>cv.toBlob(res,"image/jpeg",0.9));
+  const vacio=lienzoPlano(tc.getContext("2d"),tc.width,tc.height);
+  /* iOS sólo libera la memoria de un canvas cuando se encoge. Sin esto, un lote de 12 fotos
+     de 12 MP retiene ~48 MB por lienzo, se pasa del techo de canvas del dispositivo y a partir
+     de ahí los siguientes salen EN NEGRO sin lanzar error. Es la causa medida de las 6 negras
+     del lote del 25-ago (todas de 12,2 MP, por debajo del límite de área). */
+  cv.width=cv.height=1; tc.width=tc.height=1;
+  return {blob,thumb,vacio};
 }
 /* Sello al estilo Timestamp: fecha y hora arriba, y debajo una línea por nivel de la dirección.
    Si el geocoder no respondió pero sí hay GPS, se estampan las coordenadas: nunca una foto muda. */
