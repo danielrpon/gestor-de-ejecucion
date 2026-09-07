@@ -126,12 +126,12 @@
       <div class="guia neutro hide" id="execNuevo" style="margin-bottom:10px">Evento <b>nuevo</b>, en blanco. Para modificar uno que ya existe, ábrelo en <b>▸ Configuración de eventos</b> (al final) o con el enlace del productor.</div>
       <div class="fld"><label>Cliente</label><input id="ecliente" type="text" autocomplete="off"></div>
       <div class="fld"><label>Evento</label><input id="eevento" type="text" autocomplete="off"></div>
-      <div class="fld"><label>Fecha del evento</label><input id="efecha" type="date"></div>
+      <div class="row"><div class="fld"><label>Fecha del evento (inicio)</label><input id="efecha" type="date"></div><div class="fld"><label>Fecha fin (si dura varios días)</label><input id="efechafin" type="date"></div></div>
       <div class="fld"><label>Ciudad</label><input id="eciudad" type="text" autocomplete="off"></div>
       <div style="height:14px"></div>
       <button class="btn sec" id="ebtnReq">Cargar lista de evidencias (Excel / CSV)</button>
       <input id="efileReq" type="file" accept=".xlsx,.xls,.csv">
-      <div class="mut" id="ereqInfo">Carga un Excel/CSV o agrega manualmente. Columnas: proveedor · requerimiento · cantidad (el código lo asigna la app).</div>
+      <div class="mut" id="ereqInfo">Carga un Excel/CSV o agrega manualmente. Columnas: proveedor · requerimiento · cantidad · días · fechas (el código lo asigna la app).</div>
       <div style="height:8px"></div>
       <button class="btn sec" id="ebtnFicha">Completar ficha desde plantilla (ubicación · cantidad · características)</button>
       <input id="efileFicha" type="file" accept=".xlsx,.xls,.csv">
@@ -151,6 +151,17 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span class="mut" id="fltInfo"></span><a class="lnk" id="fltLimpiar" style="font-size:13px">Limpiar filtros</a></div>
       </div>
       <div id="execList" class="list" style="margin-top:10px"></div>
+      <!-- Capa 12 · evidencia por requerimiento por día -->
+      <div id="epdWrap" class="hide" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+        <div class="h">Evidencia por día</div>
+        <label class="tgl"><input id="epd" type="checkbox"><span>Exigir una evidencia por requerimiento <b>por cada día</b> (aplica a los de varios días)</span></label>
+        <div class="mut" id="epdInfo" style="margin-top:6px"></div>
+        <div id="epdList" class="list" style="margin-top:8px"></div>
+        <div class="row" style="margin-top:10px;align-items:flex-end">
+          <div class="fld" style="flex:2"><label>Volver de varios días un requerimiento que no lo trae</label><select id="epdSel"></select></div>
+          <div style="flex:1"><button class="btn sec" id="epdAdd" style="margin:0;width:100%">Agregar</button></div>
+        </div>
+      </div>
       <div class="h" style="margin-top:16px">Marca de agua (aplica a TODOS los proveedores del evento)</div>
       <div class="opts">
         <div class="row">
@@ -232,7 +243,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · base v31 · 7sep · no usar para Semana de la Juventud</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · Capa 12 evidencia por día · base v31 · 7sep · no usar para Semana de la Juventud</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -376,7 +387,7 @@ function aplicarMarca(){
   r.setProperty("--azul",MARCA.azul); r.setProperty("--azul-d",MARCA.azulD);
   r.setProperty("--oro",MARCA.oro);   r.setProperty("--oro-d",MARCA.oroD);
   r.setProperty("--btn-ink",MARCA.btnInk);
-  document.title = MARCA.title;
+  document.title = MARCA.title+" · BETA";
   const img=document.getElementById("brandLogo"), word=document.getElementById("brandWord");
   if(MARCA.logoImg){ if(img){ img.src=MARCA.logoImg; img.style.display=""; } if(word) word.style.display="none"; }
   else { if(img) img.style.display="none"; if(word){ word.innerHTML=MARCA.word; word.style.display=""; } }
@@ -393,6 +404,7 @@ async function sbMaxConsec(){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos?
 let cfg = null;              // {cl, ev, it:[{codigo,req}], od}
 let operador = loadJSON(NS+"operador", null);
 let counters = loadJSON(NS+"counters", {});
+let countersDia = loadJSON(NS+"counters_dia", {});   // Capa 12: fotos ya enviadas por requerimiento y por fecha (item_id@YYYY-MM-DD)
 let batch = [], seq = 0;
 /* Caché de direcciones. Antes la llave tenía 5 decimales (~1 m): como el GPS baila metro a metro,
    CADA foto pedía una dirección nueva y los proveedores gratuitos empezaban a cortar (de ahí que
@@ -526,7 +538,7 @@ $("miadd").addEventListener("click", ()=>{ const req=$("mireq").value.trim(), ca
    ítems del "Evento de prueba"), y de ahí que el desplegable del proveedor mostrara empresas
    que no eran de su evento. Para partir de una copia está "Duplicar como evento nuevo". */
 function nuevoExec(){
-  $("ecliente").value=""; $("eevento").value=""; $("efecha").value=""; $("eciudad").value="";
+  $("ecliente").value=""; $("eevento").value=""; $("efecha").value=""; $("efechafin").value=""; $("epd").checked=false; $("eciudad").value="";
   execItems=[]; renderExecItems();
   $("emPos").value="bl"; $("emEsc").value="3.4"; $("emOn").checked=true;
   if($("acWrap")) $("acWrap").classList.add("hide");
@@ -537,7 +549,7 @@ function nuevoExec(){
   if($("execNuevo")) $("execNuevo").classList.remove("hide");
   window.scrollTo(0,0);
 }
-function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||""})); renderExecItems();
+function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("efechafin").value=cfg.ff||""; $("epd").checked=!!cfg.pd; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[])})); renderExecItems();
     const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; } if(typeof renderHistorial==="function") renderHistorial();
   editandoId=null; aplicarModoExec(); }   // por defecto: modo NUEVO (los que editan fijan editandoId DESPUÉS y llaman aplicarModoExec)
 /* Modo de la vista ejecutivo: EDITAR (editandoId fijado) muestra solo "Guardar cambios" + "Duplicar";
@@ -572,8 +584,39 @@ function renderExecItems(){
   if(mostrados===0 && n){ c.innerHTML='<div class="mut" style="padding:8px 2px">Ningún requerimiento coincide con el filtro.</div>'; }
   if($("miCodHint")) $("miCodHint").textContent = "La app asignará el código "+nextCodigo()+" a la próxima evidencia.";
   const dl=$("provList"); if(dl){ dl.innerHTML=""; proveedores().forEach(p=>{ const o=document.createElement("option"); o.value=p; dl.appendChild(o); }); }
+  renderPorDia();
   chequearGen();
 }
+/* Capa 12 · panel del productor: qué requerimientos son de varios días y en qué fechas. Se muestra en cuanto hay
+   lista; el interruptor se prende solo la primera vez que aparece un ítem con más de un día. */
+var epdAuto=false;
+function renderPorDia(){
+  const w=$("epdWrap"), l=$("epdList"), inf=$("epdInfo"), sel=$("epdSel"); if(!w||!l) return;
+  if(!execItems.length){ w.classList.add("hide"); return; }
+  w.classList.remove("hide");
+  const ini=$("efecha").value||"";
+  const multi=execItems.map((it,idx)=>({it,idx})).filter(x=>diasNum(x.it)>1 || parseFechas(x.it.fechas||[]).length>0);
+  if(multi.length && !epdAuto && !$("epd").checked && !editandoId){ $("epd").checked=true; epdAuto=true; }
+  const on=$("epd").checked;
+  // fecha fin sugerida = la mayor fecha requerida
+  if(on && !$("efechafin").value){ const todas=multi.flatMap(x=>fechasDeItem(x.it,ini)); if(todas.length) $("efechafin").value=todas.sort().slice(-1)[0]; }
+  if(!ini && multi.length) inf.innerHTML='<span style="color:#b3261e">Pon la <b>fecha de inicio</b> del evento: de ahí salen los días de cada requerimiento.</span>';
+  else if(!multi.length) inf.textContent="Ningún requerimiento trae más de 1 día. Si alguno debe evidenciarse varios días, agrégalo abajo o escribe sus días en la plantilla.";
+  else inf.innerHTML=`<b>${multi.length}</b> requerimiento${multi.length===1?"":"s"} de varios días. ${on?"Cada uno pedirá una foto <b>por cada fecha</b>; los demás siguen con 3 fotos.":"Con el interruptor apagado se comportan como los demás (3 fotos en total)."} Edita los días o las fechas si no son consecutivos.`;
+  l.innerHTML=multi.map(({it,idx})=>{ const fs=fechasDeItem(it,ini); const nd=diasNum(it)||fs.length;
+    return `<div class="ev"><div class="in"><b style="color:var(--azul)">${escAttr(it.codigo)}</b> · ${escAttr(it.req||"")}${it.cat?` <span class="mut" style="margin:0">· ${escAttr(it.cat)}</span>`:""}
+      <div class="row" style="margin-top:6px;align-items:flex-end"><div class="fld" style="flex:0 0 78px"><label>Días</label><input type="number" min="1" value="${nd}" onchange="epdDias(${idx},this.value)"></div>
+      <div class="fld" style="flex:1"><label>Fechas (${fs.length})</label><input type="text" value="${escAttr(fs.join(", "))}" placeholder="2026-09-07, 2026-09-08…" onchange="epdFechas(${idx},this.value)"></div></div>
+      <div class="mut" style="margin:3px 0 0">${fs.length?fs.map(fmtDia).join(" · "):"(sin fechas: falta la fecha de inicio)"}</div>
+      <div class="ac"><a class="lnk" onclick="epdQuitar(${idx})">volver a 1 día</a></div></div></div>`; }).join("");
+  if(sel){ sel.innerHTML='<option value="">— elige un requerimiento —</option>'; execItems.forEach((it,idx)=>{ if(diasNum(it)>1||parseFechas(it.fechas||[]).length) return; const o=document.createElement("option"); o.value=idx; o.textContent=`${it.codigo} · ${(it.req||"").slice(0,48)}`; sel.appendChild(o); }); }
+}
+window.epdDias=(idx,v)=>{ const it=execItems[idx]; if(!it) return; const n=Math.max(1,parseInt(v,10)||1); it.dias=String(n); it.fechas=[]; renderPorDia(); };   // fechas vuelven a derivarse
+window.epdFechas=(idx,v)=>{ const it=execItems[idx]; if(!it) return; const fs=parseFechas(v); if(!fs.length){ renderPorDia(); return; } it.fechas=fs; it.dias=String(fs.length); renderPorDia(); };
+window.epdQuitar=(idx)=>{ const it=execItems[idx]; if(!it) return; it.dias="1"; it.fechas=[]; renderPorDia(); };
+if($("epd")) $("epd").addEventListener("change", renderPorDia);
+if($("efecha")) $("efecha").addEventListener("change", ()=>{ if($("efechafin").value && $("efechafin").value<$("efecha").value) $("efechafin").value=""; renderPorDia(); });
+if($("epdAdd")) $("epdAdd").addEventListener("click", ()=>{ const idx=parseInt($("epdSel").value,10); const it=execItems[idx]; if(!it){ toast("Elige un requerimiento"); return; } it.dias="2"; it.fechas=[]; $("epd").checked=true; renderPorDia(); });
 window.quitarExec=(i)=>{ execItems.splice(i,1); renderExecItems(); };
 ["fltBuscar","fltCat","fltProv"].forEach(id=>{ const el=$(id); if(el) el.addEventListener(id==="fltBuscar"?"input":"change", renderExecItems); });
 if($("fltLimpiar")) $("fltLimpiar").addEventListener("click", ()=>{ $("fltBuscar").value=""; $("fltCat").value=""; $("fltProv").value=""; renderExecItems(); });
@@ -597,6 +640,32 @@ function itemNit(cod){ const it=itemById(cod); return it?(it.nit||""):""; }
 function itemCar(cod){ const it=itemById(cod); return it?(it.car||""):""; }     // características / especificaciones
 function itemUm(cod){ const it=itemById(cod); return it?(it.um||""):""; }       // unidad de medida
 function itemDias(cod){ const it=itemById(cod); return it?(it.dias||""):""; }
+/* ---- Capa 12 · evidencia por requerimiento por día ----
+   El ítem sigue siendo UNO en la base (misma llave categoria|codigo|ordinal); lo que cambia es que su
+   estado pendiente/completo se calcula por fecha. Un ítem es "por día" si el evento lo exige (cfg.pd) y
+   trae fechas: explícitas (it.fechas) o derivadas (it.dias consecutivos desde la fecha de inicio). Los de
+   un solo día conservan la regla de siempre (3 fotos). Día cubierto = 1 foto sellada ese día. */
+function isoHoy(){ const d=new Date(); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
+function sumarDias(iso,n){ const d=new Date(iso+"T12:00:00"); if(isNaN(d)) return ""; d.setDate(d.getDate()+n); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
+function parseFechas(v){ const arr=Array.isArray(v)?v:String(v||"").split(/[,;|\s]+/);
+  return arr.map(t=>{ t=String(t||"").trim(); let m;
+    if((m=t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))) return `${m[1]}-${z(+m[2])}-${z(+m[3])}`;
+    if((m=t.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})$/))) return `${m[3]}-${z(+m[2])}-${z(+m[1])}`;
+    return ""; }).filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).sort(); }
+function fechasConsecutivas(ini,n){ const out=[]; if(!ini||!(n>0)) return out; for(let i=0;i<n;i++){ const f=sumarDias(ini,i); if(f) out.push(f); } return out; }
+function diasNum(it){ const n=parseInt(String((it&&it.dias)||"").replace(/\D/g,""),10); return isNaN(n)?0:n; }
+function fechasDeItem(it, ini){ if(!it) return []; const ex=parseFechas(it.fechas||[]); if(ex.length) return ex; const n=diasNum(it); if(!(n>1)) return []; return fechasConsecutivas(ini!==undefined?ini:((cfg&&cfg.fe)||""), n); }
+function esPorDia(it){ return !!(cfg&&cfg.pd) && !!it && !it.adicional && fechasDeItem(it).length>0; }
+function fmtDia(iso){ const d=new Date(iso+"T12:00:00"); if(isNaN(d)) return iso||""; return d.toLocaleDateString("es-CO",{weekday:"short",day:"numeric",month:"short"}).replace(/\./g,""); }
+function enLoteDeItemDia(iid,f){ return iid? batch.filter(e=>e.itemCodigo===iid && e.tipo!=="video" && (((e.datos&&e.datos.fecha)||(e.cargada&&e.cargada.fecha))||"")===f).length : 0; }
+function enviadasDeItemDia(iid,f){ try{ return countersDia[claveDe(iid)+"@"+f]||0; }catch(_){ return 0; } }
+function fotosDeItemDia(iid,f){ return enLoteDeItemDia(iid,f)+enviadasDeItemDia(iid,f); }
+function estadoDia(it){ const fs=fechasDeItem(it), hoy=isoHoy();
+  const cub=fs.filter(f=>fotosDeItemDia(it.iid,f)>=1), atras=fs.filter(f=>f<hoy && fotosDeItemDia(it.iid,f)<1);
+  return { fechas:fs, cubiertos:cub, hoy, hoyReq:fs.includes(hoy), hoyOk:fotosDeItemDia(it.iid,hoy)>=1, atrasados:atras, completo:fs.length>0&&cub.length===fs.length, idx:fs.indexOf(hoy)+1 }; }
+function itemCompleto(it){ return esPorDia(it) ? estadoDia(it).completo : fotosDeItem(it.iid)>=3; }
+function resumenHoy(items){ const pd=items.filter(esPorDia); const hoyReq=pd.filter(it=>estadoDia(it).hoyReq);
+  return { porDia:pd.length, hoyTotal:hoyReq.length, hoyOk:hoyReq.filter(it=>estadoDia(it).hoyOk).length, atrasados:pd.filter(it=>estadoDia(it).atrasados.length>0).length }; }
 function itemAdic(cod){ const it=itemById(cod); return it&&it.adicional?it:null; }
 function proveedores(){ const s=new Set(); (execItems&&execItems.length?execItems:itemsCfg()).forEach(it=>{ const p=(it.prov||"").trim(); if(p) s.add(p); }); return [...s].sort((a,b)=>a.localeCompare(b,'es')); }
 function provDeItems(){ const s=new Set(); itemsCfg().forEach(it=>{ const p=(it.prov||"").trim(); if(p) s.add(p); }); return [...s].sort((a,b)=>a.localeCompare(b,'es')); }
@@ -629,7 +698,7 @@ async function parsearPlantilla(file){
       cat:get(r,["categoria","categoría","modulo","módulo","grupo","hoja"]),
       car:get(r,["caracteristicas","características","especificaciones","observaciones","nota"]),
       um:get(r,["unidad de medida","unidad_de_medida","unidad","um","medida"]),
-      dias:get(r,["dias","días","dias_servicio"]) })).filter(x=>x.req||x.codigo);
+      dias:get(r,["dias","días","dias_servicio"]), fechas:parseFechas(get(r,["fechas","fechas requeridas","dias especificos","días específicos","fechas_evidencia"])) })).filter(x=>x.req||x.codigo);
   let mx=0; items.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx)mx=n; });
   items.forEach(it=>{ if(!String(it.codigo).trim()){ mx++; it.codigo=String(mx).padStart(2,"0"); } });   // la app asigna código a los ítems sin código
   return {rows, items, get};
@@ -649,7 +718,7 @@ async function completarFicha(file){
       const m=mapa[it.iid];
       if(!m){ sin++; return; }
       let toco=false;
-      ["car","um","dias"].forEach(f=>{ if(!String(it[f]||"").trim() && String(m[f]||"").trim()){ it[f]=m[f]; toco=true; } });
+      ["car","um","dias","fechas"].forEach(f=>{ if(!String(it[f]||"").trim() && String(m[f]||"").trim()){ it[f]=m[f]; toco=true; } });
       if(!String(it.cant||"").trim() && String(m.cant||"").trim()){ it.cant=m.cant; toco=true; }
       if(toco) ok++;
     });
@@ -672,7 +741,7 @@ async function cargarReq(file){
     execItems = rows.map(r=>({ codigo:get(r,["item_codigo","codigo","código","item","ítem","id","cod"]), req:get(r,["requerimiento","descripcion","descripción","detalle","concepto"]), cant:get(r,["cantidad","cant","qty","unidades"]), prov:get(r,["nombre proveedores","nombre proveedor","proveedor","provider","prov","proveedor_nombre","empresa","contratista"]), nit:get(r,["nit proveedor","nit","nit_proveedor","identificacion proveedor","identificación proveedor"]), cat:get(r,["categoria","categoría","modulo","módulo","grupo","hoja"]),
       car:get(r,["caracteristicas","características","especificaciones","observaciones","nota"]),
       um:get(r,["unidad de medida","unidad_de_medida","unidad","um","medida"]),
-      dias:get(r,["dias","días","dias_servicio"]) })).filter(x=>x.req||x.codigo);
+      dias:get(r,["dias","días","dias_servicio"]), fechas:parseFechas(get(r,["fechas","fechas requeridas","dias especificos","días específicos","fechas_evidencia"])) })).filter(x=>x.req||x.codigo);
     let mx=0; execItems.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx)mx=n; });
     execItems.forEach(it=>{ if(!String(it.codigo).trim()){ mx++; it.codigo=String(mx).padStart(2,"0"); } });   // la app asigna código a los ítems sin código
     const c=rows.map(r=>get(r,["cliente","client"])).find(Boolean), e=rows.map(r=>get(r,["evento","nombre_evento"])).find(Boolean), ci=rows.map(r=>get(r,["ciudad","municipio"])).find(Boolean);
@@ -686,8 +755,8 @@ async function cargarReq(file){
 function chequearGen(){ $("egen").disabled = !(execItems.length && $("ecliente").value.trim() && $("eevento").value.trim()); }
 function saveConfigDesdeExec(){
   const uid=cfg&&cfg.uid, consec=cfg&&cfg.consec;   // preservar identidad del evento si ya existe
-  cfg = { cl:$("ecliente").value.trim(), ev:$("eevento").value.trim(), fe:$("efecha").value, ci:$("eciudad").value.trim(),
-          it:execItems.map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||""})),
+  cfg = { cl:$("ecliente").value.trim(), ev:$("eevento").value.trim(), fe:$("efecha").value, ff:$("efechafin").value||"", pd:!!$("epd").checked, ci:$("eciudad").value.trim(),
+          it:execItems.map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[])})),
           marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked} };   // marca definida por el ejecutivo, igual para todos
   if(uid) cfg.uid=uid; if(consec) cfg.consec=consec;
   saveJSON(NS+"config", cfg);
@@ -704,7 +773,7 @@ async function generarAcceso(){
 /* Panel de acceso: consecutivo + ambos enlaces (operador + ejecutivo) acortados; guarda en Supabase. */
 async function mostrarAcceso(consec){
   $("invCli").textContent = evConsecTag(consec)+" · "+(cfg.cl || "—");
-  $("invEv").textContent = [cfg.ev, cfg.fe, cfg.ci].filter(Boolean).join("  ·  ");
+  $("invEv").textContent = [cfg.ev, cfg.fe?(cfg.fe+(cfg.ff&&cfg.ff!==cfg.fe?" → "+cfg.ff:"")):"", cfg.ci, cfg.pd?"evidencia por día":""].filter(Boolean).join("  ·  ");
   $("acWrap").classList.remove("hide"); $("acCopy").textContent="Copiar invitación (proveedor)";
   accesoCorto=accesoLink;   // sin acortador: el enlace ?ev= ya es corto, DIRECTO y estable (sin página intermedia)
   $("acLink").textContent=accesoLink; $("acLinkExec").textContent=accesoExec;
@@ -822,7 +891,7 @@ async function adminCargarEventos(){
       +`</div>`;
     l.innerHTML=dash+adminEventos.map((e,i)=>{
       const m=metricas[i];
-      return `<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}`
+      return `<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe}${e.config&&e.config.ff&&e.config.ff!==e.fe?" → "+e.config.ff:""})</span>`:""}${e.config&&e.config.pd?` <span class="mut" style="margin:0;color:var(--azul)">· por día</span>`:""}`
         +bar(m.av)
         +`<div class="mut" style="margin:2px 0 0">Requerimientos: <b>${m.n}</b> · Con evidencia: <b>${m.conEvi}</b> · Completos ≥3: <b>${m.comp}</b> · Pendientes: <b>${m.pend}</b> · Evidencias: <b>${m.reg}</b> · Avance: <b>${m.av}%</b>${m.extras?` · <span style="color:var(--oro-d)">Extras en sitio: <b>${m.extras}</b></span>`:""}</div>`
         +`<div class="ac"><a class="lnk" onclick="adminCopiar(${i},'oper')">link proveedor</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link productor</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a></div></div></div>`;
@@ -984,18 +1053,29 @@ window.adminFotosZIP=async()=>{
 /* ---- OPERADOR: captura ---- */
 function poblarItemTop(){
   const s=$("item"); const cur=s.value; s.innerHTML="<option value=''>— Elige un requerimiento —</option>";
-  itemsDelOperador().forEach(it=>{ const n=fotosDeItem(it.iid); const mark = n>=3?"✓ ":(n>0?"◔ ":"○ ");   // ✓ completo · ◔ en progreso · ○ pendiente
-    const o=document.createElement("option"); o.value=it.iid;   // iid, NO codigo: el mismo codigo vive en varios escenarios
-    const cta=String(it.cant||"").trim(), umd=String(it.um||"").trim();
-    o.textContent=(it.adicional?"➕ ":"")+mark+(it.cat?`${it.cat} · `:"")+(it.req?`${it.codigo} · ${it.req}`:it.codigo)+(cta?`  ×${cta}${umd?" "+umd:""}`:"")+(n>0&&n<3?`  (${n}/3)`:"");
-    s.appendChild(o); });
+  const todos=itemsDelOperador();
+  const opcion=(it)=>{ const o=document.createElement("option"); o.value=it.iid;   // iid, NO codigo: el mismo codigo vive en varios escenarios
+    const cta=String(it.cant||"").trim(), umd=String(it.um||"").trim(); let mark, extra="";
+    if(esPorDia(it)){ const e=estadoDia(it);   // Capa 12: el estado es el de HOY, no el del evento
+      mark = e.completo?"✓ ":(e.hoyReq?(e.hoyOk?"◔ ":"○ "):"· ");
+      extra = e.completo?"  (todos los días ✓)":(e.hoyReq?`  (hoy${e.hoyOk?" ✓":""} · día ${e.idx}/${e.fechas.length})`:`  (${e.cubiertos.length}/${e.fechas.length} días)`)+(e.atrasados.length?` ⚠${e.atrasados.length} atrasado${e.atrasados.length===1?"":"s"}`:"");
+    } else { const n=fotosDeItem(it.iid); mark = n>=3?"✓ ":(n>0?"◔ ":"○ "); extra = (n>0&&n<3)?`  (${n}/3)`:""; }   // ✓ completo · ◔ en progreso · ○ pendiente
+    o.textContent=(it.adicional?"➕ ":"")+mark+(it.cat?`${it.cat} · `:"")+(it.req?`${it.codigo} · ${it.req}`:it.codigo)+(cta?`  ×${cta}${umd?" "+umd:""}`:"")+extra;
+    return o; };
+  if(cfg&&cfg.pd && todos.some(esPorDia)){   // agrupado por lo que importa HOY
+    const g={hoy:[],atras:[],hechos:[],resto:[]};
+    todos.forEach(it=>{ if(!esPorDia(it)){ g.resto.push(it); return; } const e=estadoDia(it);
+      if(e.hoyReq&&!e.hoyOk) g.hoy.push(it); else if(e.atrasados.length&&!e.completo) g.atras.push(it); else if(e.hoyReq&&e.hoyOk) g.hechos.push(it); else g.resto.push(it); });
+    [["⏰ PENDIENTES DE HOY",g.hoy],["⚠ CON DÍAS ATRASADOS",g.atras],["✓ HECHOS HOY",g.hechos],["DEMÁS REQUERIMIENTOS",g.resto]].forEach(([t,arr])=>{ if(!arr.length) return;
+      const og=document.createElement("optgroup"); og.label=`${t} (${arr.length})`; arr.forEach(it=>og.appendChild(opcion(it))); s.appendChild(og); });
+  } else todos.forEach(it=>s.appendChild(opcion(it)));
   s.value = (cur && itemsDelOperador().some(it=>it.iid===cur)) ? cur : "";
   itemAnterior = s.value;   // sincroniza el guardián de "mínimo 3 antes de cambiar"
 }
 function irACaptura(){
   poblarItemTop();
   const mk=(cfg&&cfg.marca)||{}; $("pos").value=mk.pos||"bl"; $("esc").value=mk.esc||"3.4"; $("marca").checked=mk.on!==false;   // marca fijada por el ejecutivo
-  $("ctx").textContent = (cfg.cl||"—")+" · "+(cfg.ev||"—")+((operador&&operador.prov)?("  ·  "+operador.prov):"");
+  $("ctx").textContent = (cfg.cl||"—")+" · "+(cfg.ev||"—")+((operador&&operador.prov)?("  ·  "+operador.prov):"")+(cfg.pd?("  ·  hoy "+fmtDia(isoHoy())):"");
   batch=[]; renderLista(); show("cap"); window.scrollTo(0,0);
   if(IN_APP) $("inAppAviso").classList.remove("hide");
   sinGpsHasta=0; pedirUbicacion(); vigilarPermisoGPS(); actualizarGuia();
@@ -1023,7 +1103,14 @@ async function sincronizarProgreso(silencioso){
           // llave global tal cual la guarda la base; si la Capa9 aún no corre, se reconstruye con categoria+item (ordinal 1)
           const k = row.item_id || (row.item ? `${cfg.uid}|${iidDe(row.item,row.categoria,1)}` : "");
           if(!k) return; counters[k]=Math.max(counters[k]||0,n); });
-        saveJSON(NS+"counters",counters); poblarItemTop(); if(typeof actualizarGuia==="function") actualizarGuia(); if(typeof renderLista==="function") renderLista();
+        saveJSON(NS+"counters",counters);
+        if(cfg.pd){   // Capa 12: conteo por fecha. Si la función aún no existe en la base (404), se sigue con lo local.
+          try{ const rd=await fetchTO(SB_URL+"/rest/v1/rpc/progreso_evento_dia",{method:"POST",headers:SB_H,body:JSON.stringify({p_uid:cfg.uid})},15000);
+            if(rd.ok){ const ad=await rd.json(); if(Array.isArray(ad)){ ad.forEach(row=>{ if(!row.item_id||!row.fecha) return; const k=row.item_id+"@"+row.fecha; countersDia[k]=Math.max(countersDia[k]||0,parseInt(row.n,10)||0); }); saveJSON(NS+"counters_dia",countersDia); } }
+            else if(lnk&&!silencioso) toast("Falta la Capa 12 en la base: el avance por día solo cuenta lo de este teléfono");
+          }catch(_){}
+        }
+        poblarItemTop(); if(typeof actualizarGuia==="function") actualizarGuia(); if(typeof renderLista==="function") renderLista();
         if(lnk&&!silencioso) toast("Progreso actualizado desde la base ✓");
       }
     } else if(lnk&&!silencioso){ toast("No se pudo actualizar (¿falta correr la Capa8?)"); }
@@ -1039,10 +1126,11 @@ var faltAbierto=false;
 function pintarProgreso(){
   const pi=$("prog"); if(!pi) return;
   const items=itemsDelOperador(); const total=items.length;
-  const faltan=items.filter(it=>fotosDeItem(it.iid)<3); const compl=total-faltan.length;
+  const faltan=items.filter(it=>!itemCompleto(it)); const compl=total-faltan.length;   // Capa 12: completo = todos sus días cubiertos
   const pct=total?Math.round(compl/total*100):0;
   const span=pi.querySelector(".bar>span"); if(span) span.style.width=pct+"%";
-  const lbl=pi.querySelector(".lbl"); if(lbl) lbl.innerHTML = total ? (`<b>${compl}/${total}</b> requerimientos completos`+resumenFaltantes(faltan)) : "Sin requerimientos cargados.";
+  let hoyTxt=""; if(cfg&&cfg.pd){ const h=resumenHoy(items); if(h.porDia) hoyTxt=`<div style="margin:4px 0 2px">📅 Hoy ${fmtDia(isoHoy())}: <b>${h.hoyOk}/${h.hoyTotal}</b> del día${h.atrasados?` · <span style="color:#b3261e">⚠ ${h.atrasados} con días atrasados</span>`:""}</div>`; }
+  const lbl=pi.querySelector(".lbl"); if(lbl) lbl.innerHTML = total ? (hoyTxt+`<b>${compl}/${total}</b> requerimientos completos`+resumenFaltantes(faltan)) : "Sin requerimientos cargados.";
 }
 window.verFaltantes=()=>{ faltAbierto=!faltAbierto; pintarProgreso(); };
 function resumenFaltantes(faltan){
@@ -1069,6 +1157,9 @@ function fichaDeItem(iid){
   const cant=String(itemCant(iid)||"").trim(), um=String(itemUm(iid)||"").trim(),
         dias=String(itemDias(iid)||"").trim(), car=String(itemCar(iid)||"").trim(), codigo=itemCod(iid);
   const L=[];
+  const itPD=itemById(iid); if(esPorDia(itPD)){ const e=estadoDia(itPD);   // Capa 12
+    const estado = e.completo?"todos los días cubiertos ✅":(e.hoyReq?(e.hoyOk?`hoy ${fmtDia(e.hoy)} ✓ (día ${e.idx} de ${e.fechas.length})`:`<b>hoy ${fmtDia(e.hoy)}: falta la foto</b> (día ${e.idx} de ${e.fechas.length})`):`hoy no está programado · ${e.cubiertos.length}/${e.fechas.length} días`);
+    L.push(`<span class="fl">📅 <span class="fk">Evidencia por día:</span> ${estado}${e.atrasados.length?`<br><span style="color:#b3261e">⚠ sin foto: ${e.atrasados.map(fmtDia).join(", ")}</span>`:""}</span>`); }
   const med=[cant?(cant+(um?" "+um:"")):"", (dias&&dias!=="0")?(dias+" día"+(dias==="1"?"":"s")):""].filter(Boolean).join(" · ");
   if(med)  L.push(`<span class="fl">📦 <span class="fk">Cantidad:</span> ${escAttr(med)}</span>`);
   if(car){
@@ -1136,7 +1227,7 @@ $("item").addEventListener("change", ()=>{
   // Mínimo 3 por requerimiento: no dejar pasar a otro requerimiento si el actual está empezado (<3).
   if(itemAnterior && nuevo && nuevo!==itemAnterior){
     const totalPrev=fotosDeItem(itemAnterior);
-    if(enLoteDeItem(itemAnterior)>0 && totalPrev<3){
+    if(!esPorDia(itemById(itemAnterior)) && enLoteDeItem(itemAnterior)>0 && totalPrev<3){   // Capa 12: por día basta 1 foto
       alert(`Aún no completas las 3 evidencias de «${itemReqCorto(itemAnterior)}» (llevas ${totalPrev}).\n\nCaptura al menos 3 fotos de un requerimiento antes de pasar a otro.`);
       $("item").value=itemAnterior; actualizarGuia(); return;
     }
@@ -1497,7 +1588,8 @@ async function enviarASupabase(listas, exito){
    abrir la app — quién, qué evento, cuánto entró en ESTE radicado y cómo va el evento. */
 function resumenEnvio(radicado, listas){
   const items=itemsDelOperador(), total=items.length;
-  const compl=items.filter(it=>fotosDeItem(it.iid)>=3).length;
+  const compl=items.filter(itemCompleto).length;   // Capa 12
+  const hoyR=(cfg&&cfg.pd)?resumenHoy(items):null;
   const reqs=new Set(listas.map(e=>e.itemCodigo).filter(Boolean));
   const adics=new Set(listas.filter(e=>itemAdic(e.itemCodigo)).map(e=>e.itemCodigo));
   const t=new Date();
@@ -1509,7 +1601,8 @@ function resumenEnvio(radicado, listas){
     fotos:listas.filter(e=>e.tipo!=="video").length, videos:listas.filter(e=>e.tipo==="video").length,
     reqs:reqs.size, adics:adics.size,
     sinUbi:listas.filter(e=>e.datos&&!esNum(e.datos.lat)).length,
-    compl, total, faltan:Math.max(0,total-compl), pct: total?Math.round(compl/total*100):0 };
+    compl, total, faltan:Math.max(0,total-compl), pct: total?Math.round(compl/total*100):0,
+    hoy:(hoyR&&hoyR.porDia)?{fecha:fmtDia(isoHoy()), ok:hoyR.hoyOk, total:hoyR.hoyTotal, atrasados:hoyR.atrasados}:null };
 }
 function textoResumen(r){
   const L=[];
@@ -1529,6 +1622,7 @@ function textoResumen(r){
   if(r.sinUbi) L.push("• ⚠ "+r.sinUbi+" sin ubicación (revisar GPS del equipo)");
   L.push("");
   L.push("AVANCE DEL EVENTO");
+  if(r.hoy){ L.push("• Hoy "+r.hoy.fecha+": "+r.hoy.ok+" de "+r.hoy.total+" requerimientos del día"); if(r.hoy.atrasados) L.push("• ⚠ "+r.hoy.atrasados+" con días anteriores sin foto"); }
   L.push("• "+r.compl+" de "+r.total+" requerimientos completos ("+r.pct+"%)");
   if(r.faltan) L.push("• faltan "+r.faltan);
   else L.push("• ¡evento completo! ✅");
@@ -1539,6 +1633,7 @@ function htmlResumen(r){
     + `<div style="margin-top:5px">${r.fotos} foto(s)${r.videos?" y "+r.videos+" video(s)":""} · <b>${r.reqs}</b> requerimiento(s) en este radicado`
     + (r.adics?` · ${r.adics} adicional(es)`:"") + `</div>`
     + (r.sinUbi?`<div style="color:#b3261e;margin-top:3px">⚠ ${r.sinUbi} sin ubicación</div>`:"")
+    + (r.hoy?`<div style="margin-top:5px">📅 Hoy ${escAttr(r.hoy.fecha)}: <b>${r.hoy.ok}/${r.hoy.total}</b> del día${r.hoy.atrasados?` · <span style="color:#b3261e">⚠ ${r.hoy.atrasados} con días atrasados</span>`:""}</div>`:"")
     + `<div style="margin-top:5px">Avance del evento: <b>${r.compl}/${r.total}</b> completos (${r.pct}%)`
     + (r.faltan?` · faltan ${r.faltan}`:" · ¡todo listo! ✅")+`</div>`
     + (r.operador?`<div class="mut" style="margin-top:5px">${escAttr(r.operador)}${r.prov?" · "+escAttr(r.prov):""} · ${r.cuando}</div>`:"");
