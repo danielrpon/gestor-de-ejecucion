@@ -131,7 +131,7 @@
       <div style="height:14px"></div>
       <button class="btn sec" id="ebtnReq">Cargar lista de evidencias (Excel / CSV)</button>
       <input id="efileReq" type="file" accept=".xlsx,.xls,.csv">
-      <div class="mut" id="ereqInfo">Carga un Excel/CSV o agrega manualmente. Columnas: proveedor · requerimiento · cantidad · días · fechas (el código lo asigna la app).</div>
+      <div class="mut" id="ereqInfo">Carga un Excel/CSV o agrega manualmente. Columnas: proveedor · requerimiento · cantidad · días · fechas (2026-09-08 o D1;D2;D4) · por día (SI/NO). El código lo asigna la app.</div>
       <div style="height:8px"></div>
       <button class="btn sec" id="ebtnFicha">Completar ficha desde plantilla (ubicación · cantidad · características)</button>
       <input id="efileFicha" type="file" accept=".xlsx,.xls,.csv">
@@ -158,7 +158,7 @@
         <div class="mut" id="epdInfo" style="margin-top:6px"></div>
         <div id="epdList" class="list" style="margin-top:8px"></div>
         <div class="row" style="margin-top:10px;align-items:flex-end">
-          <div class="fld" style="flex:2"><label>Volver de varios días un requerimiento que no lo trae</label><select id="epdSel"></select></div>
+          <div class="fld" style="flex:2"><label>Marcar por día un requerimiento que no lo trae (p.ej. el sonido, solo el primer día)</label><select id="epdSel"></select></div>
           <div style="flex:1"><button class="btn sec" id="epdAdd" style="margin:0;width:100%">Agregar</button></div>
         </div>
       </div>
@@ -392,7 +392,7 @@ function aplicarMarca(){
   if(MARCA.logoImg){ if(img){ img.src=MARCA.logoImg; img.style.display=""; } if(word) word.style.display="none"; }
   else { if(img) img.style.display="none"; if(word){ word.innerHTML=MARCA.word; word.style.display=""; } }
 }
-const PROD = "https://danielrpon.github.io/gestor-de-ejecucion/";  // el QR/enlace SIEMPRE apunta a la app publicada (no a file://)
+const PROD = "https://danielrpon.github.io/gestor-de-ejecucion/beta/";  // BETA: los QR/enlaces de eventos creados aquí apuntan a la beta. Al promover a la raíz, quitar "beta/".
 /* ---- Supabase: base de datos de eventos (histórico + compartido entre dispositivos + links estables) ---- */
 const SB_URL="https://yjrhnyyftnrmofqrtzmv.supabase.co";
 const SB_KEY="sb_publishable_uYKPtqQlONKLhQZCpnDRsw_vwQi8iwv";   // publishable key (segura en el navegador)
@@ -549,7 +549,7 @@ function nuevoExec(){
   if($("execNuevo")) $("execNuevo").classList.remove("hide");
   window.scrollTo(0,0);
 }
-function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("efechafin").value=cfg.ff||""; $("epd").checked=!!cfg.pd; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[])})); renderExecItems();
+function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("efechafin").value=cfg.ff||""; $("epd").checked=!!cfg.pd; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null))})); renderExecItems();
     const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; } if(typeof renderHistorial==="function") renderHistorial();
   editandoId=null; aplicarModoExec(); }   // por defecto: modo NUEVO (los que editan fijan editandoId DESPUÉS y llaman aplicarModoExec)
 /* Modo de la vista ejecutivo: EDITAR (editandoId fijado) muestra solo "Guardar cambios" + "Duplicar";
@@ -595,28 +595,31 @@ function renderPorDia(){
   if(!execItems.length){ w.classList.add("hide"); return; }
   w.classList.remove("hide");
   const ini=$("efecha").value||"";
-  const multi=execItems.map((it,idx)=>({it,idx})).filter(x=>diasNum(x.it)>1 || parseFechas(x.it.fechas||[]).length>0);
-  if(multi.length && !epdAuto && !$("epd").checked && !editandoId){ $("epd").checked=true; epdAuto=true; }
+  const cand=execItems.map((it,idx)=>({it,idx})).filter(x=>candidatoPorDia(x.it));
+  const activos=cand.filter(x=>x.it.pd!==false);
+  if(activos.length && !epdAuto && !$("epd").checked && !editandoId){ $("epd").checked=true; epdAuto=true; }
   const on=$("epd").checked;
-  // fecha fin sugerida = la mayor fecha requerida
-  if(on && !$("efechafin").value){ const todas=multi.flatMap(x=>fechasDeItem(x.it,ini)); if(todas.length) $("efechafin").value=todas.sort().slice(-1)[0]; }
-  if(!ini && multi.length) inf.innerHTML='<span style="color:#b3261e">Pon la <b>fecha de inicio</b> del evento: de ahí salen los días de cada requerimiento.</span>';
-  else if(!multi.length) inf.textContent="Ningún requerimiento trae más de 1 día. Si alguno debe evidenciarse varios días, agrégalo abajo o escribe sus días en la plantilla.";
-  else inf.innerHTML=`<b>${multi.length}</b> requerimiento${multi.length===1?"":"s"} de varios días. ${on?"Cada uno pedirá una foto <b>por cada fecha</b>; los demás siguen con 3 fotos.":"Con el interruptor apagado se comportan como los demás (3 fotos en total)."} Edita los días o las fechas si no son consecutivos.`;
-  l.innerHTML=multi.map(({it,idx})=>{ const fs=fechasDeItem(it,ini); const nd=diasNum(it)||fs.length;
-    return `<div class="ev"><div class="in"><b style="color:var(--azul)">${escAttr(it.codigo)}</b> · ${escAttr(it.req||"")}${it.cat?` <span class="mut" style="margin:0">· ${escAttr(it.cat)}</span>`:""}
+  if(on && !$("efechafin").value){ const todas=activos.flatMap(x=>fechasDeItem(x.it,ini)); if(todas.length) $("efechafin").value=todas.sort().slice(-1)[0]; }
+  if(!ini && cand.length) inf.innerHTML='<span style="color:#b3261e">Pon la <b>fecha de inicio</b> del evento: de ahí salen los días de cada requerimiento.</span>';
+  else if(!cand.length) inf.textContent="Ningún requerimiento viene marcado por día ni trae más de 1 día. Si alguno debe evidenciarse en días concretos, agrégalo abajo o márcalo en la plantilla (columnas días · fechas · por día).";
+  else inf.innerHTML=`<b>${activos.length}</b> de ${cand.length} candidato${cand.length===1?"":"s"} con evidencia por día. ${on?"Cada uno pedirá una foto <b>por cada fecha</b>; los demás requerimientos siguen con 3 fotos en total.":"Con el interruptor general apagado, ninguno exige foto por día (3 fotos en total)."} Fechas: ISO (2026-09-08) o relativas al inicio (D1 = primer día, D1;D2;D4).`
+    +(cand.length>1?` <a class="lnk" style="font-size:12px" onclick="epdTodos(true)">todos</a> · <a class="lnk" style="font-size:12px" onclick="epdTodos(false)">ninguno</a>`:"");
+  l.innerHTML=cand.map(({it,idx})=>{ const fs=fechasDeItem(it,ini); const nd=diasNum(it)||fs.length||1; const off=it.pd===false; const toks=parseFechas(it.fechas||[]);
+    return `<div class="ev" style="${off?"opacity:.55":""}"><div class="in"><label class="tgl" style="font-size:14px"><input type="checkbox" ${off?"":"checked"} onchange="epdToggle(${idx},this.checked)"><span><b style="color:var(--azul)">${escAttr(it.codigo)}</b> · ${escAttr(it.req||"")}${it.cat?` <span class="mut" style="margin:0">· ${escAttr(it.cat)}</span>`:""}</span></label>
+      ${off?`<div class="mut" style="margin:3px 0 0">Sin evidencia por día: se comporta como los demás (3 fotos en total).</div>`:`
       <div class="row" style="margin-top:6px;align-items:flex-end"><div class="fld" style="flex:0 0 78px"><label>Días</label><input type="number" min="1" value="${nd}" onchange="epdDias(${idx},this.value)"></div>
-      <div class="fld" style="flex:1"><label>Fechas (${fs.length})</label><input type="text" value="${escAttr(fs.join(", "))}" placeholder="2026-09-07, 2026-09-08…" onchange="epdFechas(${idx},this.value)"></div></div>
-      <div class="mut" style="margin:3px 0 0">${fs.length?fs.map(fmtDia).join(" · "):"(sin fechas: falta la fecha de inicio)"}</div>
-      <div class="ac"><a class="lnk" onclick="epdQuitar(${idx})">volver a 1 día</a></div></div></div>`; }).join("");
-  if(sel){ sel.innerHTML='<option value="">— elige un requerimiento —</option>'; execItems.forEach((it,idx)=>{ if(diasNum(it)>1||parseFechas(it.fechas||[]).length) return; const o=document.createElement("option"); o.value=idx; o.textContent=`${it.codigo} · ${(it.req||"").slice(0,48)}`; sel.appendChild(o); }); }
+      <div class="fld" style="flex:1"><label>Fechas (${fs.length})</label><input type="text" value="${escAttr(toks.length?toks.join(", "):fs.join(", "))}" placeholder="2026-09-08, D1, D3…" onchange="epdFechas(${idx},this.value)"></div></div>
+      <div class="mut" style="margin:3px 0 0">${fs.length?fs.map(fmtDia).join(" · "):"(sin fechas: falta la fecha de inicio)"}</div>`}
+      </div></div>`; }).join("");
+  if(sel){ sel.innerHTML='<option value="">— elige un requerimiento —</option>'; execItems.forEach((it,idx)=>{ if(candidatoPorDia(it)) return; const o=document.createElement("option"); o.value=idx; o.textContent=`${it.codigo} · ${(it.req||"").slice(0,48)}`; sel.appendChild(o); }); }
 }
-window.epdDias=(idx,v)=>{ const it=execItems[idx]; if(!it) return; const n=Math.max(1,parseInt(v,10)||1); it.dias=String(n); it.fechas=[]; renderPorDia(); };   // fechas vuelven a derivarse
-window.epdFechas=(idx,v)=>{ const it=execItems[idx]; if(!it) return; const fs=parseFechas(v); if(!fs.length){ renderPorDia(); return; } it.fechas=fs; it.dias=String(fs.length); renderPorDia(); };
-window.epdQuitar=(idx)=>{ const it=execItems[idx]; if(!it) return; it.dias="1"; it.fechas=[]; renderPorDia(); };
+window.epdDias=(idx,v)=>{ const it=execItems[idx]; if(!it) return; const n=Math.max(1,parseInt(v,10)||1); it.dias=String(n); it.fechas=[]; if(n===1) it.pd=true; renderPorDia(); };   // fechas vuelven a derivarse
+window.epdFechas=(idx,v)=>{ const it=execItems[idx]; if(!it) return; const fs=parseFechas(v); if(!fs.length){ renderPorDia(); return; } it.fechas=fs; it.dias=String(resolverFechas(fs,$("efecha").value).length||fs.length); it.pd=true; renderPorDia(); };
+window.epdToggle=(idx,on)=>{ const it=execItems[idx]; if(!it) return; it.pd=!!on; renderPorDia(); };
+window.epdTodos=(on)=>{ execItems.forEach(it=>{ if(candidatoPorDia(it)||it.pd===false) it.pd=!!on; }); renderPorDia(); };
 if($("epd")) $("epd").addEventListener("change", renderPorDia);
 if($("efecha")) $("efecha").addEventListener("change", ()=>{ if($("efechafin").value && $("efechafin").value<$("efecha").value) $("efechafin").value=""; renderPorDia(); });
-if($("epdAdd")) $("epdAdd").addEventListener("click", ()=>{ const idx=parseInt($("epdSel").value,10); const it=execItems[idx]; if(!it){ toast("Elige un requerimiento"); return; } it.dias="2"; it.fechas=[]; $("epd").checked=true; renderPorDia(); });
+if($("epdAdd")) $("epdAdd").addEventListener("click", ()=>{ const idx=parseInt($("epdSel").value,10); const it=execItems[idx]; if(!it){ toast("Elige un requerimiento"); return; } it.pd=true; it.fechas=["D1"]; $("epd").checked=true; renderPorDia(); toast("Marcado por día: queda en el primer día; edita las fechas si es otro"); });
 window.quitarExec=(i)=>{ execItems.splice(i,1); renderExecItems(); };
 ["fltBuscar","fltCat","fltProv"].forEach(id=>{ const el=$(id); if(el) el.addEventListener(id==="fltBuscar"?"input":"change", renderExecItems); });
 if($("fltLimpiar")) $("fltLimpiar").addEventListener("click", ()=>{ $("fltBuscar").value=""; $("fltCat").value=""; $("fltProv").value=""; renderExecItems(); });
@@ -647,15 +650,27 @@ function itemDias(cod){ const it=itemById(cod); return it?(it.dias||""):""; }
    un solo día conservan la regla de siempre (3 fotos). Día cubierto = 1 foto sellada ese día. */
 function isoHoy(){ const d=new Date(); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
 function sumarDias(iso,n){ const d=new Date(iso+"T12:00:00"); if(isNaN(d)) return ""; d.setDate(d.getDate()+n); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
-function parseFechas(v){ const arr=Array.isArray(v)?v:String(v||"").split(/[,;|\s]+/);
+/* Fechas de un ítem: ISO (2026-09-08), dd/mm/aaaa, o RELATIVAS al inicio del evento: D1 = primer día, D2 = segundo…
+   Se guardan tal cual (ISO o "D#") y se resuelven con la fecha de inicio al usarlas. Así la plantilla puede decir
+   "D1" para el sonido sin saber la fecha, o "D1;D2;D4;D5" para un ítem de 4 de los 5 días. */
+function parseFechas(v){ const arr=Array.isArray(v)?v:String(v||"").split(/[,;|]+|\s+(?![0-9]{1,2}$)/);
   return arr.map(t=>{ t=String(t||"").trim(); let m;
     if((m=t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))) return `${m[1]}-${z(+m[2])}-${z(+m[3])}`;
     if((m=t.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})$/))) return `${m[3]}-${z(+m[2])}-${z(+m[1])}`;
-    return ""; }).filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).sort(); }
+    if((m=t.match(/^d(?:[ií]a)?\s*(\d{1,3})$/i))) return "D"+(+m[1]);
+    return ""; }).filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i); }
+function resolverFechas(arr, ini){ return (arr||[]).map(t=>{ const m=String(t).match(/^D(\d+)$/); if(!m) return t; return ini?sumarDias(ini,(+m[1])-1):""; }).filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).sort(); }
+function parseBool(v){ const t=String(v||"").trim().toLowerCase(); if(!t) return null; if(["si","sí","s","x","1","true","yes","y","diaria","por dia","por día"].includes(t)) return true; if(["no","n","0","false"].includes(t)) return false; return null; }
 function fechasConsecutivas(ini,n){ const out=[]; if(!ini||!(n>0)) return out; for(let i=0;i<n;i++){ const f=sumarDias(ini,i); if(f) out.push(f); } return out; }
 function diasNum(it){ const n=parseInt(String((it&&it.dias)||"").replace(/\D/g,""),10); return isNaN(n)?0:n; }
-function fechasDeItem(it, ini){ if(!it) return []; const ex=parseFechas(it.fechas||[]); if(ex.length) return ex; const n=diasNum(it); if(!(n>1)) return []; return fechasConsecutivas(ini!==undefined?ini:((cfg&&cfg.fe)||""), n); }
-function esPorDia(it){ return !!(cfg&&cfg.pd) && !!it && !it.adicional && fechasDeItem(it).length>0; }
+/* Prioridad: fechas explícitas → días consecutivos desde el inicio → si el ítem está marcado por día sin nada más, el primer día. */
+function fechasDeItem(it, ini){ if(!it) return []; const i0=(ini!==undefined)?ini:((cfg&&cfg.fe)||"");
+  const ex=resolverFechas(parseFechas(it.fechas||[]), i0); if(ex.length) return ex;
+  const n=diasNum(it); if(n>1) return fechasConsecutivas(i0, n);
+  if(it.pd===true && i0) return [i0]; return []; }
+/* Candidato a "por día" = trae más de un día, o fechas, o viene marcado. Se excluye si el productor lo apagó (pd=false). */
+function candidatoPorDia(it){ return !!it && !it.adicional && (it.pd===true || diasNum(it)>1 || parseFechas(it.fechas||[]).length>0); }
+function esPorDia(it){ return !!(cfg&&cfg.pd) && candidatoPorDia(it) && it.pd!==false && fechasDeItem(it).length>0; }
 function fmtDia(iso){ const d=new Date(iso+"T12:00:00"); if(isNaN(d)) return iso||""; return d.toLocaleDateString("es-CO",{weekday:"short",day:"numeric",month:"short"}).replace(/\./g,""); }
 function enLoteDeItemDia(iid,f){ return iid? batch.filter(e=>e.itemCodigo===iid && e.tipo!=="video" && (((e.datos&&e.datos.fecha)||(e.cargada&&e.cargada.fecha))||"")===f).length : 0; }
 function enviadasDeItemDia(iid,f){ try{ return countersDia[claveDe(iid)+"@"+f]||0; }catch(_){ return 0; } }
@@ -698,7 +713,7 @@ async function parsearPlantilla(file){
       cat:get(r,["categoria","categoría","modulo","módulo","grupo","hoja"]),
       car:get(r,["caracteristicas","características","especificaciones","observaciones","nota"]),
       um:get(r,["unidad de medida","unidad_de_medida","unidad","um","medida"]),
-      dias:get(r,["dias","días","dias_servicio"]), fechas:parseFechas(get(r,["fechas","fechas requeridas","dias especificos","días específicos","fechas_evidencia"])) })).filter(x=>x.req||x.codigo);
+      dias:get(r,["dias","días","dias_servicio"]), fechas:parseFechas(get(r,["fechas","fechas requeridas","dias especificos","días específicos","fechas_evidencia"])), pd:parseBool(get(r,["por dia","por día","por_dia","evidencia por dia","evidencia por día","evidencia diaria","diaria"])) })).filter(x=>x.req||x.codigo);
   let mx=0; items.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx)mx=n; });
   items.forEach(it=>{ if(!String(it.codigo).trim()){ mx++; it.codigo=String(mx).padStart(2,"0"); } });   // la app asigna código a los ítems sin código
   return {rows, items, get};
@@ -718,7 +733,7 @@ async function completarFicha(file){
       const m=mapa[it.iid];
       if(!m){ sin++; return; }
       let toco=false;
-      ["car","um","dias","fechas"].forEach(f=>{ if(!String(it[f]||"").trim() && String(m[f]||"").trim()){ it[f]=m[f]; toco=true; } });
+      ["car","um","dias","fechas"].forEach(f=>{ if(!String(it[f]||"").trim() && String(m[f]||"").trim()){ it[f]=m[f]; toco=true; } }); if(it.pd==null && m.pd!=null){ it.pd=m.pd; toco=true; }
       if(!String(it.cant||"").trim() && String(m.cant||"").trim()){ it.cant=m.cant; toco=true; }
       if(toco) ok++;
     });
@@ -741,7 +756,7 @@ async function cargarReq(file){
     execItems = rows.map(r=>({ codigo:get(r,["item_codigo","codigo","código","item","ítem","id","cod"]), req:get(r,["requerimiento","descripcion","descripción","detalle","concepto"]), cant:get(r,["cantidad","cant","qty","unidades"]), prov:get(r,["nombre proveedores","nombre proveedor","proveedor","provider","prov","proveedor_nombre","empresa","contratista"]), nit:get(r,["nit proveedor","nit","nit_proveedor","identificacion proveedor","identificación proveedor"]), cat:get(r,["categoria","categoría","modulo","módulo","grupo","hoja"]),
       car:get(r,["caracteristicas","características","especificaciones","observaciones","nota"]),
       um:get(r,["unidad de medida","unidad_de_medida","unidad","um","medida"]),
-      dias:get(r,["dias","días","dias_servicio"]), fechas:parseFechas(get(r,["fechas","fechas requeridas","dias especificos","días específicos","fechas_evidencia"])) })).filter(x=>x.req||x.codigo);
+      dias:get(r,["dias","días","dias_servicio"]), fechas:parseFechas(get(r,["fechas","fechas requeridas","dias especificos","días específicos","fechas_evidencia"])), pd:parseBool(get(r,["por dia","por día","por_dia","evidencia por dia","evidencia por día","evidencia diaria","diaria"])) })).filter(x=>x.req||x.codigo);
     let mx=0; execItems.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx)mx=n; });
     execItems.forEach(it=>{ if(!String(it.codigo).trim()){ mx++; it.codigo=String(mx).padStart(2,"0"); } });   // la app asigna código a los ítems sin código
     const c=rows.map(r=>get(r,["cliente","client"])).find(Boolean), e=rows.map(r=>get(r,["evento","nombre_evento"])).find(Boolean), ci=rows.map(r=>get(r,["ciudad","municipio"])).find(Boolean);
@@ -756,7 +771,7 @@ function chequearGen(){ $("egen").disabled = !(execItems.length && $("ecliente")
 function saveConfigDesdeExec(){
   const uid=cfg&&cfg.uid, consec=cfg&&cfg.consec;   // preservar identidad del evento si ya existe
   cfg = { cl:$("ecliente").value.trim(), ev:$("eevento").value.trim(), fe:$("efecha").value, ff:$("efechafin").value||"", pd:!!$("epd").checked, ci:$("eciudad").value.trim(),
-          it:execItems.map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[])})),
+          it:execItems.map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null))})),
           marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked} };   // marca definida por el ejecutivo, igual para todos
   if(uid) cfg.uid=uid; if(consec) cfg.consec=consec;
   saveJSON(NS+"config", cfg);
@@ -858,17 +873,18 @@ async function adminCargarEventos(){
   try{
     const [rEv,rEvi]=await Promise.all([
       fetch(SB_URL+"/rest/v1/eventos?select=uid,consec,cl,ev,fe,config,short_oper,short_exec&order=consec.desc",{headers:adminHeaders()}),
-      fetch(SB_URL+"/rest/v1/evidencias?select=evento_uid,item,item_id,categoria,adicional",{headers:adminHeaders()})
+      fetch(SB_URL+"/rest/v1/evidencias?select=evento_uid,item,item_id,categoria,adicional,fecha,tipo",{headers:adminHeaders()})
     ]);
     if(rEv.status===401||rEvi.status===401){ adminSesExpirada(); return; }
     adminEventos=await rEv.json();
     const evis = rEvi.ok ? await rEvi.json() : [];
-    const porEvento={}, porItem={};
+    const porEvento={}, porItem={}; adminPorItemDia={};
     // llave global por evidencia; si la fila es anterior a la Capa9 se reconstruye con categoria+item
     const extrasPorEvento={};
     evis.forEach(x=>{ porEvento[x.evento_uid]=(porEvento[x.evento_uid]||0)+1;
       const k = x.item_id || (x.evento_uid+"|"+iidDe(x.item,x.categoria,1));
       porItem[k]=(porItem[k]||0)+1;
+      if((x.tipo||"foto")!=="video" && x.fecha) adminPorItemDia[k+"@"+x.fecha]=(adminPorItemDia[k+"@"+x.fecha]||0)+1;   // Capa 12
       if(x.adicional){ (extrasPorEvento[x.evento_uid]=extrasPorEvento[x.evento_uid]||new Set()).add(k); } });
     if(!adminEventos.length){ l.innerHTML='<div class="mut">Aún no hay eventos.</div>'; return; }
     // ---- métricas por evento + totales globales (Dashboard) ----
@@ -876,28 +892,63 @@ async function adminCargarEventos(){
       const items=anotarIids((e.config&&e.config.it)||[]);
       const reg=porEvento[e.uid]||0;
       const conEvi=items.filter(it=>(porItem[e.uid+"|"+it.iid]||0)>=1).length;
-      const comp=items.filter(it=>(porItem[e.uid+"|"+it.iid]||0)>=3).length;
+      const pdm=adminPorDia(e, items);   // Capa 12: ítems por día se completan con foto en cada fecha
+      const comp=items.filter(it=>pdm.mapa[it.iid]?pdm.mapa[it.iid].completo:(porItem[e.uid+"|"+it.iid]||0)>=3).length;
       const pend=items.length-comp;
       const av=items.length?Math.round(comp/items.length*100):0;
       const extras=(extrasPorEvento[e.uid]||new Set()).size;   // adicionales creados en sitio, no están en el config
       gReq+=items.length; gComp+=comp; gEvi+=reg; gExtra+=extras;
-      return {n:items.length,reg,conEvi,comp,pend,av,extras};
+      return {n:items.length,reg,conEvi,comp,pend,av,extras,pd:pdm};
     });
-    const gAv=gReq?Math.round(gComp/gReq*100):0;
+    adminMetricas=metricas; const gAv=gReq?Math.round(gComp/gReq*100):0;
     const kpi=(v,t)=>`<div style="flex:1;min-width:70px;text-align:center;border:1px solid var(--bd,#e3e3e3);border-radius:10px;padding:8px 4px"><div style="font-size:20px;font-weight:800;color:var(--azul)">${v}</div><div class="mut" style="margin:2px 0 0;font-size:11px">${t}</div></div>`;
     const bar=av=>`<div style="height:7px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0 2px"><div style="height:100%;width:${av}%;background:${av>=100?'#1a9e56':(av>0?'var(--azul)':'#e9e9ee')}"></div></div>`;
     const dash=`<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">`
-      +kpi(adminEventos.length,"Eventos")+kpi(gReq,"Requerimientos")+kpi(gEvi,"Evidencias")+kpi(gComp+"/"+gReq,"Completos ≥3")+kpi(gAv+"%","Avance")+kpi(gExtra,"Extras en sitio")
+      +kpi(adminEventos.length,"Eventos")+kpi(gReq,"Requerimientos")+kpi(gEvi,"Evidencias")+kpi(gComp+"/"+gReq,"Completos")+kpi(gAv+"%","Avance")+kpi(gExtra,"Extras en sitio")
       +`</div>`;
     l.innerHTML=dash+adminEventos.map((e,i)=>{
       const m=metricas[i];
       return `<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe}${e.config&&e.config.ff&&e.config.ff!==e.fe?" → "+e.config.ff:""})</span>`:""}${e.config&&e.config.pd?` <span class="mut" style="margin:0;color:var(--azul)">· por día</span>`:""}`
         +bar(m.av)
-        +`<div class="mut" style="margin:2px 0 0">Requerimientos: <b>${m.n}</b> · Con evidencia: <b>${m.conEvi}</b> · Completos ≥3: <b>${m.comp}</b> · Pendientes: <b>${m.pend}</b> · Evidencias: <b>${m.reg}</b> · Avance: <b>${m.av}%</b>${m.extras?` · <span style="color:var(--oro-d)">Extras en sitio: <b>${m.extras}</b></span>`:""}</div>`
-        +`<div class="ac"><a class="lnk" onclick="adminCopiar(${i},'oper')">link proveedor</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link productor</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a></div></div></div>`;
+        +`<div class="mut" style="margin:2px 0 0">Requerimientos: <b>${m.n}</b> · Con evidencia: <b>${m.conEvi}</b> · Completos: <b>${m.comp}</b> · Pendientes: <b>${m.pend}</b> · Evidencias: <b>${m.reg}</b> · Avance: <b>${m.av}%</b>${m.extras?` · <span style="color:var(--oro-d)">Extras en sitio: <b>${m.extras}</b></span>`:""}</div>`
+        +(m.pd.n?`<div class="mut" style="margin:3px 0 0">📅 Por día: <b>${m.pd.n}</b> req · días cubiertos <b>${m.pd.diasCub}/${m.pd.diasReq}</b> · hoy <b>${m.pd.hoyOk}/${m.pd.hoyTotal}</b>${m.pd.atras?` · <span style="color:#b3261e">⚠ ${m.pd.atras} con días atrasados</span>`:""}</div><div id="adHoy${i}" class="hide"></div>`:"")
+        +`<div class="ac">${m.pd.n?`<a class="lnk" style="font-weight:700" onclick="adminHoy(${i})">hoy por proveedor</a>`:""}<a class="lnk" onclick="adminCopiar(${i},'oper')">link proveedor</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link productor</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a></div></div></div>`;
     }).join("");
   }catch(_){ l.innerHTML='<div class="mut">Error al cargar.</div>'; }
 }
+/* ---- Capa 12 · ADMIN: estado por día de un evento (con su propio config, no el cfg del teléfono) ---- */
+var adminPorItemDia={}, adminMetricas=[];
+function adminPorDia(e, items){
+  const c=e.config||{}; const out={n:0,diasReq:0,diasCub:0,hoyTotal:0,hoyOk:0,atras:0,mapa:{},hoy:isoHoy()};
+  if(!c.pd) return out;
+  items.forEach(it=>{ if(!candidatoPorDia(it)||it.pd===false) return; const fs=fechasDeItem(it, c.fe||""); if(!fs.length) return;
+    const cnt=f=>adminPorItemDia[e.uid+"|"+it.iid+"@"+f]||0;
+    const cub=fs.filter(f=>cnt(f)>=1), atras=fs.filter(f=>f<out.hoy&&cnt(f)<1), hoyReq=fs.includes(out.hoy), hoyOk=cnt(out.hoy)>=1;
+    out.n++; out.diasReq+=fs.length; out.diasCub+=cub.length; if(hoyReq){ out.hoyTotal++; if(hoyOk) out.hoyOk++; } if(atras.length) out.atras++;
+    out.mapa[it.iid]={fechas:fs,cubiertos:cub,atrasados:atras,hoyReq,hoyOk,completo:cub.length===fs.length,idx:fs.indexOf(out.hoy)+1,it}; });
+  return out;
+}
+/* Vista "Hoy por proveedor": semáforo de quién subió lo del día y quién no, con recordatorio listo para WhatsApp. */
+window.adminHoy=(i)=>{ const e=adminEventos[i], m=adminMetricas[i], box=$("adHoy"+i); if(!e||!m||!box) return;
+  if(!box.classList.contains("hide")){ box.classList.add("hide"); return; }
+  const porProv={}; Object.values(m.pd.mapa).forEach(x=>{ const p=(x.it.prov||"").trim()||"Sin proveedor"; (porProv[p]=porProv[p]||[]).push(x); });
+  const provs=Object.keys(porProv).sort((a,b)=>a.localeCompare(b,"es"));
+  box.innerHTML=`<div style="margin:6px 0 2px;font-weight:700">Hoy ${fmtDia(m.pd.hoy)}</div>`+provs.map((p,j)=>{ const L=porProv[p];
+    const hoyL=L.filter(x=>x.hoyReq), okL=hoyL.filter(x=>x.hoyOk), faltan=hoyL.filter(x=>!x.hoyOk), atr=L.filter(x=>x.atrasados.length);
+    const color = !hoyL.length?"var(--muted)":(faltan.length?"#b3261e":"#1a9e56");
+    return `<div style="border-top:1px solid var(--line);padding:6px 0"><div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};margin-right:6px"></span><b>${escAttr(p)}</b> · hoy <b>${okL.length}/${hoyL.length}</b>${atr.length?` · <span style="color:#b3261e">⚠ ${atr.length} con días atrasados</span>`:""}</div>`
+      +(faltan.length?`<div class="mut" style="margin:2px 0 0 16px">Faltan hoy: ${faltan.map(x=>`${escAttr(x.it.codigo)} ${escAttr(String(x.it.req||"").slice(0,28))} (día ${x.idx}/${x.fechas.length})`).join(" · ")}</div>`:"")
+      +(atr.length?`<div class="mut" style="margin:2px 0 0 16px;color:#b3261e">Sin foto: ${atr.map(x=>`${escAttr(x.it.codigo)} → ${x.atrasados.map(fmtDia).join(", ")}`).join(" · ")}</div>`:"")
+      +((faltan.length||atr.length)?`<div class="ac" style="margin-left:16px"><a class="lnk" onclick="adminRecordatorio(${i},'${escAttr(p).replace(/'/g,"&#39;")}')">copiar recordatorio</a></div>`:"")+`</div>`; }).join("");
+  box.classList.remove("hide"); };
+window.adminRecordatorio=(i,prov)=>{ const e=adminEventos[i], m=adminMetricas[i]; if(!e||!m) return;
+  const L=Object.values(m.pd.mapa).filter(x=>((x.it.prov||"").trim()||"Sin proveedor")===prov);
+  const faltan=L.filter(x=>x.hoyReq&&!x.hoyOk), atr=L.filter(x=>x.atrasados.length);
+  const T=[`Hola ${prov}, evento ${e.ev||""} (${e.cl||""}). Hoy ${fmtDia(m.pd.hoy)} faltan las evidencias de:`];
+  faltan.forEach(x=>T.push(`• ${x.it.codigo} ${x.it.req||""} (día ${x.idx} de ${x.fechas.length})`));
+  if(atr.length){ T.push("Días anteriores sin foto:"); atr.forEach(x=>T.push(`• ${x.it.codigo} ${x.it.req||""}: ${x.atrasados.map(fmtDia).join(", ")}`)); }
+  T.push(`Súbelas desde la app: ${linkOper(e.uid)}`); T.push("Gracias.");
+  copiarAlPortapapeles(T.join("\n"), "Recordatorio para "+prov); };
 window.adminCopiar=(i,tipo)=>{ const e=adminEventos[i]; if(!e) return; const u=tipo==="exec"?linkExec(e.uid):linkOper(e.uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del productor":"Enlace del proveedor")); };   // siempre el enlace directo ?ev= (nunca tinyurl viejo)
 window.adminBorrarEvento=async(i)=>{
   const ev=adminEventos[i]; if(!ev) return;
