@@ -353,6 +353,10 @@
 <script src="jszip.min.js"></script>
 <script src="qrcode.min.js"></script>
 <script>
+/* BETA: espacio de nombres del almacenamiento del celular. La raíz usa "est_"; la beta usa "estb_" para no
+   pisar el evento/operador/contadores de la app en producción (mismo dominio = mismo localStorage/IndexedDB).
+   Al promover la beta a la raíz, volver NS a "est_". */
+const NS="estb_";
 const $ = id => document.getElementById(id);
 /* Red de seguridad: cualquier error de JS no capturado se muestra en pantalla (nunca falla en silencio). */
 function mostrarErr(msg){ try{ let b=$("errbar"); if(!b){ b=document.createElement("div"); b.id="errbar"; b.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:200;background:#b3261e;color:#fff;font:600 12px/1.4 system-ui;padding:10px 14px;text-align:center"; document.body.appendChild(b);} b.textContent="⚠️ "+msg+"  (toca para ocultar)"; b.onclick=()=>b.remove(); }catch(_){} }
@@ -396,10 +400,6 @@ let batch = [], seq = 0;
    cualquier dirección ya resuelta a menos de 150 m: en un evento eso es una sola consulta. */
 let geoCache = loadJSON(NS+"geocache", {}) || {}; let geoChain = Promise.resolve();
 
-/* BETA: espacio de nombres del almacenamiento del celular. La raíz usa "est_"; la beta usa "estb_" para no
-   pisar el evento/operador/contadores de la app en producción (mismo dominio = mismo localStorage/IndexedDB).
-   Al promover la beta a la raíz, volver NS a "est_". */
-const NS="estb_";
 function loadJSON(k,d){ try{ return JSON.parse(localStorage.getItem(k))||d; }catch(_){ return d; } }
 function saveJSON(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(_){} }
 const z = n => String(n).padStart(2,"0");
