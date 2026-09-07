@@ -1,0 +1,1875 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Evidencias · Estrella · BETA</title>
+<style>
+  :root{ --azul:#0B4EA2; --azul-d:#083b7d; --oro:#F2B21A; --oro-d:#cf9a09; --btn-ink:#10233f;
+    --bg:#eef2f7; --panel:#ffffff; --line:#d9e1ec; --field:#ffffff; --txt:#16274a; --muted:#6b7789;
+    --font:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; --mono:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  *{box-sizing:border-box} html,body{margin:0}
+  html{-webkit-text-size-adjust:100%;overflow-x:hidden}
+  body{background:var(--bg);color:var(--txt);font-family:var(--font);-webkit-font-smoothing:antialiased;padding:0 0 calc(24px + env(safe-area-inset-bottom));font-size:15px;line-height:1.4;overflow-x:hidden}
+  .hd{background:var(--azul);color:#fff;padding-top:calc(env(safe-area-inset-top) + 12px);padding-bottom:12px}
+  .hdin{max-width:640px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:0 calc(14px + env(safe-area-inset-right)) 0 calc(14px + env(safe-area-inset-left))}
+  .hd .logo{height:32px;max-width:60%;object-fit:contain;display:block;cursor:pointer}
+  .hd .r{font-size:12px;color:#cfe0f5;text-align:right;flex:none} .hd .r a{color:#fff;text-decoration:none;font-weight:700;white-space:nowrap}
+  .hd .r #who{cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+  .wrap{max-width:640px;margin:0 auto;padding:14px;padding-left:calc(14px + env(safe-area-inset-left));padding-right:calc(14px + env(safe-area-inset-right))}
+  @media(min-width:820px){ .wrap{padding-top:20px} }
+  .who{font-size:12px;color:var(--muted)} .who a{color:var(--azul);text-decoration:none;font-weight:600}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(16,40,80,.05)}
+  .h{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--azul);margin-bottom:10px}
+  .role{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--oro-d);margin-bottom:4px}
+  label{display:block;font-size:11px;color:var(--muted);margin:0 0 5px;font-weight:600;letter-spacing:.3px}
+  input,select{width:100%;min-width:0;background:var(--field);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:11px;font-size:15px;font-family:var(--font)}
+  input:focus,select:focus{outline:none;border-color:var(--azul)}
+  .fld+.fld{margin-top:10px} .row{display:flex;gap:10px} .row>*{flex:1;min-width:0} .row .fld+.fld{margin-top:0}
+  .btn{width:100%;max-width:100%;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;font-family:var(--font);background:var(--oro);color:var(--btn-ink);white-space:normal;overflow-wrap:anywhere;line-height:1.25}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.sec{background:#fff;color:var(--azul);border:1px solid var(--azul);font-weight:700}
+  .btn2{display:flex;gap:10px;margin-top:10px} .btn2 .btn{margin:0}
+  .mut{font-size:12px;color:var(--muted);margin-top:8px} .lnk{color:var(--azul);cursor:pointer;text-decoration:underline;font-size:12px}
+  .guia{margin-top:8px;border-radius:9px;padding:9px 11px;font-size:12.5px;line-height:1.4;border:1px solid var(--line)}
+  .guia.neutro{background:#f4f6fa;color:var(--muted)}
+  .guia.falta{background:#fff4e5;border-color:#f0b26b;color:#7a4a12}
+  .guia.ok{background:#e9f7ee;border-color:#7fca97;color:#155f2e}
+  .guia .gcount{font-weight:700;font-size:13.5px} .guia .gtips{margin-top:5px;font-size:11.5px;opacity:.92}
+  .guia .gtips b{font-weight:700}
+  .guia .gficha{margin-top:6px;padding-top:6px;border-top:1px dashed rgba(0,0,0,.18);font-size:12px;line-height:1.45}
+  .guia .gficha .fl{display:block;margin:2px 0}
+  .guia .gficha .fk{font-weight:700}
+  .guia .gficha .fcar.clamp{display:-webkit-box;-webkit-line-clamp:7;-webkit-box-orient:vertical;overflow:hidden}
+  .gpschip{margin-top:8px;border-radius:9px;padding:8px 11px;font-size:12.5px;line-height:1.35;font-weight:600;cursor:pointer;border:1px solid var(--line)}
+  .gpschip.ok{background:#e9f7ee;border-color:#7fca97;color:#155f2e}
+  .gpschip.busca{background:#f4f6fa;border-color:var(--line);color:var(--muted)}
+  .gpschip.off{background:#fff4e5;border-color:#f0b26b;color:#7a4a12}
+  .gpschip.den{background:#fdecec;border-color:#e79a9a;color:#b3261e}
+  .guia .gficha .fmas{display:inline-block;margin-top:3px;font-weight:700;text-decoration:underline;cursor:pointer}
+  .xbox{border:1px solid #f0b26b;background:#fff8ee;border-radius:10px;padding:9px 11px;margin-bottom:10px}
+  .xbox .xt{font-weight:800;color:#7a4a12;font-size:13px;margin-bottom:5px}
+  .xbox .xr{border-top:1px dashed #e3c79c;padding:6px 0 2px;font-size:12.5px;line-height:1.45}
+  .xbox .xr:first-of-type{border-top:0}
+  .xbox .xk{font-weight:700}
+  .cchip{display:inline-block;background:#eef2fb;color:var(--azul);border:1px solid #d6e0f5;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:700;line-height:1.6;vertical-align:middle}
+  input[type=file]{display:none}
+  .tgl{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--txt);cursor:pointer} .tgl input{width:18px;height:18px;accent-color:var(--azul);flex:none}
+  .opts{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:12px} .opts .row{flex:1 1 100%}
+  .banner{background:#eef4fb;border:1px solid #d3e2f4;border-radius:10px;padding:11px 12px;margin-bottom:12px}
+  .banner b{color:var(--azul)} .banner .s{font-size:12px;color:var(--muted)}
+  .list{display:flex;flex-direction:column;gap:9px;margin-top:4px}
+  .ev{display:flex;gap:11px;align-items:center;background:#f7f9fc;border:1px solid var(--line);border-radius:10px;padding:9px}
+  .ev img{width:66px;height:66px;object-fit:cover;border-radius:7px;flex:none;background:#000}
+  .ev .in{flex:1;min-width:0} .ev .fn{font-family:var(--mono);font-size:11px;color:var(--azul-d);word-break:break-all;margin-top:4px}
+  .ev select{padding:6px 8px;font-size:12.5px} .ev .ac{display:flex;gap:12px;margin-top:5px}
+  .cnt{font-size:12px;color:var(--muted);margin:0 0 9px}
+  .qrbox{display:flex;justify-content:center;margin-top:12px} .qrbox canvas,.qrbox img{background:#fff;border-radius:10px;padding:8px;border:1px solid var(--line);display:block;max-width:100%;height:auto}
+  .invite{background:#f7f9fc;border:1px solid #d3e2f4;border-radius:12px;padding:14px;text-align:center;margin-top:6px}
+  .invite .it{font-size:11.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--azul)}
+  .invite .ic{font-size:17px;font-weight:800;color:var(--txt);margin-top:4px}
+  .invite .ie{font-size:13px;color:var(--muted)}
+  .invite .il{font-family:var(--mono);font-size:13px;color:var(--azul);word-break:break-all;margin-top:8px}
+  .hide{display:none!important}
+  .cam{position:fixed;inset:0;background:#000;z-index:50;display:flex;flex-direction:column}
+  .cam video{flex:1;width:100%;min-height:0;object-fit:cover;background:#000}
+  .cam .hint{color:#cfd6e0;font-size:12px;text-align:center;padding:7px}
+  .cam .bar{display:flex;gap:10px;padding:12px;padding-bottom:calc(12px + env(safe-area-inset-bottom));background:#0e0e0e;border-top:1px solid #26364f} .cam .bar .btn{flex:1}
+  .cam .bar .btn.sec{background:transparent;color:#fff;border-color:#4a5a72}
+  .cam .cammode{display:flex;gap:8px;justify-content:center;padding:8px 8px 0}
+  .cam .cammode button{background:rgba(255,255,255,.12);color:#fff;border:1px solid #4a5a72;border-radius:20px;padding:6px 20px;font-family:var(--font);font-weight:700;font-size:13px;cursor:pointer}
+  .cam .cammode button.on{background:var(--oro);color:var(--btn-ink);border-color:var(--oro)}
+  .modal{position:fixed;inset:0;background:rgba(8,20,40,.55);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px}
+  .modal .sheet{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;width:100%;max-width:520px}
+  /* toast (confirmaciones suaves, no bloqueantes) */
+  .toast{position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(16px);background:#0e1a2e;color:#fff;padding:11px 16px;border-radius:11px;font-size:13.5px;font-weight:600;max-width:90%;box-shadow:0 8px 24px rgba(10,25,50,.28);opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;z-index:80;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  /* barra de progreso del evento */
+  .prog{margin:2px 0 12px}
+  .prog .bar{height:8px;background:#e3e9f2;border-radius:5px;overflow:hidden}
+  .prog .bar>span{display:block;height:100%;width:0;background:var(--azul);border-radius:5px;transition:width .35s ease}
+  .prog .lbl{font-size:12.5px;color:var(--muted);margin-top:6px}
+  .prog .lbl b{color:var(--txt);font-weight:800}
+  .lnk.dis{opacity:.4;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="betaBadge" style="position:fixed;top:0;right:0;z-index:9999;background:#e6a100;color:#111;font:700 11px/1 system-ui;padding:5px 9px;border-radius:0 0 0 8px;letter-spacing:.5px">BETA</div>
+<div class="hd">
+  <div class="hdin">
+    <img class="logo" id="brandLogo" src="logo_white.png" alt=""><span class="logo" id="brandWord" style="display:none;color:#fff;font-family:var(--mono);font-weight:700;font-size:18px;letter-spacing:.02em;align-self:center"></span>
+    <div class="r"><span id="who"></span></div>
+  </div>
+</div>
+<div class="wrap">
+
+  <!-- INICIO · ELEGIR ROL -->
+  <div id="home" class="hide">
+    <div class="card">
+      <div class="h">¿Cómo vas a usar la app?</div>
+      <button class="btn" id="goExec">Productor · Configurar operación</button>
+      <div style="height:10px"></div>
+      <button class="btn sec" id="goOper">Proveedor · Ingresar a capturar</button>
+      <div class="mut" id="homeHint">El proveedor normalmente entra escaneando el QR o abriendo el enlace que le comparte el productor.</div>
+      <div class="mut" style="margin-top:8px"><a class="lnk" id="goAdmin">Soy administrador</a></div>
+    </div>
+  </div>
+
+  <!-- EJECUTIVO · CONFIGURACIÓN -->
+  <div id="exec" class="hide">
+    <div class="card">
+      <div class="role">Productor</div>
+      <div class="h">Configurar operación</div>
+      <div class="guia neutro hide" id="execNuevo" style="margin-bottom:10px">Evento <b>nuevo</b>, en blanco. Para modificar uno que ya existe, ábrelo en <b>▸ Configuración de eventos</b> (al final) o con el enlace del productor.</div>
+      <div class="fld"><label>Cliente</label><input id="ecliente" type="text" autocomplete="off"></div>
+      <div class="fld"><label>Evento</label><input id="eevento" type="text" autocomplete="off"></div>
+      <div class="fld"><label>Fecha del evento</label><input id="efecha" type="date"></div>
+      <div class="fld"><label>Ciudad</label><input id="eciudad" type="text" autocomplete="off"></div>
+      <div style="height:14px"></div>
+      <button class="btn sec" id="ebtnReq">Cargar lista de evidencias (Excel / CSV)</button>
+      <input id="efileReq" type="file" accept=".xlsx,.xls,.csv">
+      <div class="mut" id="ereqInfo">Carga un Excel/CSV o agrega manualmente. Columnas: proveedor · requerimiento · cantidad (el código lo asigna la app).</div>
+      <div style="height:8px"></div>
+      <button class="btn sec" id="ebtnFicha">Completar ficha desde plantilla (ubicación · cantidad · características)</button>
+      <input id="efileFicha" type="file" accept=".xlsx,.xls,.csv">
+      <div class="mut" id="efichaInfo">Rellena la ficha que ve el proveedor (cantidad · unidad · días · características) SIN agregar ni quitar requerimientos, y guarda solo. Úsalo en eventos ya publicados.</div>
+      <div class="h" style="margin-top:14px">Agregar evidencia manualmente</div>
+      <div class="fld"><label>Proveedor</label><input id="miprov" type="text" autocomplete="off" placeholder="Ej.: Sonido Pro S.A.S." list="provList"><datalist id="provList"></datalist></div>
+      <div class="fld" style="margin-top:8px"><label>Requerimiento</label><input id="mireq" type="text" autocomplete="off" placeholder="Ej.: Sistema de sonido"></div>
+      <div class="fld" style="margin-top:8px"><label>Cantidad</label><input id="micant" type="number" min="1" placeholder="1"></div>
+      <div class="mut" id="miCodHint">La app asigna el código automáticamente (siguiente consecutivo).</div>
+      <button class="btn sec" id="miadd" style="margin-top:8px">Agregar a la lista</button>
+      <div id="execFiltros" class="hide" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+        <div class="fld"><input id="fltBuscar" type="text" autocomplete="off" placeholder="🔍 Buscar por código, requerimiento, proveedor o categoría"></div>
+        <div class="row" style="margin-top:8px">
+          <div><label>Categoría</label><select id="fltCat"></select></div>
+          <div><label>Proveedor</label><select id="fltProv"></select></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span class="mut" id="fltInfo"></span><a class="lnk" id="fltLimpiar" style="font-size:13px">Limpiar filtros</a></div>
+      </div>
+      <div id="execList" class="list" style="margin-top:10px"></div>
+      <div class="h" style="margin-top:16px">Marca de agua (aplica a TODOS los proveedores del evento)</div>
+      <div class="opts">
+        <div class="row">
+          <div><label>Posición</label><select id="emPos"><option value="bl">Inf. izq.</option><option value="br">Inf. der.</option><option value="tl">Sup. izq.</option><option value="tr">Sup. der.</option></select></div>
+          <div><label>Tamaño</label><select id="emEsc"><option value="2.6">Pequeño</option><option value="3.4" selected>Medio</option><option value="4.4">Grande</option><option value="5.6">Muy grande</option></select></div>
+        </div>
+        <label class="tgl"><input id="emOn" type="checkbox" checked> Aplicar marca de agua (fecha · hora · dirección)</label>
+      </div>
+      <div style="height:14px"></div>
+      <button class="btn" id="egen" disabled>Generar acceso para proveedores</button>
+      <button class="btn" id="eguardar" style="margin-top:10px;display:none">Guardar cambios del evento</button>
+      <div id="eDuplicar" style="display:none;text-align:center;margin-top:10px"><a class="lnk" id="eDuplicarLink" style="font-size:13px;color:var(--muted)">Duplicar como evento nuevo</a></div>
+      <div id="acWrap" class="hide">
+        <div class="invite">
+          <div class="it">Invitación · Captura de evidencias</div>
+          <div class="ic" id="invCli"></div>
+          <div class="ie" id="invEv"></div>
+          <div class="qrbox"><div id="acQR"></div></div>
+          <div class="il" id="acLink"></div>
+          <div class="mut" style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">Enlace del <b>productor</b> (para re-editar este evento después):</div>
+          <div class="il" id="acLinkExec" style="color:var(--muted)"></div>
+        </div>
+        <div class="btn2"><button class="btn sec" id="acCopy">Copiar invitación (proveedor)</button><button class="btn" id="acGo">Continuar como proveedor</button></div>
+        <button class="btn sec" id="acCopyExec" style="margin-top:8px">Copiar enlace del productor</button>
+      </div>
+      <div style="height:14px"></div>
+      <a class="lnk" id="verHist">▸ Configuración de eventos</a>
+      <div id="histList" class="list hide" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <!-- OPERADOR · LOGIN -->
+  <div id="login" class="hide">
+    <div class="card">
+      <div class="banner"><b id="lbCli"></b><div class="s" id="lbEv"></div></div>
+      <div class="role">Proveedor</div>
+      <div class="h">Ingreso</div>
+      <div class="fld hide" id="lprovWrap"><label>Empresa proveedora</label><select id="lprov"></select></div>
+      <div class="fld hide" id="lnitWrap"><label>NIT del proveedor (sin dígito de verificación)</label><input id="lnit" type="text" inputmode="numeric" autocomplete="off" placeholder="Ej: 900123456"></div>
+      <div class="fld"><label>Nombre completo</label><input id="lnom" type="text" autocomplete="off"></div>
+      <div class="fld"><label>Cédula</label><input id="lced" type="text" inputmode="numeric" autocomplete="off"></div>
+      <div class="fld"><label>Celular</label><input id="lcel" type="text" inputmode="tel" autocomplete="off"></div>
+      <div style="height:12px"></div>
+      <button class="btn" id="lentrar">Ingresar</button>
+      <div class="mut">Sin contraseña. Se registra para saber quién cargó cada evidencia. <a class="lnk" id="reconfig">Soy el productor</a></div>
+    </div>
+  </div>
+
+  <!-- OPERADOR · CAPTURA -->
+  <div id="cap" class="hide">
+    <div class="card">
+      <div class="h" id="ctx"></div>
+      <label>1) Elige QUÉ vas a fotografiar (una foto = un ítem)</label>
+      <select id="item"></select>
+      <div style="text-align:right;margin-top:5px"><a class="lnk" id="addAdic">➕ Agregar requerimiento adicional</a></div>
+      <div id="guiaItem" class="guia neutro" role="status" aria-live="polite"></div>
+      <button class="btn" id="btnCap" style="margin-top:12px">Capturar foto</button>
+      <button class="btn sec" id="btnGal" style="margin-top:12px">Galería (fotos)</button>
+      <input id="capf" type="file" accept="image/*" capture="environment">
+      <input id="vidf" type="file" accept="video/*" capture="environment">
+      <input id="gal" type="file" accept="image/*" multiple>
+      <div class="gpschip off" id="gpsChip"><span id="gpsEstado"><b>Toca aquí para activar la ubicación.</b></span></div>
+      <div class="mut" id="geoDiag" style="font-size:11px;margin-top:4px"></div>
+      <div class="guia falta hide" id="inAppAviso" style="margin-top:8px">Abriste el enlace <b>dentro de WhatsApp</b>. Ese navegador bloquea la ubicación y la cámara. Toca <b>⋯ → Abrir en Safari</b> (iPhone) o <b>⋮ → Abrir en Chrome</b> (Android) y vuelve a entrar por el mismo enlace.</div>
+      <!-- posición/tamaño/marca ahora los define el EJECUTIVO; estos inputs quedan ocultos y los lee el dibujo de marca -->
+      <div class="opts hide">
+        <div class="row">
+          <div><label>Posición</label><select id="pos"><option value="bl">Inf. izq.</option><option value="br">Inf. der.</option><option value="tl">Sup. izq.</option><option value="tr">Sup. der.</option></select></div>
+          <div><label>Tamaño</label><select id="esc"><option value="2.6">Pequeño</option><option value="3.4" selected>Medio</option><option value="4.4">Grande</option><option value="5.6">Muy grande</option></select></div>
+        </div>
+        <label class="tgl"><input id="marca" type="checkbox" checked> Aplicar marca de agua (fecha · hora · dirección)</label>
+      </div>
+    </div>
+    <div class="card">
+      <div class="h" style="justify-content:space-between;align-items:center">Progreso del evento <a class="lnk" id="syncProg" style="font-size:13px;font-weight:600" title="Trae a este teléfono las fotos que ya subieron los demás proveedores">↻ Traer avance de otros equipos</a></div>
+      <div id="prog" class="prog"><div class="bar"><span></span></div><div class="lbl"></div></div>
+      <div class="cnt" id="cnt">Aún no agregas fotos.</div>
+      <div class="list" id="list"></div>
+      <div style="height:14px"></div>
+      <button class="btn" id="enviar" disabled>Enviar evidencias</button>
+      <div class="mut" id="sendInfo" style="margin-top:8px"></div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · base v31 · 7sep · no usar para Semana de la Juventud</div>
+    </div>
+    <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
+  </div>
+
+  <!-- ADMINISTRADOR · VISUALIZADOR -->
+  <div id="admin" class="hide">
+    <div class="card" id="adLogin">
+      <div class="role">Administrador</div>
+      <div class="h">Ingreso</div>
+      <div class="fld"><label>Correo</label><input id="adEmail" type="email" autocomplete="username"></div>
+      <div class="fld" style="margin-top:8px"><label>Contraseña</label><input id="adPass" type="password" autocomplete="current-password"></div>
+      <button class="btn" id="adEntrar" style="margin-top:12px">Ingresar</button>
+      <div class="mut" id="adMsg" style="margin-top:8px"></div>
+      <div class="mut" style="margin-top:8px"><a class="lnk" id="adVolver">Volver al inicio</a></div>
+    </div>
+    <div class="card hide" id="adPanel">
+      <div class="role">Administrador</div>
+      <div class="h" id="adTitulo">Eventos</div>
+      <div id="adBack" class="hide" style="margin-bottom:8px"><a class="lnk" id="adBackLink">← Volver a eventos</a></div>
+      <div id="adLista" class="list"></div>
+      <div class="mut" style="margin-top:12px"><a class="lnk" id="adSalir">Cerrar sesión</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- EDITAR OPERADOR -->
+<div id="opm" class="modal hide"><div class="sheet">
+  <div class="h">Editar mis datos</div>
+  <div class="fld hide" id="oprovWrap"><label>Empresa proveedora</label><select id="oprov"></select></div>
+  <div class="fld hide" id="onitWrap"><label>NIT del proveedor (sin dígito de verificación)</label><input id="onit" type="text" inputmode="numeric" autocomplete="off" placeholder="Ej: 900123456"></div>
+  <div class="fld"><label>Nombre completo</label><input id="onom" type="text" autocomplete="off"></div>
+  <div class="fld"><label>Cédula</label><input id="oced" type="text" inputmode="numeric" autocomplete="off"></div>
+  <div class="fld"><label>Celular</label><input id="ocel" type="text" inputmode="tel" autocomplete="off"></div>
+  <div class="mut">La cédula y el nombre forman el identificador de quien captura en el nombre de cada evidencia.</div>
+  <div style="height:12px"></div>
+  <div class="btn2"><button class="btn sec" id="opClose">Cerrar</button><button class="btn" id="opSave">Guardar</button></div>
+</div></div>
+
+<!-- REQUERIMIENTO ADICIONAL -->
+<div id="adicm" class="modal hide"><div class="sheet">
+  <div class="h">Requerimiento adicional</div>
+  <div class="fld"><label>Requerimiento / ítem adicional</label><input id="adReq" type="text" autocomplete="off" placeholder="Ej.: Punto de hidratación extra"></div>
+  <div class="fld" style="margin-top:8px"><label>Cantidad (opcional)</label><input id="adCant" type="number" min="1" placeholder="1"></div>
+  <div class="fld" style="margin-top:8px"><label>¿Quién lo solicitó?</label><input id="adQuien" type="text" autocomplete="off" placeholder="Ej.: coordinador del evento / cliente"></div>
+  <div class="fld" style="margin-top:8px"><label>Justificación / nota</label><input id="adNota" type="text" autocomplete="off" placeholder="Por qué se agregó en sitio"></div>
+  <div class="mut">Queda marcado como ADICIONAL y viaja en el manifiesto con la justificación y quién lo pidió.</div>
+  <div style="height:12px"></div>
+  <div class="btn2"><button class="btn sec" id="adClose">Cerrar</button><button class="btn" id="adSave">Agregar</button></div>
+</div></div>
+
+<!-- UBICACIÓN OBLIGATORIA -->
+<div id="gpsm" class="modal hide"><div class="sheet">
+  <div style="font-size:38px;line-height:1;text-align:center">📍</div>
+  <div class="h" style="justify-content:center;margin-top:6px">Activa la ubicación</div>
+  <div class="mut" style="text-align:center;margin-top:0">Cada evidencia se sella con la dirección, la fecha y la hora. Sin ubicación la foto no sirve como soporte ante el cliente.</div>
+  <div class="guia neutro" id="gpsMsg" style="text-align:center;font-weight:600">Toca «Permitir ubicación» y acepta el aviso del navegador.</div>
+  <div class="guia falta hide" id="gpsHelp">
+    <b>iPhone (Safari):</b> Ajustes → Privacidad y seguridad → Localización → Safari → <b>Al usar la app</b>; y en Safari toca <b>ᴀA</b> (barra de direcciones) → Ajustes del sitio web → Ubicación → <b>Permitir</b>.<br>
+    <b>Android (Chrome):</b> 1) baja la barra de notificaciones y enciende <b>Ubicación</b>; 2) Ajustes del teléfono → Ubicación → <b>Precisión de la ubicación de Google: activada</b>; 3) en Chrome toca el <b>candado</b> (o ⚙) junto a la dirección → Permisos → Ubicación → <b>Permitir</b>; 4) Ajustes → Apps → Chrome → Permisos → Ubicación → <b>Permitir</b>.<br>
+    Después vuelve aquí y toca <b>Reintentar</b>.
+  </div>
+  <div style="height:12px"></div>
+  <button class="btn" id="gpsRetry">Permitir ubicación / Reintentar</button>
+  <div style="text-align:center;margin-top:10px"><a class="lnk" id="gpsSkip">Continuar sin ubicación (queda registrado)</a></div>
+  <div style="height:10px"></div>
+  <button class="btn sec" id="gpsClose">Cerrar</button>
+</div></div>
+
+<!-- CÁMARA -->
+<div id="camm" class="cam hide">
+  <video id="video" autoplay playsinline muted></video>
+  <div class="cammode" style="display:none"><button id="modoFoto" class="on">Foto</button><button id="modoVideo">Video</button></div>
+  <div class="hint" id="camhint">Encuadra la evidencia y captura.</div>
+  <div class="bar"><button class="btn sec" id="camClose">Cerrar</button><button class="btn" id="camShot">Capturar</button><button class="btn sec" id="camFlip">Girar</button></div>
+</div>
+
+<!-- ENVÍO EXITOSO -->
+<div id="okm" class="modal hide"><div class="sheet" style="text-align:center">
+  <div style="font-size:44px;line-height:1">✅</div>
+  <div class="h" style="color:var(--azul);justify-content:center;margin-top:6px">Envío exitoso</div>
+  <div id="okRad" style="font-family:var(--mono);font-size:14px;font-weight:800;color:var(--txt);margin:2px 0"></div>
+  <div class="guia ok" id="okDet" style="text-align:left"></div>
+  <div style="height:14px"></div>
+  <button class="btn" id="okShare">Enviar fotos + resumen por WhatsApp</button>
+  <div style="height:8px"></div>
+  <button class="btn sec" id="okTexto">Enviar solo el resumen (texto)</button>
+  <div style="text-align:center;margin-top:10px"><a class="lnk" id="okCopiar">copiar resumen</a> · <a class="lnk" id="okZip">Descargar comprobante (ZIP)</a></div>
+  <div style="height:12px"></div>
+  <button class="btn sec" id="okClose">Listo</button>
+</div></div>
+
+<div id="failm" class="modal hide"><div class="sheet" style="text-align:center">
+  <div style="font-size:44px;line-height:1">⚠️</div>
+  <div class="h" style="color:#b3261e;justify-content:center;margin-top:6px">No se pudo enviar</div>
+  <div class="mut" id="failDet" style="margin-top:4px"></div>
+  <div class="mut" style="margin-top:8px">Tus fotos <b>siguen aquí</b> y respaldadas en el dispositivo. No se pierde nada.</div>
+  <div style="height:14px"></div>
+  <button class="btn" id="failRetry">Reintentar envío</button>
+  <div style="text-align:center;margin-top:10px"><a class="lnk" id="failZip">Descargar respaldo (ZIP)</a></div>
+  <div style="height:12px"></div>
+  <button class="btn sec" id="failClose">Cerrar</button>
+</div></div>
+
+<div id="toast" class="toast"></div>
+
+<!-- LIGHTBOX (ver foto grande) -->
+<div id="lightbox" class="modal hide" style="background:rgba(6,12,22,.93)">
+  <div style="width:100%;max-width:660px;text-align:center">
+    <img id="lbImg" style="max-width:100%;max-height:74vh;border-radius:10px;background:#000;display:block;margin:0 auto">
+    <div id="lbName" style="color:#e7edf5;font-family:var(--mono);font-size:11.5px;word-break:break-all;margin-top:10px;background:rgba(0,0,0,.35);padding:8px 10px;border-radius:8px"></div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:12px"><button class="btn sec" id="lbDown" style="max-width:170px">Descargar</button><button class="btn" id="lbClose" style="max-width:170px">Cerrar</button></div>
+  </div>
+</div>
+
+<script src="exifr.full.umd.js"></script>
+<script src="heic2any.min.js"></script>
+<script src="xlsx.full.min.js"></script>
+<script src="jszip.min.js"></script>
+<script src="qrcode.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+/* Red de seguridad: cualquier error de JS no capturado se muestra en pantalla (nunca falla en silencio). */
+function mostrarErr(msg){ try{ let b=$("errbar"); if(!b){ b=document.createElement("div"); b.id="errbar"; b.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:200;background:#b3261e;color:#fff;font:600 12px/1.4 system-ui;padding:10px 14px;text-align:center"; document.body.appendChild(b);} b.textContent="⚠️ "+msg+"  (toca para ocultar)"; b.onclick=()=>b.remove(); }catch(_){} }
+window.addEventListener("error", e=>mostrarErr("Error: "+((e&&e.message)||"desconocido")+(e&&e.lineno?(" (línea "+e.lineno+")"):"")));
+window.addEventListener("unhandledrejection", e=>mostrarErr("Promesa: "+((e&&e.reason&&(e.reason.message||e.reason))||"error")));
+/* ===== Marca (una sola versión: Estrella) ===== */
+const BRANDS = {
+  estrella:  { title:"Evidencias · Estrella",  azul:"#0B4EA2", azulD:"#083b7d", oro:"#F2B21A", oroD:"#cf9a09", btnInk:"#10233f", stamp:"#F2B21A", qr:"#0B4EA2", logoImg:"logo_white.png", word:null }
+};
+const BRAND_DEFAULT = "estrella";
+function brandActivo(){ return "estrella"; }   // una sola versión, imagen visual Estrella
+let MARCA = BRANDS[brandActivo()];
+let VERDE = MARCA.stamp;   // acento de la marca de agua según el skin activo
+function aplicarMarca(){
+  MARCA = BRANDS[brandActivo()]; VERDE = MARCA.stamp;
+  const r = document.documentElement.style;
+  r.setProperty("--azul",MARCA.azul); r.setProperty("--azul-d",MARCA.azulD);
+  r.setProperty("--oro",MARCA.oro);   r.setProperty("--oro-d",MARCA.oroD);
+  r.setProperty("--btn-ink",MARCA.btnInk);
+  document.title = MARCA.title;
+  const img=document.getElementById("brandLogo"), word=document.getElementById("brandWord");
+  if(MARCA.logoImg){ if(img){ img.src=MARCA.logoImg; img.style.display=""; } if(word) word.style.display="none"; }
+  else { if(img) img.style.display="none"; if(word){ word.innerHTML=MARCA.word; word.style.display=""; } }
+}
+const PROD = "https://danielrpon.github.io/gestor-de-ejecucion/";  // el QR/enlace SIEMPRE apunta a la app publicada (no a file://)
+/* ---- Supabase: base de datos de eventos (histórico + compartido entre dispositivos + links estables) ---- */
+const SB_URL="https://yjrhnyyftnrmofqrtzmv.supabase.co";
+const SB_KEY="sb_publishable_uYKPtqQlONKLhQZCpnDRsw_vwQi8iwv";   // publishable key (segura en el navegador)
+const SB_H={apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":"application/json"};
+async function sbSave(row){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify(row)}); return r.ok; }catch(_){ return false; } }
+async function sbGet(uid){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos?uid=eq."+encodeURIComponent(uid)+"&select=*",{headers:SB_H}); if(!r.ok) return null; const a=await r.json(); return a[0]||null; }catch(_){ return null; } }
+async function sbList(){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos?select=*&order=consec.desc",{headers:SB_H}); if(!r.ok) return null; return await r.json(); }catch(_){ return null; } }
+async function sbMaxConsec(){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos?select=consec&order=consec.desc&limit=1",{headers:SB_H}); if(r.ok){ const a=await r.json(); if(a.length) return a[0].consec||0; } }catch(_){} return 0; }
+let cfg = null;              // {cl, ev, it:[{codigo,req}], od}
+let operador = loadJSON(NS+"operador", null);
+let counters = loadJSON(NS+"counters", {});
+let batch = [], seq = 0;
+/* Caché de direcciones. Antes la llave tenía 5 decimales (~1 m): como el GPS baila metro a metro,
+   CADA foto pedía una dirección nueva y los proveedores gratuitos empezaban a cortar (de ahí que
+   unas fotos trajeran dirección y otras no). Ahora la llave es de ~110 m y, además, se reutiliza
+   cualquier dirección ya resuelta a menos de 150 m: en un evento eso es una sola consulta. */
+let geoCache = loadJSON(NS+"geocache", {}) || {}; let geoChain = Promise.resolve();
+
+/* BETA: espacio de nombres del almacenamiento del celular. La raíz usa "est_"; la beta usa "estb_" para no
+   pisar el evento/operador/contadores de la app en producción (mismo dominio = mismo localStorage/IndexedDB).
+   Al promover la beta a la raíz, volver NS a "est_". */
+const NS="estb_";
+function loadJSON(k,d){ try{ return JSON.parse(localStorage.getItem(k))||d; }catch(_){ return d; } }
+function saveJSON(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(_){} }
+const z = n => String(n).padStart(2,"0");
+const slug = s => (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "NA";
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+const escAttr = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+let toastT=null;
+function toast(msg){ const t=$("toast"); if(!t) return; t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2600); }
+function copiarAlPortapapeles(url, etiqueta){ try{ if(navigator.clipboard){ navigator.clipboard.writeText(url); toast(etiqueta+" copiado ✓"); return; } }catch(_){} prompt(etiqueta+" — cópialo:", url); }
+function show(id){ ["home","exec","login","cap","admin"].forEach(s=>$(s).classList.toggle("hide", s!==id)); }
+/* --- IDENTIDAD DEL REQUERIMIENTO (iid) ---------------------------------------
+   El mismo codigo de cotizacion se repite en varios escenarios/categorias (p.ej. TE 0005 esta
+   en "Tarima Cincuentenario" y en "Tarima Plazoleta"). Usar solo el codigo como llave hacia que
+   fotografiar uno marcara ✓ el otro y que la evidencia quedara archivada en la categoria
+   equivocada. La llave real es codigo + categoria (+ ordinal si el par se repite dentro de la
+   misma categoria).
+
+   LLAVE DEL ITEM (iid), dentro del evento:   categoria|codigo|ordinal
+        "Tarima Plazoleta|TE 0005|1"     "Logistica|PE 0007|3"
+   LLAVE GLOBAL (item_id), la que viaja a la base:   evento_uid|categoria|codigo|ordinal
+        "a1b2c3d4|Tarima Plazoleta|TE 0005|1"
+   El evento_uid es inmutable (se asigna al crear el evento) y por FK arrastra cliente, evento,
+   fecha y consecutivo. A proposito NO se meten cliente/evento/fecha literales en la llave: son
+   editables desde el panel del ejecutivo y una llave construida sobre campos mutables se rompe
+   sola al renombrar el evento. Texto plano, sin slug -> reconstruible en SQL para migrar.       */
+function iidDe(codigo, cat, ord){ return [String(cat||"SIN-CATEGORIA"), String(codigo||"SIN-CODIGO"), (ord||1)].join("|"); }
+function anotarIids(arr){
+  if(!Array.isArray(arr)) return [];
+  if(arr.__iid) return arr;                       // ya anotado (memo por identidad del array)
+  const cta={};
+  arr.forEach(it=>{ const k=String(it.cat||"")+"\u0000"+String(it.codigo||""); cta[k]=(cta[k]||0)+1; it.iid=iidDe(it.codigo,it.cat,cta[k]); });
+  try{ Object.defineProperty(arr,"__iid",{value:true,enumerable:false}); }catch(_){}
+  return arr;
+}
+function itemsCfg(){ return anotarIids((cfg&&cfg.it)||[]); }
+
+/* encode/decode de configuración para el enlace */
+function encCfg(c){ return btoa(unescape(encodeURIComponent(JSON.stringify(c)))); }
+function decCfg(s){ try{ return JSON.parse(decodeURIComponent(escape(atob(s)))); }catch(_){ return null; } }
+
+/* ---- Registro de eventos (multievento + consecutivo + historial) ----
+   Cada evento queda registrado con un consecutivo (EV-001, EV-002…) y el config codificado,
+   para reconstruir el link de operador (#c=) y el de ejecutivo (#e=). Los datos de cada evento
+   (counters, adicionales, lote) ya viven namespaced por cliente|evento, así que NO se mezclan. */
+function eventos(){ return loadJSON(NS+"eventos", {}); }                 // cache local por uid (respaldo si no hay señal)
+function cacheEvento(rec){ try{ if(rec&&rec.uid){ const all=eventos(); all[rec.uid]=rec; saveJSON(NS+"eventos",all); } }catch(_){} }
+function evConsecTag(n){ return "EV-"+String(n).padStart(3,"0"); }
+function nuevoUid(){ return "ev"+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function linkOper(uid){ return PROD+"?ev="+uid; }                          // link estable de operador
+function linkExec(uid){ return PROD+"?ev="+uid+"&rol=ex"; }                 // link estable de ejecutivo
+async function nextConsec(){ const mx=await sbMaxConsec(); const local=Object.values(eventos()).reduce((m,x)=>Math.max(m,x.consec||0),0); return Math.max(mx,local)+1; }
+/* Guarda/actualiza el evento en Supabase (y en cache local). Devuelve true si Supabase confirmó. */
+async function persistirEvento(shortOper, shortExec){
+  const rec={ uid:cfg.uid, consec:cfg.consec, cl:cfg.cl, ev:cfg.ev, fe:cfg.fe||"", ci:cfg.ci||"", n_items:(cfg.it||[]).length,
+    config:cfg, short_oper:shortOper||"", short_exec:shortExec||"", actualizado:(new Date()).toISOString() };
+  cacheEvento(rec); return await sbSave(rec);
+}
+
+/* ---- arranque: decide rol ---- */
+window.addEventListener("DOMContentLoaded", async () => {
+  aplicarMarca();
+  const params=new URLSearchParams(location.search);
+  const evUid=params.get("ev"); const rolQ=params.get("rol");
+  const m = location.hash.match(/[#&]c=([^&]+)/);
+  const me = location.hash.match(/[#&]e=([^&]+)/);
+  const fromLink = m ? decCfg(decodeURIComponent(m[1])) : null;
+  const fromExec = me ? decCfg(decodeURIComponent(me[1])) : null;
+  if(evUid){                                                 // link ESTABLE ?ev=<uid> (config desde Supabase)
+    const rec=await sbGet(evUid) || eventos()[evUid];
+    if(rec&&rec.config){
+      cfg=rec.config; cfg.uid=evUid; cfg.consec=rec.consec; saveJSON(NS+"config",cfg); cacheEvento(rec);
+      pintarWho();
+      if(rolQ==="ex"){ prefillExec(); editandoId=evUid; aplicarModoExec(); show("exec"); }   // ejecutivo -> editar (editandoId DESPUÉS de prefillExec, que lo resetea)
+      else irALogin();                                       // operador -> capturar
+    } else { cfg=loadJSON(NS+"config",null); pintarWho(); if($("homeHint")) $("homeHint").textContent="No pude cargar el evento. Revisa tu conexión y vuelve a abrir el enlace."; show("home"); }
+    return;
+  }
+  cfg = fromExec || fromLink || loadJSON(NS+"config", null);
+  if(fromExec || fromLink){ saveJSON(NS+"config", cfg); }
+  pintarWho();
+  const hash = location.hash.replace(/^#/,"");
+  if(fromExec){ prefillExec(); show("exec"); }             // link viejo del EJECUTIVO (compatibilidad)
+  else if(fromLink) irALogin();                            // link viejo de OPERADOR (compatibilidad)
+  else if(hash==="admin"){ prefillExec(); show("exec"); }  // URL de administrador -> ejecutivo
+  else show("home");                                       // URL base -> elegir rol
+});
+function pintarWho(){ $("who").textContent = operador ? (operador.nombre+" · "+operador.cedula) : ""; }
+$("brandLogo").addEventListener("click", ()=>show("home"));   // el logo lleva a la pantalla principal
+$("brandWord").addEventListener("click", ()=>show("home"));
+
+/* ---- EJECUTIVO ---- */
+$("ebtnReq").addEventListener("click", ()=>$("efileReq").click());
+$("efileReq").addEventListener("change", e=>{ if(e.target.files[0]) cargarReq(e.target.files[0]); });
+$("ebtnFicha").addEventListener("click", ()=>$("efileFicha").click());
+$("efileFicha").addEventListener("change", e=>{ if(e.target.files[0]) completarFicha(e.target.files[0]); e.target.value=""; });
+["ecliente","eevento"].forEach(id=>$(id).addEventListener("input", chequearGen));
+$("egen").addEventListener("click", generarAcceso);
+$("acCopy").addEventListener("click", ()=>{ if(navigator.clipboard) navigator.clipboard.writeText(invitacionTexto()); $("acCopy").textContent="Invitación copiada ✓"; toast("Invitación copiada ✓"); });
+$("acGo").addEventListener("click", ()=>{ saveConfigDesdeExec(); irALogin(); });
+$("eguardar").addEventListener("click", guardarEventoEditado);
+if($("eDuplicarLink")) $("eDuplicarLink").addEventListener("click", async ()=>{ if(!confirm("Esto CREA un evento NUEVO con enlace nuevo (no actualiza el actual).\n\n¿Continuar?")) return; await generarAcceso(); });
+$("acCopyExec").addEventListener("click", ()=>{ const u=$("acLinkExec").textContent; if(navigator.clipboard&&u) navigator.clipboard.writeText(u); $("acCopyExec").textContent="Enlace del productor copiado ✓"; toast("Enlace del productor copiado ✓"); });
+$("verHist").addEventListener("click", ()=>{ const l=$("histList"); l.classList.toggle("hide"); const abierto=!l.classList.contains("hide"); if(abierto) renderHistorial(); $("verHist").textContent=(abierto?"▾":"▸")+" Configuración de eventos"; });
+async function renderHistorial(){
+  const l=$("histList"); if(!l) return;
+  let arr=await sbList();                                       // fuente: Supabase (compartido entre dispositivos)
+  if(arr){ const cache={}; arr.forEach(e=>cache[e.uid]=e); saveJSON(NS+"eventos",cache); }   // refresca cache local
+  else arr=Object.values(eventos());                           // respaldo: cache local si no hay señal
+  arr=arr.slice().sort((a,b)=>(b.consec||0)-(a.consec||0));
+  if(!arr.length){ l.innerHTML='<div class="mut">Aún no hay eventos configurados.</div>'; return; }
+  l.innerHTML=arr.map(e=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.n_items||0} evidencias</div><div class="ac"><a class="lnk" onclick="copiarLinkEv('${e.uid}','oper')">link proveedor</a><a class="lnk" onclick="copiarLinkEv('${e.uid}','exec')">link productor</a><a class="lnk" onclick="editarEventoId('${e.uid}')">editar</a></div></div></div>`).join("");
+}
+window.copiarLinkEv=(uid,tipo)=>{ const u=tipo==="exec"?linkExec(uid):linkOper(uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del productor":"Enlace del proveedor")); };   // siempre el enlace directo ?ev=
+window.editarEventoId=(uid)=>{ editarEvento(uid); };
+$("goExec").addEventListener("click", ()=>{ nuevoExec(); show("exec"); });
+$("goOper").addEventListener("click", ()=>{ if(cfg) irALogin(); else $("homeHint").textContent="Aún no hay una operación configurada en este dispositivo. Pide el enlace o QR de acceso a tu productor."; });
+function nextCodigo(){ let mx=0; execItems.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx) mx=n; }); return String(mx+1).padStart(2,"0"); }
+$("miadd").addEventListener("click", ()=>{ const req=$("mireq").value.trim(), cant=$("micant").value.trim(), prov=$("miprov").value.trim();
+  if(!req){ alert("Escribe el requerimiento."); return; }
+  execItems.push({codigo:nextCodigo(),req,cant,prov}); $("mireq").value=""; $("micant").value=""; renderExecItems(); $("mireq").focus(); });   // se conserva el proveedor para agregar varios del mismo
+/* Abrir el panel para CREAR. Antes se llamaba a prefillExec(), que precarga cliente, evento
+   e ítems del último evento del dispositivo y luego se declara "modo nuevo": el evento nuevo
+   nacía con los requerimientos del anterior pegados (le pasó a PINIC, que se quedó con los 3
+   ítems del "Evento de prueba"), y de ahí que el desplegable del proveedor mostrara empresas
+   que no eran de su evento. Para partir de una copia está "Duplicar como evento nuevo". */
+function nuevoExec(){
+  $("ecliente").value=""; $("eevento").value=""; $("efecha").value=""; $("eciudad").value="";
+  execItems=[]; renderExecItems();
+  $("emPos").value="bl"; $("emEsc").value="3.4"; $("emOn").checked=true;
+  if($("acWrap")) $("acWrap").classList.add("hide");
+  if($("ereqInfo")) $("ereqInfo").textContent="";
+  if(typeof renderHistorial==="function") renderHistorial();
+  if(typeof chequearGen==="function") chequearGen();
+  editandoId=null; aplicarModoExec();
+  if($("execNuevo")) $("execNuevo").classList.remove("hide");
+  window.scrollTo(0,0);
+}
+function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||""})); renderExecItems();
+    const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; } if(typeof renderHistorial==="function") renderHistorial();
+  editandoId=null; aplicarModoExec(); }   // por defecto: modo NUEVO (los que editan fijan editandoId DESPUÉS y llaman aplicarModoExec)
+/* Modo de la vista ejecutivo: EDITAR (editandoId fijado) muestra solo "Guardar cambios" + "Duplicar";
+   NUEVO muestra solo "Generar acceso". Unifica ambas puertas de entrada (enlace y "Editar"). */
+function aplicarModoExec(){ const ed=!!editandoId;
+  if($("execNuevo")) $("execNuevo").classList.toggle("hide", ed);
+  if($("eguardar")) $("eguardar").style.display=ed?"":"none";
+  if($("egen")) $("egen").style.display=ed?"none":"";
+  if($("eDuplicar")) $("eDuplicar").style.display=ed?"":"none"; }
+const fnorm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");   // sin acentos, minúsculas
+function llenarSelectFiltro(sel, valores){ if(!sel) return; const prev=sel.value; sel.innerHTML=""; const o0=document.createElement("option"); o0.value=""; o0.textContent=(sel.id==="fltCat"?"Todas las categorías":"Todos los proveedores"); sel.appendChild(o0); valores.forEach(v=>{ const o=document.createElement("option"); o.value=v; o.textContent=v; sel.appendChild(o); }); sel.value=valores.includes(prev)?prev:""; }
+function renderExecItems(){
+  const c=$("execList"); c.innerHTML="";
+  // poblar filtros (categorías y proveedores presentes en la lista)
+  const cats=[...new Set(execItems.map(i=>(i.cat||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
+  const provs=[...new Set(execItems.map(i=>(i.prov||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
+  llenarSelectFiltro($("fltCat"), cats); llenarSelectFiltro($("fltProv"), provs);
+  if($("execFiltros")) $("execFiltros").classList.toggle("hide", execItems.length<6);   // filtros solo si vale la pena
+  const q=fnorm($("fltBuscar")&&$("fltBuscar").value), fc=($("fltCat")&&$("fltCat").value)||"", fp=($("fltProv")&&$("fltProv").value)||"";
+  let mostrados=0;
+  execItems.forEach((it,idx)=>{
+    if(fc && (it.cat||"").trim()!==fc) return;
+    if(fp && (it.prov||"").trim()!==fp) return;
+    if(q && !fnorm([it.codigo,it.req,it.prov,it.nit,it.cat].join(" ")).includes(q)) return;
+    mostrados++;
+    const d=document.createElement("div"); d.className="ev";
+    d.innerHTML=`<div class="in"><b style="color:var(--azul)">${it.codigo}</b> · ${it.req||"(sin descripción)"}${it.cant?` &nbsp;<span class="mut" style="margin:0">x${it.cant}</span>`:""}${it.cat?` <span class="mut" style="margin:0">· ${it.cat}</span>`:""}${it.prov||it.nit?`<div class="mut" style="margin:2px 0 0">${it.prov||""}${it.nit?`${it.prov?" · ":""}NIT ${it.nit}`:""}</div>`:""}<div class="ac"><a class="lnk" onclick="quitarExec(${idx})">quitar</a></div></div>`;
+    c.appendChild(d); });
+  const n=execItems.length;
+  if(n) $("ereqInfo").textContent = n+(n===1?" evidencia en la lista.":" evidencias en la lista.");
+  if($("fltInfo")){ const filtrando=q||fc||fp; $("fltInfo").textContent = filtrando?`Mostrando ${mostrados} de ${n}`:`${n} en total`; }
+  if(mostrados===0 && n){ c.innerHTML='<div class="mut" style="padding:8px 2px">Ningún requerimiento coincide con el filtro.</div>'; }
+  if($("miCodHint")) $("miCodHint").textContent = "La app asignará el código "+nextCodigo()+" a la próxima evidencia.";
+  const dl=$("provList"); if(dl){ dl.innerHTML=""; proveedores().forEach(p=>{ const o=document.createElement("option"); o.value=p; dl.appendChild(o); }); }
+  chequearGen();
+}
+window.quitarExec=(i)=>{ execItems.splice(i,1); renderExecItems(); };
+["fltBuscar","fltCat","fltProv"].forEach(id=>{ const el=$(id); if(el) el.addEventListener(id==="fltBuscar"?"input":"change", renderExecItems); });
+if($("fltLimpiar")) $("fltLimpiar").addEventListener("click", ()=>{ $("fltBuscar").value=""; $("fltCat").value=""; $("fltProv").value=""; renderExecItems(); });
+/* Requerimientos ADICIONALES agregados por el operador en sitio (locales al dispositivo, por evento) */
+function adicKey(){ return NS+"adic_"+((cfg&&cfg.uid)||"SIN-UID"); }
+function adicKeyVieja(){ return NS+"adic_"+(cfg?`${slug(cfg.cl)}|${slug(cfg.ev)}`:"NA"); }   // se anclaba a cliente|evento: se rompía al renombrar el evento
+function adicionalesDelEvento(){
+  let a=loadJSON(adicKey(), null);
+  if(a===null){ a=loadJSON(adicKeyVieja(), []); if(a.length) saveJSON(adicKey(), a); }   // migración de los guardados antes de la v17
+  return anotarIids(a||[]); }
+function guardarAdicionales(arr){ saveJSON(adicKey(), arr); }
+/* Busca por iid; si no aparece, cae al codigo (lotes guardados antes de la v12 y configs viejos). */
+function itemById(k){ if(!k) return null; const cfgIt=itemsCfg(), ad=anotarIids(adicionalesDelEvento());
+  return cfgIt.find(i=>i.iid===k) || ad.find(i=>i.iid===k) || cfgIt.find(i=>i.codigo===k) || ad.find(i=>i.codigo===k) || null; }
+function itemCod(k){ const it=itemById(k); return it?String(it.codigo||""):String(k||""); }   // el codigo de cotizacion que va a la base
+function itemCat(cod){ const it=itemById(cod); return it?(it.cat||""):""; }
+function itemCant(cod){ const it=itemById(cod); return it?(it.cant||""):""; }
+function itemReq(cod){ const it=itemById(cod); return it?(it.req||""):""; }
+function itemProv(cod){ const it=itemById(cod); return it?(it.prov||""):""; }
+function itemNit(cod){ const it=itemById(cod); return it?(it.nit||""):""; }
+function itemCar(cod){ const it=itemById(cod); return it?(it.car||""):""; }     // características / especificaciones
+function itemUm(cod){ const it=itemById(cod); return it?(it.um||""):""; }       // unidad de medida
+function itemDias(cod){ const it=itemById(cod); return it?(it.dias||""):""; }
+function itemAdic(cod){ const it=itemById(cod); return it&&it.adicional?it:null; }
+function proveedores(){ const s=new Set(); (execItems&&execItems.length?execItems:itemsCfg()).forEach(it=>{ const p=(it.prov||"").trim(); if(p) s.add(p); }); return [...s].sort((a,b)=>a.localeCompare(b,'es')); }
+function provDeItems(){ const s=new Set(); itemsCfg().forEach(it=>{ const p=(it.prov||"").trim(); if(p) s.add(p); }); return [...s].sort((a,b)=>a.localeCompare(b,'es')); }
+/* --- Capa de acceso por NIT (opcional, se activa solo si el evento trae NITs cargados) --- */
+function nitDeProveedor(nombre){ const p=(nombre||"").trim(); if(!p) return ""; const it=itemsCfg().find(x=>(x.prov||"").trim()===p && String(x.nit||"").trim()); return it?String(it.nit).trim():""; }
+function hayNits(){ return provDeItems().some(p=>nitDeProveedor(p)); }
+function nitBase(s){ return String(s||"").replace(/[^0-9]/g,""); }
+function nitCoincide(entered, stored){ const a=nitBase(entered), b=nitBase(stored); if(!a||!b) return false; if(a===b) return true; if(b.length===a.length+1 && b.startsWith(a)) return true; if(a.length===b.length+1 && a.startsWith(b)) return true; return false; }  // acepta con o sin dígito de verificación
+function hayProv(){ return provDeItems().length>0; }
+function opcionesProv(){ const l=provDeItems(); if(itemsCfg().some(it=>!((it.prov||"").trim())) && l.length) l.push("Sin proveedor"); return l; }
+function itemsDelOperador(){ let base;
+  if(!hayProv()) base=itemsCfg();
+  else{ const p=(operador&&operador.prov)||""; if(!p) base=itemsCfg(); else if(p==="Sin proveedor") base=itemsCfg().filter(it=>!((it.prov||"").trim())); else base=itemsCfg().filter(it=>(it.prov||"").trim()===p); }
+  return base.concat(adicionalesDelEvento()); }   // los adicionales del operador siempre aparecen
+function llenarSelectProv(sel, valor){ sel.innerHTML=""; const o0=document.createElement("option"); o0.value=""; o0.textContent="— Selecciona proveedor —"; sel.appendChild(o0); opcionesProv().forEach(p=>{ const o=document.createElement("option"); o.value=p; o.textContent=p; sel.appendChild(o); }); sel.value=valor||""; }
+function opTag(){ if(!operador) return "";
+  const ini=slug(operador.nombre||"").split("-").filter(Boolean).map(w=>w[0]).join("").slice(0,3).toUpperCase();
+  const ced=(operador.cedula||"").replace(/\D/g,"").slice(-4);
+  const t=(ini||"OP")+(ced?"-"+ced:""); return slug(t); }
+
+let execItems = [];
+/* Lee la plantilla y devuelve {filas, items} con los mismos criterios de columnas.
+   Se usa tanto para CARGAR la lista como para COMPLETAR la ficha de un evento ya publicado. */
+async function parsearPlantilla(file){
+  const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:""});
+  const get=(o,n)=>{ for(const k in o){ if(n.includes(k.trim().toLowerCase())) return String(o[k]).trim(); } return ""; };
+  const items = rows.map(r=>({
+      codigo:get(r,["item_codigo","codigo","código","item","ítem","id","cod"]), req:get(r,["requerimiento","descripcion","descripción","detalle","concepto"]), cant:get(r,["cantidad","cant","qty","unidades"]), prov:get(r,["nombre proveedores","nombre proveedor","proveedor","provider","prov","proveedor_nombre","empresa","contratista"]), nit:get(r,["nit proveedor","nit","nit_proveedor","identificacion proveedor","identificación proveedor"]),
+      cat:get(r,["categoria","categoría","modulo","módulo","grupo","hoja"]),
+      car:get(r,["caracteristicas","características","especificaciones","observaciones","nota"]),
+      um:get(r,["unidad de medida","unidad_de_medida","unidad","um","medida"]),
+      dias:get(r,["dias","días","dias_servicio"]) })).filter(x=>x.req||x.codigo);
+  let mx=0; items.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx)mx=n; });
+  items.forEach(it=>{ if(!String(it.codigo).trim()){ mx++; it.codigo=String(mx).padStart(2,"0"); } });   // la app asigna código a los ítems sin código
+  return {rows, items, get};
+}
+/* Completa ubicación/cantidad/unidad/días/características de los ítems que YA tiene el evento.
+   NO agrega ni quita nada: pensado para eventos publicados donde el ejecutivo ya depuró la lista
+   (recargar la plantilla ahí revertiría esa depuración y borraría los ítems agregados a mano). */
+async function completarFicha(file){
+  const inf=$("efichaInfo");
+  try{
+    if(!execItems.length){ inf.textContent="Primero abre o carga un evento con requerimientos."; return; }
+    const {items} = await parsearPlantilla(file);
+    if(!items.length){ inf.textContent="No pude leer requerimientos en ese archivo."; return; }
+    const mapa={}; anotarIids(items).forEach(it=>{ mapa[it.iid]=it; });
+    let ok=0, sin=0;
+    anotarIids(execItems).forEach(it=>{
+      const m=mapa[it.iid];
+      if(!m){ sin++; return; }
+      let toco=false;
+      ["car","um","dias"].forEach(f=>{ if(!String(it[f]||"").trim() && String(m[f]||"").trim()){ it[f]=m[f]; toco=true; } });
+      if(!String(it.cant||"").trim() && String(m.cant||"").trim()){ it.cant=m.cant; toco=true; }
+      if(toco) ok++;
+    });
+    renderExecItems();
+    if(!ok){ inf.textContent=`No encontré coincidencias entre la plantilla y los ${execItems.length} requerimientos del evento, o la ficha ya estaba completa. No se guardó nada.`; return; }
+    inf.textContent=`${ok} requerimiento${ok===1?"":"s"} completado${ok===1?"":"s"}${sin?` · ${sin} sin coincidencia`:""} · guardando…`;
+    if(editandoId){   // guardar de una: si se deja para después, se pierde el trabajo al salir de la pantalla
+      await guardarEventoEditado();
+      inf.textContent=`✅ ${ok} requerimiento${ok===1?"":"s"} con ficha completa${sin?` · ${sin} sin coincidencia`:""} · guardado en el evento.`;
+    } else {
+      inf.textContent=`${ok} requerimiento${ok===1?"":"s"} completado${ok===1?"":"s"} — dale «Generar acceso» para publicar el evento.`;
+    }
+  }catch(err){ inf.textContent="No se pudo leer: "+err.message; }
+}
+async function cargarReq(file){
+  try{
+    const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:""});
+    const get=(o,n)=>{ for(const k in o){ if(n.includes(k.trim().toLowerCase())) return String(o[k]).trim(); } return ""; };
+    execItems = rows.map(r=>({ codigo:get(r,["item_codigo","codigo","código","item","ítem","id","cod"]), req:get(r,["requerimiento","descripcion","descripción","detalle","concepto"]), cant:get(r,["cantidad","cant","qty","unidades"]), prov:get(r,["nombre proveedores","nombre proveedor","proveedor","provider","prov","proveedor_nombre","empresa","contratista"]), nit:get(r,["nit proveedor","nit","nit_proveedor","identificacion proveedor","identificación proveedor"]), cat:get(r,["categoria","categoría","modulo","módulo","grupo","hoja"]),
+      car:get(r,["caracteristicas","características","especificaciones","observaciones","nota"]),
+      um:get(r,["unidad de medida","unidad_de_medida","unidad","um","medida"]),
+      dias:get(r,["dias","días","dias_servicio"]) })).filter(x=>x.req||x.codigo);
+    let mx=0; execItems.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx)mx=n; });
+    execItems.forEach(it=>{ if(!String(it.codigo).trim()){ mx++; it.codigo=String(mx).padStart(2,"0"); } });   // la app asigna código a los ítems sin código
+    const c=rows.map(r=>get(r,["cliente","client"])).find(Boolean), e=rows.map(r=>get(r,["evento","nombre_evento"])).find(Boolean), ci=rows.map(r=>get(r,["ciudad","municipio"])).find(Boolean);
+    if(c && !$("ecliente").value) $("ecliente").value=c;
+    if(e && !$("eevento").value) $("eevento").value=e;
+    if(ci && !$("eciudad").value) $("eciudad").value=ci;
+    if(!execItems.length) $("ereqInfo").textContent="No se encontró la columna de código (item_codigo / codigo / id).";
+    renderExecItems();
+  }catch(err){ $("ereqInfo").textContent="No se pudo leer: "+err.message; }
+}
+function chequearGen(){ $("egen").disabled = !(execItems.length && $("ecliente").value.trim() && $("eevento").value.trim()); }
+function saveConfigDesdeExec(){
+  const uid=cfg&&cfg.uid, consec=cfg&&cfg.consec;   // preservar identidad del evento si ya existe
+  cfg = { cl:$("ecliente").value.trim(), ev:$("eevento").value.trim(), fe:$("efecha").value, ci:$("eciudad").value.trim(),
+          it:execItems.map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||""})),
+          marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked} };   // marca definida por el ejecutivo, igual para todos
+  if(uid) cfg.uid=uid; if(consec) cfg.consec=consec;
+  saveJSON(NS+"config", cfg);
+}
+let accesoLink="", accesoExec="", accesoCorto="", editandoId=null;
+/* Generar acceso = PUBLICAR este config como evento NUEVO (uid + consecutivo nuevos) en Supabase. */
+async function generarAcceso(){
+  saveConfigDesdeExec();
+  cfg.uid=nuevoUid(); cfg.consec=await nextConsec(); saveJSON(NS+"config",cfg);
+  accesoLink=linkOper(cfg.uid); accesoExec=linkExec(cfg.uid); accesoCorto="";
+  editandoId=cfg.uid; aplicarModoExec();   // el evento ya existe: pasa a modo EDITAR (más cambios se guardan en sitio, sin re-duplicar)
+  await mostrarAcceso(cfg.consec);
+}
+/* Panel de acceso: consecutivo + ambos enlaces (operador + ejecutivo) acortados; guarda en Supabase. */
+async function mostrarAcceso(consec){
+  $("invCli").textContent = evConsecTag(consec)+" · "+(cfg.cl || "—");
+  $("invEv").textContent = [cfg.ev, cfg.fe, cfg.ci].filter(Boolean).join("  ·  ");
+  $("acWrap").classList.remove("hide"); $("acCopy").textContent="Copiar invitación (proveedor)";
+  accesoCorto=accesoLink;   // sin acortador: el enlace ?ev= ya es corto, DIRECTO y estable (sin página intermedia)
+  $("acLink").textContent=accesoLink; $("acLinkExec").textContent=accesoExec;
+  pintarQR(accesoLink);
+  await persistirEvento(accesoLink, accesoExec);   // guarda/actualiza en Supabase + cache
+  renderHistorial();
+}
+function pintarQR(url){ $("acQR").innerHTML=""; if(window.QRCode){ try{ new QRCode($("acQR"), {text:url, width:220, height:220, colorDark:MARCA.qr, colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.L}); }catch(e){ $("acQR").innerHTML='<div class="mut">Lista muy larga para el QR; comparte el enlace.</div>'; } } }
+/* Editar un evento del historial: trae su config de Supabase y conserva su uid/consecutivo (mismo enlace). */
+async function editarEvento(uid){
+  let rec=await sbGet(uid) || eventos()[uid];
+  if(!rec||!rec.config){ alert("No pude abrir ese evento (¿sin conexión?). Intenta de nuevo."); return; }
+  cfg=rec.config; cfg.uid=uid; cfg.consec=rec.consec; saveJSON(NS+"config",cfg); cacheEvento(rec);
+  prefillExec(); show("exec");
+  editandoId=uid; aplicarModoExec();   // se setea DESPUÉS de prefillExec (que lo resetea)
+  $("acWrap").classList.add("hide"); window.scrollTo(0,0);
+}
+/* Guardar cambios: MISMO uid/consecutivo -> el MISMO enlace sirve el contenido actualizado (link estable). */
+async function guardarEventoEditado(){
+  if(!editandoId){ return generarAcceso(); }
+  saveConfigDesdeExec();
+  cfg.uid=editandoId; if(!cfg.consec){ const e=eventos()[editandoId]; cfg.consec=(e&&e.consec)||await nextConsec(); }
+  saveJSON(NS+"config",cfg);
+  accesoLink=linkOper(cfg.uid); accesoExec=linkExec(cfg.uid); accesoCorto="";
+  await mostrarAcceso(cfg.consec);
+  alert("Cambios guardados en "+evConsecTag(cfg.consec)+".\n\nEl enlace NO cambia: los proveedores verán el contenido actualizado al reabrirlo.");
+}
+function invitacionTexto(){
+  const link = accesoCorto || accesoLink;
+  const l2 = [cfg.ev, cfg.fe, cfg.ci].filter(Boolean).join(" · ");
+  return `Invitación — Captura de evidencias\nCliente: ${cfg.cl}\n${l2?("Evento: "+l2+"\n"):""}\nIngresa a la plataforma para cargar tus evidencias:\n${link}\n\nÁbrelo en tu celular, regístrate (nombre, cédula y celular) y comienza a capturar.`;
+}
+
+/* ---- OPERADOR: login ---- */
+function irALogin(){
+  $("lbCli").textContent = "Cliente: "+(cfg.cl||"—");
+  $("lbEv").textContent = "Evento: "+(cfg.ev||"—")+"  ·  "+itemsCfg().length+" evidencias";
+  if(hayProv()){ $("lprovWrap").classList.remove("hide"); llenarSelectProv($("lprov"), operador&&operador.prov);
+    if(hayNits()){ $("lnitWrap").classList.remove("hide"); $("lnit").value=""; } else $("lnitWrap").classList.add("hide"); }
+  else { $("lprovWrap").classList.add("hide"); $("lnitWrap").classList.add("hide"); }
+  if(operador){ $("lnom").value=operador.nombre; $("lced").value=operador.cedula; $("lcel").value=operador.celular; }
+  show("login");
+}
+$("lentrar").addEventListener("click", ()=>{
+  const o={ nombre:$("lnom").value.trim(), cedula:$("lced").value.trim(), celular:$("lcel").value.trim() };
+  if(!o.nombre||!o.cedula||!o.celular){ alert("Completa nombre, cédula y celular."); return; }
+  if(hayProv()){ const p=$("lprov").value; if(!p){ alert("Selecciona tu empresa proveedora."); return; }
+    const nitReq=nitDeProveedor(p);
+    if(nitReq && !nitCoincide($("lnit").value, nitReq)){ alert("El NIT no corresponde a la empresa seleccionada.\n\nIngresa el NIT del proveedor (sin dígito de verificación) para continuar."); return; }
+    o.prov=p; }
+  operador=o; saveJSON(NS+"operador",o); pintarWho(); irACaptura();
+});
+$("reconfig").addEventListener("click", ()=>{ nuevoExec(); show("exec"); });
+$("salir").addEventListener("click", ()=>{ detenerWatch(); if(operador){ $("lnom").value=operador.nombre; $("lced").value=operador.cedula; $("lcel").value=operador.celular; } show("login"); });
+
+/* ---- ADMINISTRADOR: visualizador (login + eventos + evidencias con fotos) ---- */
+let adminSes = loadJSON(NS+"admin_ses", null);
+let adminEventos = [];
+function adminValido(){ return !!(adminSes && adminSes.token && Date.now() < (adminSes.exp||0)); }
+function adminHeaders(){ return {apikey:SB_KEY, Authorization:"Bearer "+(adminSes&&adminSes.token)}; }
+function adminSesExpirada(){ adminSes=null; localStorage.removeItem(NS+"admin_ses"); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent="Tu sesión expiró. Ingresa de nuevo."; }
+$("goAdmin").addEventListener("click", ()=>{ show("admin"); if(adminValido()){ adminMostrarPanel(); } else { $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent=""; } });
+$("adVolver").addEventListener("click", ()=>show("home"));
+$("adSalir").addEventListener("click", ()=>{ adminSes=null; localStorage.removeItem(NS+"admin_ses"); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); });
+$("adBackLink").addEventListener("click", ()=>adminMostrarPanel());
+$("adEntrar").addEventListener("click", adminLogin);
+async function adminLogin(){
+  const email=$("adEmail").value.trim(), pass=$("adPass").value;
+  if(!email||!pass){ $("adMsg").textContent="Escribe correo y contraseña."; return; }
+  $("adMsg").textContent="Ingresando…"; $("adEntrar").disabled=true;
+  try{
+    const r=await fetch(SB_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({email,password:pass})});
+    const d=await r.json();
+    if(r.ok && d.access_token){ adminSes={token:d.access_token, exp:Date.now()+((d.expires_in||3600)*1000)}; saveJSON(NS+"admin_ses",adminSes); $("adPass").value=""; $("adMsg").textContent=""; adminMostrarPanel(); }
+    else { $("adMsg").textContent="No se pudo ingresar: "+((d&&(d.error_description||d.msg||d.message))||"credenciales inválidas"); }
+  }catch(e){ $("adMsg").textContent="Error de conexión."; }
+  finally{ $("adEntrar").disabled=false; }
+}
+function adminMostrarPanel(){ $("adLogin").classList.add("hide"); $("adPanel").classList.remove("hide"); $("adBack").classList.add("hide"); $("adTitulo").textContent="Eventos"; adminCargarEventos(); }
+async function adminCargarEventos(){
+  const l=$("adLista"); l.innerHTML='<div class="mut">Cargando…</div>';
+  try{
+    const [rEv,rEvi]=await Promise.all([
+      fetch(SB_URL+"/rest/v1/eventos?select=uid,consec,cl,ev,fe,config,short_oper,short_exec&order=consec.desc",{headers:adminHeaders()}),
+      fetch(SB_URL+"/rest/v1/evidencias?select=evento_uid,item,item_id,categoria,adicional",{headers:adminHeaders()})
+    ]);
+    if(rEv.status===401||rEvi.status===401){ adminSesExpirada(); return; }
+    adminEventos=await rEv.json();
+    const evis = rEvi.ok ? await rEvi.json() : [];
+    const porEvento={}, porItem={};
+    // llave global por evidencia; si la fila es anterior a la Capa9 se reconstruye con categoria+item
+    const extrasPorEvento={};
+    evis.forEach(x=>{ porEvento[x.evento_uid]=(porEvento[x.evento_uid]||0)+1;
+      const k = x.item_id || (x.evento_uid+"|"+iidDe(x.item,x.categoria,1));
+      porItem[k]=(porItem[k]||0)+1;
+      if(x.adicional){ (extrasPorEvento[x.evento_uid]=extrasPorEvento[x.evento_uid]||new Set()).add(k); } });
+    if(!adminEventos.length){ l.innerHTML='<div class="mut">Aún no hay eventos.</div>'; return; }
+    // ---- métricas por evento + totales globales (Dashboard) ----
+    let gReq=0,gComp=0,gEvi=0,gExtra=0; const metricas=adminEventos.map(e=>{
+      const items=anotarIids((e.config&&e.config.it)||[]);
+      const reg=porEvento[e.uid]||0;
+      const conEvi=items.filter(it=>(porItem[e.uid+"|"+it.iid]||0)>=1).length;
+      const comp=items.filter(it=>(porItem[e.uid+"|"+it.iid]||0)>=3).length;
+      const pend=items.length-comp;
+      const av=items.length?Math.round(comp/items.length*100):0;
+      const extras=(extrasPorEvento[e.uid]||new Set()).size;   // adicionales creados en sitio, no están en el config
+      gReq+=items.length; gComp+=comp; gEvi+=reg; gExtra+=extras;
+      return {n:items.length,reg,conEvi,comp,pend,av,extras};
+    });
+    const gAv=gReq?Math.round(gComp/gReq*100):0;
+    const kpi=(v,t)=>`<div style="flex:1;min-width:70px;text-align:center;border:1px solid var(--bd,#e3e3e3);border-radius:10px;padding:8px 4px"><div style="font-size:20px;font-weight:800;color:var(--azul)">${v}</div><div class="mut" style="margin:2px 0 0;font-size:11px">${t}</div></div>`;
+    const bar=av=>`<div style="height:7px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0 2px"><div style="height:100%;width:${av}%;background:${av>=100?'#1a9e56':(av>0?'var(--azul)':'#e9e9ee')}"></div></div>`;
+    const dash=`<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">`
+      +kpi(adminEventos.length,"Eventos")+kpi(gReq,"Requerimientos")+kpi(gEvi,"Evidencias")+kpi(gComp+"/"+gReq,"Completos ≥3")+kpi(gAv+"%","Avance")+kpi(gExtra,"Extras en sitio")
+      +`</div>`;
+    l.innerHTML=dash+adminEventos.map((e,i)=>{
+      const m=metricas[i];
+      return `<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}`
+        +bar(m.av)
+        +`<div class="mut" style="margin:2px 0 0">Requerimientos: <b>${m.n}</b> · Con evidencia: <b>${m.conEvi}</b> · Completos ≥3: <b>${m.comp}</b> · Pendientes: <b>${m.pend}</b> · Evidencias: <b>${m.reg}</b> · Avance: <b>${m.av}%</b>${m.extras?` · <span style="color:var(--oro-d)">Extras en sitio: <b>${m.extras}</b></span>`:""}</div>`
+        +`<div class="ac"><a class="lnk" onclick="adminCopiar(${i},'oper')">link proveedor</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link productor</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a></div></div></div>`;
+    }).join("");
+  }catch(_){ l.innerHTML='<div class="mut">Error al cargar.</div>'; }
+}
+window.adminCopiar=(i,tipo)=>{ const e=adminEventos[i]; if(!e) return; const u=tipo==="exec"?linkExec(e.uid):linkOper(e.uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del productor":"Enlace del proveedor")); };   // siempre el enlace directo ?ev= (nunca tinyurl viejo)
+window.adminBorrarEvento=async(i)=>{
+  const ev=adminEventos[i]; if(!ev) return;
+  if(!confirm(`⚠️ BORRAR EVENTO ${evConsecTag(ev.consec)}\n\n${ev.cl||""} — ${ev.ev||""}\n\nEsto elimina el evento Y TODAS sus evidencias y fotos. Es una acción DELICADA que NO se puede deshacer.\n\n¿Continuar?`)) return;
+  if(!confirm(`Confirma OTRA VEZ: se borrará ${evConsecTag(ev.consec)} y todo su contenido de forma permanente.\n\n¿Seguro?`)) return;
+  try{
+    toast("Borrando evento…");
+    const r=await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid)+"&select=storage_path",{headers:adminHeaders()});
+    if(r.status===401){ adminSesExpirada(); return; }
+    const evs = r.ok ? await r.json() : [];
+    for(const e of evs){ if(e.storage_path){ try{ const p=e.storage_path.replace(/^evidencias\//,"").split("/").map(encodeURIComponent).join("/"); await fetch(SB_URL+"/storage/v1/object/evidencias/"+p,{method:"DELETE",headers:adminHeaders()}); }catch(_){} } }
+    await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid),{method:"DELETE",headers:Object.assign({},adminHeaders(),{Prefer:"return=representation",Accept:"application/json"})});
+    const de=await fetch(SB_URL+"/rest/v1/eventos?uid=eq."+encodeURIComponent(ev.uid),{method:"DELETE",headers:Object.assign({},adminHeaders(),{Prefer:"return=representation",Accept:"application/json"})});
+    if(!de.ok){ alert("No se pudo borrar el evento (HTTP "+de.status+").\n\nCorre las Capas 5 y 6 en Supabase y reintenta."); return; }
+    let evBorr=[]; try{ evBorr=await de.json(); }catch(_){}
+    if(!Array.isArray(evBorr)||!evBorr.length){ alert("El evento NO se borró (0 filas eliminadas).\n\nFalta activar el permiso de borrado: corre las Capas 5 y 6 en Supabase y reintenta."); return; }
+    try{ const all=eventos(); delete all[ev.uid]; saveJSON(NS+"eventos",all); }catch(_){}
+    toast("Evento borrado ✓"); adminCargarEventos();
+  }catch(_){ toast("Error al borrar el evento"); }
+};
+let adminFotoURLs={}, adminEvidencias=[], lbActual=null, adminEventoActual=null;
+function fmtFecha(iso){ try{ const d=new Date(iso); if(isNaN(d)) return iso||""; return `${z(d.getDate())}/${z(d.getMonth()+1)}/${d.getFullYear()} ${z(d.getHours())}:${z(d.getMinutes())}`; }catch(_){ return iso||""; } }
+window.adminAbrir=async(i)=>{
+  const ev=adminEventos[i]; if(!ev) return; adminEventoActual=i;
+  $("adBack").classList.remove("hide"); $("adTitulo").textContent=`${ev.cl||""} — ${ev.ev||""}`;
+  const l=$("adLista"); l.innerHTML='<div class="mut">Cargando evidencias…</div>'; adminFotoURLs={}; adminEvidencias=[];
+  try{
+    const r=await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid)+"&select=*&order=creado.asc",{headers:adminHeaders()});
+    if(r.status===401){ adminSesExpirada(); return; }
+    const arr=await r.json(); adminEvidencias=arr;
+    if(!arr.length){ l.innerHTML='<div class="mut">Este evento aún no tiene evidencias enviadas.</div>'; return; }
+    const opt=(vals,ph)=>`<option value="">${ph}</option>`+vals.map(v=>{const val=Array.isArray(v)?v[0]:v,txt=Array.isArray(v)?v[1]:v;return `<option value="${String(val).replace(/"/g,"&quot;")}">${txt}</option>`;}).join("");
+    const provs=[...new Set(arr.map(e=>(e.proveedor||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
+    const opers=[...new Set(arr.map(e=>(e.operador_nombre||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
+    const cats=[...new Set(arr.map(e=>(e.categoria||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
+    // se indexa por la llave del requerimiento, no por el código: el mismo código vive en varios escenarios
+    const reqs=[...new Map(arr.filter(e=>e.item).map(e=>[eviKey(e),(e.categoria?e.categoria+" · ":"")+e.item+(e.requerimiento?" · "+e.requerimiento.slice(0,26):"")])).entries()].sort((a,b)=>String(a[1]).localeCompare(String(b[1]),"es"));
+    const cab=bloqueExtras(arr)
+      +`<div class="mut" style="margin-bottom:6px">${arr.length} evidencia(s) · toca una foto para verla grande</div>`
+      +`<div style="display:flex;gap:16px;margin-bottom:10px"><a class="lnk" onclick="adminManifiesto()">⬇ Manifiesto (CSV)</a><a class="lnk" onclick="adminFotosZIP()">⬇ Fotos (ZIP)</a></div>`
+      +`<div style="border-top:1px solid var(--line);padding-top:10px;margin-bottom:10px">`
+        +`<div class="fld"><input id="adFltBuscar" type="text" autocomplete="off" placeholder="🔍 Buscar por requerimiento, proveedor, persona, archivo o radicado"></div>`
+        +`<div class="row" style="margin-top:8px"><div><label>Proveedor</label><select id="adFltProv">${opt(provs,"Todos")}</select></div><div><label>Quién capturó</label><select id="adFltOper">${opt(opers,"Todos")}</select></div></div>`
+        +`<div class="fld" style="margin-top:8px"><label>Escenario / categoría</label><select id="adFltCat">${opt(cats,"Todos")}</select></div>`
+        +`<div class="fld" style="margin-top:8px"><label>Requerimiento</label><select id="adFltReq">${opt(reqs,"Todos")}</select></div>`
+        +`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span class="mut" id="adFltInfo"></span><a class="lnk" id="adFltLimpiar" style="font-size:13px">Limpiar filtros</a></div>`
+      +`</div><div id="adEviList" class="list"></div>`;
+    l.innerHTML=cab;
+    ["adFltBuscar","adFltProv","adFltOper","adFltCat","adFltReq"].forEach(id=>{ const el=$(id); if(el) el.addEventListener(id==="adFltBuscar"?"input":"change", renderAdminEvidencias); });
+    if($("adFltLimpiar")) $("adFltLimpiar").addEventListener("click", ()=>{ ["adFltBuscar","adFltProv","adFltOper","adFltCat","adFltReq"].forEach(id=>{ if($(id)) $(id).value=""; }); renderAdminEvidencias(); });
+    renderAdminEvidencias();
+  }catch(_){ l.innerHTML='<div class="mut">Error al cargar evidencias.</div>'; }
+};
+function eviKey(e){ return e.item_id || ((e.evento_uid||"")+"|"+iidDe(e.item,e.categoria,1)); }
+/* Los requerimientos ADICIONALES los crea el operador en sitio y viven en el localStorage de su
+   celular: NO están en eventos.config, así que el tablero no los conocía. Aquí se reconstruyen
+   desde las propias evidencias (que sí traen adicional/solicitado_por/justificacion/cantidad),
+   sin que el operador tenga que escribir en el config -> se mantiene su rol de solo-inserción. */
+function extrasDeEvidencias(arr){
+  const m=new Map();
+  (arr||[]).forEach(e=>{ if(!e.adicional) return; const k=eviKey(e);
+    let x=m.get(k);
+    if(!x){ x={k, item:e.item||"", req:e.requerimiento||"", cant:e.cantidad||"", prov:e.proveedor||"", nit:e.proveedor_nit||"",
+               quien:e.solicitado_por||"", nota:e.justificacion||"", oper:e.operador_nombre||"", fotos:0, primera:e.creado||""}; m.set(k,x); }
+    if((e.tipo||"foto")==="foto") x.fotos++;
+    if(!x.quien && e.solicitado_por) x.quien=e.solicitado_por;
+    if(!x.nota && e.justificacion) x.nota=e.justificacion;
+    if(!x.cant && e.cantidad) x.cant=e.cantidad;
+  });
+  return [...m.values()].sort((a,b)=>String(a.primera).localeCompare(String(b.primera)));
+}
+function bloqueExtras(arr){
+  const x=extrasDeEvidencias(arr); if(!x.length) return "";
+  return `<div class="xbox"><div class="xt">➕ ${x.length} requerimiento${x.length===1?"":"s"} adicional${x.length===1?"":"es"} reportado${x.length===1?"":"s"} en sitio</div>`
+    +x.map(e=>`<div class="xr"><b>${escAttr(e.item)}</b> · ${escAttr(e.req)}${e.cant?` <span class="xk">×${escAttr(e.cant)}</span>`:""} <span class="mut" style="margin:0">· ${e.fotos} foto${e.fotos===1?"":"s"}</span>`
+      +`<div class="mut" style="margin:1px 0 0">Solicitado por: <b>${escAttr(e.quien||"—")}</b>${e.prov?` · Proveedor: ${escAttr(e.prov)}`:""}${e.oper?` · Capturó: ${escAttr(e.oper)}`:""}</div>`
+      +(e.nota?`<div class="mut" style="margin:1px 0 0">Justificación: ${escAttr(e.nota)}</div>`:"")
+      +`</div>`).join("")
+    +`<div class="ac" style="margin-top:6px"><a class="lnk" onclick="adminExtrasCSV()">⬇ Extras (CSV)</a></div></div>`;
+}
+/* CSV solo de los extras: es lo que se cobra aparte, así que se entrega suelto. */
+window.adminExtrasCSV=()=>{
+  const x=extrasDeEvidencias(adminEvidencias); if(!x.length){ toast("Sin adicionales"); return; }
+  const ev=adminEventos[adminEventoActual]||{};
+  const cols=["item","requerimiento","cantidad","proveedor","proveedor_nit","solicitado_por","justificacion","operador","fotos"];
+  let csv=cols.join(",")+"\n";
+  x.forEach(e=>{ csv+=[e.item,e.req,e.cant,e.prov,e.nit,e.quien,e.nota,e.oper,e.fotos].map(csvCell).join(",")+"\n"; });
+  bajar(new Blob([csv],{type:"text/csv"}), `extras_${slug(ev.cl||"")}_${slug(ev.ev||"")}.csv`);
+};
+function renderAdminEvidencias(){
+  const cont=$("adEviList"); if(!cont) return;
+  const q=fnorm($("adFltBuscar")&&$("adFltBuscar").value), fp=($("adFltProv")&&$("adFltProv").value)||"", fo=($("adFltOper")&&$("adFltOper").value)||"", fc=($("adFltCat")&&$("adFltCat").value)||"", fr=($("adFltReq")&&$("adFltReq").value)||"";
+  let vis=0, html="";
+  adminEvidencias.forEach((e,j)=>{
+    if(fp && (e.proveedor||"").trim()!==fp) return;
+    if(fo && (e.operador_nombre||"").trim()!==fo) return;
+    if(fc && (e.categoria||"").trim()!==fc) return;
+    if(fr && eviKey(e)!==fr) return;
+    if(q && !fnorm([e.item,e.requerimiento,e.proveedor,e.proveedor_nit,e.operador_nombre,e.operador_cedula,e.archivo,e.radicado,e.categoria].join(" ")).includes(q)) return;
+    vis++;
+    html+=`<div class="ev"><div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})"><img id="adimg${j}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5"></div><div class="in">${e.categoria?`<span class="cchip">${escAttr(e.categoria)}</span> `:""}<b>${e.item||""}</b> · ${(e.requerimiento||"").slice(0,38)}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${e.operador_nombre||""}${e.operador_cedula?" · "+e.operador_cedula:""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+e.radicado:""}</div><div class="fn" style="margin-top:3px">${e.archivo||""}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${(e.lugar||"").slice(0,60)}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvidencia(${j})">borrar</a></div></div></div>`;
+  });
+  cont.innerHTML = vis ? html : '<div class="mut" style="padding:8px 2px">Ninguna evidencia coincide con el filtro.</div>';
+  if($("adFltInfo")){ const f=q||fp||fo||fr; $("adFltInfo").textContent = f ? `Mostrando ${vis} de ${adminEvidencias.length}` : `${adminEvidencias.length} evidencia(s)`; }
+  adminEvidencias.forEach((e,j)=>{ const img=$("adimg"+j); if(!img) return; if(adminFotoURLs[j]) img.src=adminFotoURLs[j].url; else adminCargarFoto("adimg"+j, e.storage_path, j, e.archivo); });   // usa cache; carga solo lo visible aún no cargado
+}
+async function adminCargarFoto(imgId, storagePath, j, nombre){
+  if(!storagePath){ return; } const img=$(imgId); if(!img) return;
+  try{ const url=SB_URL+"/storage/v1/object/authenticated/"+storagePath.split("/").map(encodeURIComponent).join("/");
+    const r=await fetch(url,{headers:adminHeaders()}); if(r.ok){ const b=await r.blob(); const u=URL.createObjectURL(b); img.src=u; if(j!=null) adminFotoURLs[j]={url:u, nombre:nombre||"", blob:b}; } }catch(_){}
+}
+window.adminVerFoto=(j)=>{ const f=adminFotoURLs[j]; if(!f) return; lbActual=j; $("lbImg").src=f.url; $("lbName").textContent=f.nombre||""; $("lightbox").classList.remove("hide"); };
+window.descargarFoto=(j)=>{ const f=adminFotoURLs[j]; if(!f){ toast("La foto aún se está cargando…"); return; } const a=document.createElement("a"); a.href=f.url; a.download=f.nombre||"evidencia.jpg"; a.click(); };
+window.adminBorrarEvidencia=async(j)=>{
+  const e=adminEvidencias[j]; if(!e) return;
+  if(!confirm(`¿Borrar esta evidencia?\n\n${e.item||""} · ${(e.requerimiento||"").slice(0,40)}\n${e.archivo||""}\n\nElimina la foto y su registro. No se puede deshacer.`)) return;
+  try{
+    const rr=await fetch(SB_URL+"/rest/v1/evidencias?id=eq."+encodeURIComponent(e.id), {method:"DELETE", headers:Object.assign({},adminHeaders(),{Prefer:"return=representation",Accept:"application/json"})});
+    if(rr.status===401){ adminSesExpirada(); return; }
+    if(!rr.ok){ alert("No se pudo borrar (HTTP "+rr.status+").\n\nFalta activar el permiso de borrado: corre la Capa5 en Supabase (SQL Editor) y reintenta."); return; }
+    let borradas=[]; try{ borradas=await rr.json(); }catch(_){}
+    if(!Array.isArray(borradas)||!borradas.length){ alert("La evidencia NO se borró (el servidor no eliminó ninguna fila).\n\nEsto pasa cuando el permiso de borrado no está activo: corre la Capa5 en Supabase (SQL Editor) y reintenta."); return; }   // 200 con 0 filas = RLS bloqueó
+    if(e.storage_path){ try{ const p=e.storage_path.replace(/^evidencias\//,"").split("/").map(encodeURIComponent).join("/");
+      await fetch(SB_URL+"/storage/v1/object/evidencias/"+p, {method:"DELETE", headers:adminHeaders()}); }catch(_){} }
+    toast("Evidencia borrada ✓");
+    if(adminEventoActual!=null) adminAbrir(adminEventoActual);   // refresca la vista del evento
+  }catch(_){ toast("Error al borrar"); }
+};
+$("lbClose").addEventListener("click", ()=>$("lightbox").classList.add("hide"));
+$("lbDown").addEventListener("click", ()=>{ if(lbActual!=null) descargarFoto(lbActual); });
+$("lightbox").addEventListener("click", e=>{ if(e.target.id==="lightbox") $("lightbox").classList.add("hide"); });
+/* Manifiesto CSV del evento (se genera desde la tabla -> siempre al día con todo lo enviado) */
+window.adminManifiesto=()=>{
+  const arr=adminEvidencias; if(!arr.length){ toast("Sin evidencias"); return; }
+  const cols=["radicado","evento_consec","cliente","evento","categoria","item","item_id","requerimiento","cantidad","proveedor","adicional","solicitado_por","justificacion","operador_nombre","operador_cedula","operador_celular","tipo","archivo","fecha","hora","lugar","lat","lon","creado"];
+  let csv=cols.join(",")+"\n";
+  arr.forEach(e=>{ csv+=cols.map(c=>{ const v=(c==="evento_consec")?(e.consec?evConsecTag(e.consec):""):(e[c]!=null?e[c]:""); return csvCell(v); }).join(",")+"\n"; });
+  bajar(new Blob([csv],{type:"text/csv"}), `manifiesto_${slug(arr[0].cliente||"")}_${slug(arr[0].evento||"")}.csv`);
+};
+/* ZIP con las fotos cargadas + manifiesto */
+window.adminFotosZIP=async()=>{
+  const arr=adminEvidencias; const idx=Object.keys(adminFotoURLs);
+  if(!idx.length){ toast("Las fotos aún se están cargando…"); return; }
+  toast("Generando ZIP…"); const zip=new JSZip();
+  idx.forEach(j=>{ const f=adminFotoURLs[j]; if(f&&f.blob) zip.file(f.nombre||("foto_"+j+".jpg"), f.blob); });
+  const cols=["radicado","cliente","evento","categoria","item","item_id","requerimiento","operador_nombre","archivo","fecha","hora","lugar","creado"];
+  let csv=cols.join(",")+"\n"; arr.forEach(e=>{ csv+=cols.map(c=>csvCell(e[c]!=null?e[c]:"")).join(",")+"\n"; });
+  zip.file("manifiesto.csv", csv);
+  bajar(await zip.generateAsync({type:"blob"}), `fotos_${slug(arr[0].cliente||"")}_${slug(arr[0].evento||"")}.zip`);
+  toast("ZIP descargado");
+};
+
+/* ---- OPERADOR: captura ---- */
+function poblarItemTop(){
+  const s=$("item"); const cur=s.value; s.innerHTML="<option value=''>— Elige un requerimiento —</option>";
+  itemsDelOperador().forEach(it=>{ const n=fotosDeItem(it.iid); const mark = n>=3?"✓ ":(n>0?"◔ ":"○ ");   // ✓ completo · ◔ en progreso · ○ pendiente
+    const o=document.createElement("option"); o.value=it.iid;   // iid, NO codigo: el mismo codigo vive en varios escenarios
+    const cta=String(it.cant||"").trim(), umd=String(it.um||"").trim();
+    o.textContent=(it.adicional?"➕ ":"")+mark+(it.cat?`${it.cat} · `:"")+(it.req?`${it.codigo} · ${it.req}`:it.codigo)+(cta?`  ×${cta}${umd?" "+umd:""}`:"")+(n>0&&n<3?`  (${n}/3)`:"");
+    s.appendChild(o); });
+  s.value = (cur && itemsDelOperador().some(it=>it.iid===cur)) ? cur : "";
+  itemAnterior = s.value;   // sincroniza el guardián de "mínimo 3 antes de cambiar"
+}
+function irACaptura(){
+  poblarItemTop();
+  const mk=(cfg&&cfg.marca)||{}; $("pos").value=mk.pos||"bl"; $("esc").value=mk.esc||"3.4"; $("marca").checked=mk.on!==false;   // marca fijada por el ejecutivo
+  $("ctx").textContent = (cfg.cl||"—")+" · "+(cfg.ev||"—")+((operador&&operador.prov)?("  ·  "+operador.prov):"");
+  batch=[]; renderLista(); show("cap"); window.scrollTo(0,0);
+  if(IN_APP) $("inAppAviso").classList.remove("hide");
+  sinGpsHasta=0; pedirUbicacion(); vigilarPermisoGPS(); actualizarGuia();
+  cargarLote().then(()=>{ if(batch.length){ renderLista(); actualizarGuia(); } });   // restaura el lote en curso si quedó de una sesión anterior
+  sincronizarProgreso(true);   // trae el progreso ya subido a la base (funciona entre dispositivos)
+}
+/* ---- Captura guiada por ítem (mínimo 3 fotos enfocadas) ---- */
+/* Ojo: el campo se sigue llamando "itemCodigo" por compatibilidad con lotes ya guardados en
+   IndexedDB, pero desde la v12 guarda el IID (categoria|codigo|ordinal), no el codigo pelado. */
+function enLoteDeItem(cod){ return cod ? batch.filter(e=>e.itemCodigo===cod && e.tipo==="foto").length : 0; }      // en el lote actual (sin enviar)
+function enviadasDeItem(cod){ if(!cod) return 0; try{ return counters[claveDe(cod)]||0; }catch(_){ return 0; } }   // ya enviadas en sesiones previas
+function fotosDeItem(cod){ return enLoteDeItem(cod)+enviadasDeItem(cod); }                                        // total = lote + enviadas
+/* Sincroniza el progreso (✓/◔) desde la base: cuenta fotos ya subidas por requerimiento.
+   Usa un RPC de SOLO-CONTEO (no expone fotos, nombres, GPS ni datos del operador) -> el progreso
+   viaja entre dispositivos y evita re-fotografiar lo ya hecho. Mantiene el insert-only del operador. */
+let sincronizando=false;
+async function sincronizarProgreso(silencioso){
+  if(!cfg||!cfg.uid||sincronizando) return;
+  sincronizando=true; const lnk=$("syncProg"); if(lnk&&!silencioso) lnk.textContent="Actualizando…";
+  try{
+    const r=await fetchTO(SB_URL+"/rest/v1/rpc/progreso_evento",{method:"POST",headers:SB_H,body:JSON.stringify({p_uid:cfg.uid})},15000);
+    if(r.ok){ const arr=await r.json();
+      if(Array.isArray(arr)){
+        arr.forEach(row=>{ const n=parseInt(row.n,10)||0;
+          // llave global tal cual la guarda la base; si la Capa9 aún no corre, se reconstruye con categoria+item (ordinal 1)
+          const k = row.item_id || (row.item ? `${cfg.uid}|${iidDe(row.item,row.categoria,1)}` : "");
+          if(!k) return; counters[k]=Math.max(counters[k]||0,n); });
+        saveJSON(NS+"counters",counters); poblarItemTop(); if(typeof actualizarGuia==="function") actualizarGuia(); if(typeof renderLista==="function") renderLista();
+        if(lnk&&!silencioso) toast("Progreso actualizado desde la base ✓");
+      }
+    } else if(lnk&&!silencioso){ toast("No se pudo actualizar (¿falta correr la Capa8?)"); }
+  }catch(_){ if(lnk&&!silencioso) toast("Sin señal para actualizar el progreso"); }
+  finally{ sincronizando=false; if(lnk) lnk.textContent="↻ Traer avance de otros equipos"; }
+}
+/* Antes se imprimían los ~370 códigos pendientes en un solo renglón: ilegible, y con el mismo
+   código repetido por aparecer en varios escenarios. Ahora un conteo por escenario, con el
+   detalle desplegable y acotado para que no vuelva a ser un muro de texto. */
+var faltAbierto=false;
+/* El bloque de progreso se pinta aparte: actualizarGuia() se devuelve temprano cuando no hay
+   requerimiento seleccionado, así que colgar de ahí el "ver detalle" lo dejaba sin repintar. */
+function pintarProgreso(){
+  const pi=$("prog"); if(!pi) return;
+  const items=itemsDelOperador(); const total=items.length;
+  const faltan=items.filter(it=>fotosDeItem(it.iid)<3); const compl=total-faltan.length;
+  const pct=total?Math.round(compl/total*100):0;
+  const span=pi.querySelector(".bar>span"); if(span) span.style.width=pct+"%";
+  const lbl=pi.querySelector(".lbl"); if(lbl) lbl.innerHTML = total ? (`<b>${compl}/${total}</b> requerimientos completos`+resumenFaltantes(faltan)) : "Sin requerimientos cargados.";
+}
+window.verFaltantes=()=>{ faltAbierto=!faltAbierto; pintarProgreso(); };
+function resumenFaltantes(faltan){
+  if(!faltan.length) return " · ¡todo listo! ✅";
+  const porCat={};
+  faltan.forEach(it=>{ const c=(it.cat||"").trim()||"Sin escenario"; (porCat[c]=porCat[c]||[]).push(it); });
+  const grupos=Object.entries(porCat).sort((a,b)=>b[1].length-a[1].length || a[0].localeCompare(b[0],"es"));
+  let h=` · faltan <b>${faltan.length}</b>`
+    +`<div class="mut" style="margin:3px 0 0">${grupos.map(([c,l])=>`${c} <b>${l.length}</b>`).join(" · ")}</div>`
+    +`<a class="lnk" style="font-size:12px" onclick="verFaltantes()">${faltAbierto?"ocultar detalle":"ver detalle"}</a>`;
+  if(faltAbierto){
+    const TOPE=12;   // por escenario: evita volver al muro de texto en listas de 400 ítems
+    h+=grupos.map(([c,l])=>`<div class="mut" style="margin:5px 0 0"><b>${escAttr(c)}</b><br>`
+      +l.slice(0,TOPE).map(it=>`${escAttr(it.codigo)}${it.req?" · "+escAttr(String(it.req).replace(/\s+/g," ").slice(0,30)):""}`).join("<br>")
+      +(l.length>TOPE?`<br>…y ${l.length-TOPE} más`:"")+`</div>`).join("");
+  }
+  return h;
+}
+/* Ficha del requerimiento seleccionado: evita que el operador tenga que devolverse a la
+   cotización para saber DÓNDE va y CUÁNTO es. Todo sale de la plantilla del evento. */
+var carAbierta={};
+window.verMasCar=(k)=>{ carAbierta[k]=!carAbierta[k]; actualizarGuia(); };
+function fichaDeItem(iid){
+  const cant=String(itemCant(iid)||"").trim(), um=String(itemUm(iid)||"").trim(),
+        dias=String(itemDias(iid)||"").trim(), car=String(itemCar(iid)||"").trim(), codigo=itemCod(iid);
+  const L=[];
+  const med=[cant?(cant+(um?" "+um:"")):"", (dias&&dias!=="0")?(dias+" día"+(dias==="1"?"":"s")):""].filter(Boolean).join(" · ");
+  if(med)  L.push(`<span class="fl">📦 <span class="fk">Cantidad:</span> ${escAttr(med)}</span>`);
+  if(car){
+    const largo=car.length>350, abierta=!!carAbierta[iid];   // p90 = 360 chars: ~9 de cada 10 se ven completas sin desplegar
+    L.push(`<span class="fl">📍 <span class="fk">Ubicación y detalle:</span> <span class="fcar${largo&&!abierta?" clamp":""}">${escAttr(car)}</span>`
+      +(largo?`<a class="fmas" onclick="verMasCar('${escAttr(iid).replace(/'/g,"&#39;")}')">${abierta?"ver menos":"ver más"}</a>`:"")+`</span>`);
+  }
+  if(!L.length) return `<div class="gficha"><span class="fl">Código <b>${escAttr(codigo)}</b> — la plantilla no trae cantidad ni detalle para este ítem.</span></div>`;
+  return `<div class="gficha">${L.join("")}</div>`;
+}
+function itemReqCorto(cod){ const r=itemReq(cod)||cod; return r.length>34?r.slice(0,34)+"…":r; }
+/* diccionario de rasgos distintivos por palabra clave (se busca en la descripción del ítem) */
+var TIPS=[
+  [["pasamanos"],"el riel montado en el BORDE de la tarima (no las vallas del piso)"],
+  [["tarima","escenario","escaleras","podium","estoperol"],"el piso/deck negro con faldón y las escaleras de acceso"],
+  [["techo","lona","montaje nocturno de techo"],"el techo de lona y la estructura, desde abajo se ve la cercha"],
+  [["generador","planta","kva","insonorizado"],"el generador: el motor, el tanque y la cabina (no solo el tablero)"],
+  [["acometida","extension","cable","tablero"],"el tablero de distribución y los cables gruesos conectados"],
+  [["pitch","pantalla","led","panel sellado"],"la pantalla LED encendida, de frente"],
+  [["sonido","parlante","line array","p.a"],"los parlantes / line-array y la consola de audio"],
+  [["radio","microfono","micrófono","splitter","prensa"],"el equipo (radios, micrófonos o el splitter) de cerca"],
+  [["carpa","camerino","stand","gazebo","toldo"],"la carpa completa: techo, estructura y cerramientos"],
+  [["mesa"],"la mesa: superficie y patas, vacía"],
+  [["silla","taburete","banco"],"las sillas apiladas o en fila, de cerca"],
+  [["bandera","banderin","banderín","cenefa"],"la bandera tricolor (amarillo-azul-rojo) en primer plano"],
+  [["floral","follaje","muro verde","arreglo","decoracion","decoración"],"el arreglo/follaje verde de cerca"],
+  [["valla"],"las vallas metálicas en fila, de cerca"],
+  [["rampa"],"la superficie de aluminio de la rampa con la cinta amarillo-negra"],
+  [["baño","bano","portatil vip","porta"],"la cabina de baño portátil, con la puerta cerrada"],
+  [["ambulancia","paramed"],"el vehículo con el texto AMBULANCIA / la cruz visibles"],
+  [["transporte","van","bus","buseta","vehiculo"],"el vehículo completo (van o bus)"],
+  [["refrigerio","alimentacion","alimentación","comida","almuerzo"],"abre una caja/bolsa y muestra el CONTENIDO (los paquetes), no el empaque sellado"],
+  [["botella","agua","hidratante"],"los packs de botellas de agua, de cerca"],
+  [["nevera","cooler","hielo"],"la nevera/cooler con el hielo y el producto adentro"],
+  [["caneca","basura","aseo","limpieza","residuo"],"la caneca / bolsas de basura o el kit de aseo"],
+  [["atril"],"el atril / podio de frente"],
+  [["papayera"],"la banda con los instrumentos de viento"],
+  [["centro de mesa","centros de mesa"],"el centro de mesa: las flores con la botella"],
+  [["fonda"],"la barra/fonda de venta completa"],
+  [["manilla","pulsera","vinilo","cinta","adhesiv"],"el material de cerca (rollos, manillas, vinilo)"],
+  [["personal","logistic","logístic","coordinador","staff"],"a la persona/equipo con la camiseta de la marca visible"],
+];
+function tipDeItem(req){
+  const t=(req||"").toLowerCase();
+  for(const [kws,hint] of TIPS){ if(kws.some(k=>t.indexOf(k)>=0)) return hint; }
+  return "el elemento contratado, que ocupe la mayor parte de la foto";
+}
+function actualizarGuia(){
+  const g=$("guiaItem"); if(!g) return;
+  const cod=$("item").value;
+  if(!cod){ g.className="guia neutro"; g.innerHTML="Elige un requerimiento arriba para ver la guía y el contador de fotos."; return; }
+  const enLote=enLoteDeItem(cod), enviadas=enviadasDeItem(cod), n=enLote+enviadas, meta=3, ok=n>=meta;
+  const it=itemsDelOperador().find(x=>x.iid===cod)||itemById(cod); const nombre=(it&&it.req)?it.req:cod;
+  g.className="guia "+(ok?"ok":"falta");
+  let head;
+  if(enviadas>0 && enLote===0) head=`✅ ${nombre.slice(0,44)} — ${enviadas} ya enviada${enviadas===1?"":"s"} · listo`;
+  else{ head=`${ok?"✅":"📸"} ${nombre.slice(0,44)} — ${enLote} en este lote`+(enviadas>0?` (+${enviadas} enviadas)`:"")+(ok?" · meta cumplida":` · faltan ${meta-n} para el mínimo de 3`); }
+  g.innerHTML=`<div class="gcount">${head}</div>`
+    +fichaDeItem(cod)
+    +`<div class="gtips"><b>Enfoca:</b> ${tipDeItem(nombre)}.<br>Que ocupe <b>≥60%</b> del encuadre · <b>no rotes</b> el teléfono · el plano abierto solo como contexto.</div>`;
+}
+let itemAnterior="";
+$("item").addEventListener("change", ()=>{
+  const nuevo=$("item").value;
+  // Mínimo 3 por requerimiento: no dejar pasar a otro requerimiento si el actual está empezado (<3).
+  if(itemAnterior && nuevo && nuevo!==itemAnterior){
+    const totalPrev=fotosDeItem(itemAnterior);
+    if(enLoteDeItem(itemAnterior)>0 && totalPrev<3){
+      alert(`Aún no completas las 3 evidencias de «${itemReqCorto(itemAnterior)}» (llevas ${totalPrev}).\n\nCaptura al menos 3 fotos de un requerimiento antes de pasar a otro.`);
+      $("item").value=itemAnterior; actualizarGuia(); return;
+    }
+  }
+  itemAnterior=$("item").value; actualizarGuia();
+});
+if($("syncProg")) $("syncProg").addEventListener("click", ()=>sincronizarProgreso(false));
+/* Requerimiento adicional (agregado por el operador en sitio) */
+$("addAdic").addEventListener("click", ()=>{ ["adReq","adCant","adQuien","adNota"].forEach(id=>$(id).value=""); $("adicm").classList.remove("hide"); });
+$("adClose").addEventListener("click", ()=>$("adicm").classList.add("hide"));
+$("adSave").addEventListener("click", ()=>{
+  const req=$("adReq").value.trim(); if(!req){ alert("Escribe el requerimiento adicional."); return; }
+  const quien=$("adQuien").value.trim(); if(!quien){ alert("Indica quién solicitó el requerimiento adicional."); return; }
+  // El código lleva la marca del operador: cada celular sólo ve SUS adicionales (viven en localStorage),
+  // así que sin esto dos operadores creaban "A01" a la vez y sus fotos caían en la misma llave.
+  const a=adicionalesDelEvento(); const marca=opTag()||"OP";
+  let mx=0; a.forEach(it=>{ const n=parseInt(String(it.codigo).split("-").pop(),10); if(!isNaN(n)&&n>mx)mx=n; });
+  const cod="A-"+marca+"-"+String(mx+1).padStart(2,"0");
+  const prov=(operador&&operador.prov)||"";
+  a.push({codigo:cod, req, cant:$("adCant").value.trim(), prov, nit:nitDeProveedor(prov), cat:"Adicionales", adicional:true, solicitadoPor:quien, justificacion:$("adNota").value.trim()});
+  guardarAdicionales(a); $("adicm").classList.add("hide");
+  const iid=iidDe(cod,"Adicionales",1);
+  poblarItemTop(); $("item").value=iid; itemAnterior=iid; actualizarGuia(); renderLista();
+});
+$("gpsChip").addEventListener("click", ()=>{ sinGpsHasta=0; abrirGpsModal(null); });
+$("gpsRetry").addEventListener("click", ()=>{ if(gpsFresco()) return cerrarGpsModal(true);   // gesto vivo -> la cámara puede abrir
+  geoDenied=false; geoPromise=null; pedirUbicacion(); pintarGpsModal(); });
+/* Seguir sin ubicación es decisión del operador y dura 15 min: si el permiso llega antes, se retoma solo. */
+$("gpsSkip").addEventListener("click", ()=>{ sinGpsHasta=Date.now()+15*60000; actualizarEstadoGPS(); cerrarGpsModal(true); });
+$("gpsClose").addEventListener("click", ()=>cerrarGpsModal(false));
+$("btnCap").addEventListener("click", ()=>conUbicacion(abrirCamara));
+$("btnGal").addEventListener("click", ()=>conUbicacion(()=>$("gal").click()));
+/* NaN es typeof "number" y NaN != null es true: por eso un GPS corrupto en el EXIF se colaba
+   por todos los filtros y terminaba estampado como "NaN, NaN". Se valida con Number.isFinite. */
+function esNum(v){ return typeof v==="number" ? isFinite(v) : (v!=null && v!=="" && isFinite(+v)); }
+function num(v){ return esNum(v) ? +v : null; }
+function metaDispositivo(coords){ const now=new Date(); return coords?{fecha:`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`,hora:`${z(now.getHours())}:${z(now.getMinutes())}`,lat:coords.latitude,lon:coords.longitude}:null; }
+$("capf").addEventListener("change", async e=>{ const files=[...e.target.files]; e.target.value=""; const coords=await posActual(); agregar(files, metaDispositivo(coords)); });
+$("vidf").addEventListener("change", async e=>{ const files=[...e.target.files]; e.target.value=""; const coords=await posActual(); agregar(files, metaDispositivo(coords)); });
+/* Android borra el GPS del EXIF al compartir, y varias cámaras de terceros (Timestamp y
+   similares) nunca lo escriben: sin este respaldo, toda foto subida desde la galería llega
+   sin ubicación. Se usa la posición actual sólo si la foto es del día — no para una foto vieja. */
+$("gal").addEventListener("change", async e=>{ const files=[...e.target.files]; e.target.value="";
+  const coords=await posActual(); agregar(files, null, metaDispositivo(coords)); });
+["pos","esc","marca"].forEach(id=>$(id).addEventListener("change", redibujarTodas));   /* auto-refresh de la marca */
+$("who").addEventListener("click", ()=>{ if(!operador) return; $("onom").value=operador.nombre; $("oced").value=operador.cedula; $("ocel").value=operador.celular;
+  if(hayProv()){ $("oprovWrap").classList.remove("hide"); llenarSelectProv($("oprov"), operador.prov);
+    if(hayNits()){ $("onitWrap").classList.remove("hide"); $("onit").value=""; } else $("onitWrap").classList.add("hide"); }
+  else { $("oprovWrap").classList.add("hide"); $("onitWrap").classList.add("hide"); }
+  $("opm").classList.remove("hide"); });
+$("opClose").addEventListener("click", ()=>$("opm").classList.add("hide"));
+$("opSave").addEventListener("click", ()=>{ const n=$("onom").value.trim(),c=$("oced").value.trim(),ce=$("ocel").value.trim(); if(!n||!c||!ce){ alert("Completa nombre, cédula y celular."); return; }
+  const nuevo={nombre:n,cedula:c,celular:ce}; if(hayProv()){ const p=$("oprov").value; if(!p){ alert("Selecciona tu empresa proveedora."); return; }
+    const nitReq=nitDeProveedor(p);
+    if(nitReq && !nitCoincide($("onit").value, nitReq)){ alert("El NIT no corresponde a la empresa seleccionada.\n\nIngresa el NIT del proveedor (sin dígito de verificación) para continuar."); return; }
+    nuevo.prov=p; }
+  operador=nuevo; saveJSON(NS+"operador",operador); pintarWho(); $("opm").classList.add("hide"); poblarItemTop(); $("ctx").textContent=(cfg.cl||"—")+" · "+(cfg.ev||"—")+(operador.prov?("  ·  "+operador.prov):""); renderLista(); });
+$("enviar").addEventListener("click", ()=>empaquetar("supabase"));
+/* Si el geocoder falló por falta de señal, al reconectar se completan las direcciones y se re-sella. */
+window.addEventListener("online", ()=>{ if(batch.some(e=>e.status==="listo"&&e.datos&&esNum(e.datos.lat)&&!e.datos.lugar)) redibujarTodas(); });
+
+
+/* ---- lote ---- */
+function agregar(fileList, meta, metaResp){
+  const cod=$("item").value;
+  const now=new Date(); const cargada={fecha:`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`, hora:`${z(now.getHours())}:${z(now.getMinutes())}`};
+  [...fileList].forEach(file=>{
+    const video=/^video\//.test(file.type)||/\.(mp4|mov|m4v|3gp|webm|avi|mkv)$/i.test(file.name);
+    const ext=video?((file.name.split(".").pop()||"mp4").toLowerCase()):"jpg";
+    const e={id:++seq,file,itemCodigo:cod,tipo:video?"video":"foto",ext,status:"procesando",blob:null,thumb:"",datos:{},filename:"",meta:meta||null,metaResp:metaResp||null,cargada};
+    batch.push(e); procesar(e); });
+  renderLista();
+}
+/* VOCABULARIO: en la interfaz el rol "operador" se llama PROVEEDOR y el "ejecutivo" se llama
+   PRODUCTOR (nomenclatura del cliente). Dentro del código, en las columnas de Supabase
+   (operador_nombre, operador_cedula…), en las claves de localStorage (est_operador) y en los
+   encabezados del CSV se conservan los nombres viejos a propósito: renombrarlos rompería los
+   datos ya cargados y las herramientas que consumen el manifiesto. */
+/* ---- Persistencia del lote en curso (IndexedDB): no perder capturas si se recarga la app.
+   Guarda las evidencias LISTAS (con su blob) por evento. Todo va con guardas: si IDB falla,
+   la app sigue funcionando igual, solo sin respaldo de sesión. ---- */
+const IDB={db:null,pend:false};
+function idbOpen(){ return new Promise(res=>{ try{ const r=indexedDB.open(NS+"estrella_ev",1);
+  r.onupgradeneeded=()=>{ try{ r.result.createObjectStore("lote",{keyPath:"k"}); }catch(_){} };
+  r.onsuccess=()=>{ IDB.db=r.result; res(IDB.db); }; r.onerror=()=>res(null);
+}catch(_){ res(null); } }); }
+function claveEvento(){ return cfg?`${slug(cfg.cl)}|${slug(cfg.ev)}`:"NA"; }
+async function guardarLote(){ try{ const db=IDB.db||await idbOpen(); if(!db||!cfg) return;
+  const items=batch.filter(e=>e.status==="listo").map(e=>({id:e.id,itemCodigo:e.itemCodigo,tipo:e.tipo,ext:e.ext,filename:e.filename,consec:e.consec,blob:e.blob,file:e.file,thumb:e.thumb,datos:e.datos,cargada:e.cargada,meta:e.meta,status:"listo"}));
+  const tx=db.transaction("lote","readwrite"); tx.objectStore("lote").put({k:claveEvento(),seq,items});
+}catch(_){} }
+async function cargarLote(){ try{ const db=IDB.db||await idbOpen(); if(!db||!cfg) return;
+  const rec=await new Promise(res=>{ const rq=db.transaction("lote","readonly").objectStore("lote").get(claveEvento()); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>res(null); });
+  if(rec&&rec.items&&rec.items.length){ batch=rec.items.map(e=>({...e,status:"listo"})); seq=Math.max(seq,rec.seq||0);
+    batch.forEach(e=>{ if(e.itemCodigo && String(e.itemCodigo).indexOf("|")<0){ const it=itemById(e.itemCodigo); if(it&&it.iid) e.itemCodigo=it.iid; } });   // lote guardado por la v11: pasar de codigo a iid
+  }
+}catch(_){} }
+function videoThumb(file){ return new Promise(res=>{
+  try{ const v=document.createElement("video"); v.preload="metadata"; v.muted=true; v.playsInline=true;
+    const url=URL.createObjectURL(file); let hecho=false; const done=d=>{ if(hecho) return; hecho=true; URL.revokeObjectURL(url); res(d||""); };
+    v.onloadeddata=()=>{ try{ v.currentTime=Math.min(0.1,(v.duration||1)/2); }catch(_){ done(""); } };
+    v.onseeked=()=>{ try{ const s=Math.min(1,420/Math.max(v.videoWidth||120,v.videoHeight||120)); const c=document.createElement("canvas"); c.width=Math.round((v.videoWidth||120)*s); c.height=Math.round((v.videoHeight||120)*s); c.getContext("2d").drawImage(v,0,0,c.width,c.height); done(c.toDataURL("image/jpeg",0.6)); }catch(_){ done(""); } };
+    v.onerror=()=>done(""); setTimeout(()=>done(""),4000); v.src=url;
+  }catch(_){ res(""); }
+}); }
+/* "Del día": sin fecha EXIF se asume que sí (la foto acaba de salir de la cámara);
+   con fecha, se acepta hasta 36 h atrás para no ponerle la dirección de hoy a una foto vieja. */
+function fotoDelDia(fecha){ if(!fecha) return true;
+  const p=String(fecha).split("-"); if(p.length!==3) return true;
+  const t=new Date(+p[0],+p[1]-1,+p[2]).getTime();
+  return isFinite(t) && (Date.now()-t) < 36*3600*1000; }
+async function procesar(entry){
+  try{
+    if(entry.tipo==="video"){
+      const m=entry.meta||{};
+      const mla=num(m.lat), mlo=num(m.lon);
+      let lugar="",lugLin=[]; if(mla!=null&&mlo!=null){ const d=await geocodeThrottled(mla,mlo); if(d){ lugar=d.txt; lugLin=d.lineas; } }
+      entry.datos={fecha:m.fecha||"",hora:m.hora||"",lugar,lugLin,lat:mla,lon:mlo};
+      entry.thumb=await videoThumb(entry.file); entry.blob=entry.file;   // el video va sin marca (sin re-encode)
+      entry.status="listo"; renderLista(); return;
+    }
+    const bitmap=await decodificar(entry.file);
+    let ex;
+    if(entry.meta){ ex={fecha:entry.meta.fecha||"",hora:entry.meta.hora||"",lat:num(entry.meta.lat),lon:num(entry.meta.lon)}; }
+    else{ ex={fecha:"",hora:"",lat:null,lon:null};
+      try{ const d=await exifr.parse(entry.file,["DateTimeOriginal","CreateDate"]); const f=d&&(d.DateTimeOriginal||d.CreateDate); if(f instanceof Date){ ex.fecha=`${f.getFullYear()}-${z(f.getMonth()+1)}-${z(f.getDate())}`; ex.hora=`${z(f.getHours())}:${z(f.getMinutes())}`; } }catch(_){}
+      try{ const g=await exifr.gps(entry.file); if(g&&esNum(g.latitude)&&esNum(g.longitude)){ ex.lat=+g.latitude; ex.lon=+g.longitude; } }catch(_){}
+      // Sin GPS utilizable en el EXIF: se usa la posición del teléfono si la foto es del día.
+      const r=entry.metaResp;
+      if(ex.lat==null && r && esNum(r.lat) && fotoDelDia(ex.fecha)){ ex.lat=+r.lat; ex.lon=+r.lon; if(!ex.fecha){ ex.fecha=r.fecha||""; ex.hora=r.hora||""; } }
+    }
+    ex.lat=num(ex.lat); ex.lon=num(ex.lon);
+    let lugar="",lugLin=[]; if(ex.lat!=null&&ex.lon!=null){ const d=await geocodeThrottled(ex.lat,ex.lon); if(d){ lugar=d.txt; lugLin=d.lineas; } }
+    entry.datos={fecha:ex.fecha,hora:ex.hora,lugar,lugLin,lat:ex.lat,lon:ex.lon};
+    const texto=textoMarca(entry.datos);
+    const out=await dibujar(bitmap,texto,$("marca").checked);
+    entry.blob=out.blob; entry.thumb=out.thumb;
+    entry.status = out.vacio ? "⚠ salió en negro — vuelve a tomarla" : "listo";
+    if(!lugar && ex.lat!=null) programarCompletado();   // se resella sola en cuanto haya dirección
+  }catch(err){ entry.status=(err&&err.message==="no-decode")?"HEIC no decodificable (usa Safari o JPG)":("error: "+(err&&err.message||err)); }
+  renderLista();
+}
+function claveDe(iid){ return `${(cfg&&cfg.uid)||"SIN-UID"}|${iid}`; }   // = item_id de la base: llave global e inmutable
+function calcularNombres(){ const u={}; batch.forEach(e=>{ if(!e.itemCodigo){ e.filename=""; return; } const base=counters[claveDe(e.itemCodigo)]||0; u[e.itemCodigo]=(u[e.itemCodigo]||0)+1; e.consec=base+u[e.itemCodigo]; const desc=slug(itemReq(e.itemCodigo)); const cat=itemCat(e.itemCodigo); const ot=opTag();
+  const fch=e.datos.fecha||(e.cargada?e.cargada.fecha:""); const hr=(e.datos.hora||(e.cargada?e.cargada.hora:"")).replace(/:/g,""); const fh=fch?("_"+fch+(hr?"_"+hr:"")):"";   // fecha/hora de captura (EXIF/dispositivo) o, si no hay, de carga
+  e.filename=`${slug(cfg.cl)}_${slug(cfg.ev)}_${cat?slug(cat)+"_":""}${itemCod(e.itemCodigo)}${desc&&desc!=="NA"?"_"+desc:""}${ot?"_"+ot:""}${fh}_${String(e.consec).padStart(3,"0")}.${e.ext||"jpg"}`; }); }
+function renderLista(){
+  calcularNombres(); if(typeof actualizarGuia==="function") actualizarGuia(); const c=$("list"); c.innerHTML="";
+  const listas=batch.filter(e=>e.status==="listo").length;
+  const sinReq=batch.filter(e=>e.status==="listo"&&!e.itemCodigo).length;
+  $("cnt").innerHTML = batch.length ? (`${listas}/${batch.length} listas`+(sinReq?` · <span style="color:#b3261e">${sinReq} sin requerimiento</span>`:"")) : "Aún no agregas evidencias.";
+  $("enviar").disabled=listas===0;
+  batch.forEach(e=>{
+    const opts=`<option value="" ${!e.itemCodigo?"selected":""}>— Selecciona requerimiento —</option>`+itemsDelOperador().map(it=>`<option value="${escAttr(it.iid)}" ${it.iid===e.itemCodigo?"selected":""}>${it.cat?it.cat+" · ":""}${it.codigo}${it.req?" · "+it.req.slice(0,26):""}</option>`).join("");
+    const d=document.createElement("div"); d.className="ev";
+    const badge=e.tipo==="video"?`<span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-size:22px;text-shadow:0 1px 4px #000">▶</span>`:"";
+    const thumbHtml=e.thumb?`<div style="position:relative;flex:none;width:66px;height:66px"><img src="${e.thumb}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#000">${badge}</div>`
+      :`<div style="width:66px;height:66px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px;background:#f0f0f0;border-radius:7px">${e.tipo==="video"?"▶":"…"}</div>`;
+    const sinUbi = (e.status==="listo" && e.datos && !esNum(e.datos.lat)) ? ' <span style="color:#b3261e" title="Sin coordenadas: el sello no lleva dirección">⚠ sin ubicación</span>'
+      : ((e.status==="listo" && e.datos && !e.datos.lugar) ? ' <span style="color:#7a4a12" title="Hay GPS pero ningún geocoder respondió; el sello quedó con coordenadas. Se reintenta al recuperar señal.">⚠ sin dirección</span>' : '');
+    const fnHtml = (e.status!=="listo" ? '<span style="color:var(--muted)">'+e.status+'</span>'
+      : (!e.itemCodigo ? '<span style="color:#b3261e">Asigna un requerimiento ↑</span>' : e.filename)) + sinUbi;
+    d.innerHTML=thumbHtml+
+      `<div class="in"><select onchange="cambiarItem(${e.id},this.value)">${opts}</select><div class="fn">${fnHtml}</div>
+       <div class="ac">${e.status==="listo"&&e.itemCodigo?`<a class="lnk" onclick="descargarUno(${e.id})">descargar</a>`:""}<a class="lnk" onclick="quitar(${e.id})">quitar</a></div></div>`;
+    c.appendChild(d);
+  });
+  pintarProgreso();
+  if($("item") && document.activeElement!==$("item")) poblarItemTop();   // refresca ✓/◔/○ en el selector
+  guardarLote();   // respalda el lote en curso (IndexedDB) ante recargas
+}
+window.cambiarItem=(id,v)=>{ const e=batch.find(x=>x.id===id); if(e){ e.itemCodigo=v; renderLista(); } };
+window.quitar=(id)=>{ batch=batch.filter(x=>x.id!==id); renderLista(); };
+window.descargarUno=(id)=>{ const e=batch.find(x=>x.id===id); if(e&&e.blob) bajar(e.blob,e.filename); };
+/* Re-dibuja la marca (posición/tamaño/on-off) reusando datos; y si a una foto le faltó la
+   dirección (geocode falló por señal), la reintenta aquí. Reemplaza el antiguo botón Re-procesar. */
+let redibujando=false;
+async function redibujarTodas(){
+  if(redibujando) return; redibujando=true;
+  try{ for(const e of batch){ if(e.tipo==="video"||e.status!=="listo"||!e.datos) continue;
+    try{
+      if(esNum(e.datos.lat) && !e.datos.lugar){ const d=await geocodeThrottled(e.datos.lat,e.datos.lon); if(d){ e.datos.lugar=d.txt; e.datos.lugLin=d.lineas; } }
+      const bmp=await decodificar(e.file); const texto=textoMarca(e.datos);
+      const out=await dibujar(bmp,texto,$("marca").checked); e.blob=out.blob; e.thumb=out.thumb;
+    }catch(_){} } }
+  finally{ redibujando=false; renderLista(); }
+}
+
+/* Re-sella UNA evidencia con los datos que ya tiene (no vuelve a pedir nada a la red). */
+async function resellar(e){
+  try{ const bmp=await decodificar(e.file);
+    const out=await dibujar(bmp, textoMarca(e.datos), $("marca").checked);
+    e.blob=out.blob; e.thumb=out.thumb; return true; }catch(_){ return false; }
+}
+/* Completa las direcciones que faltaron y vuelve a sellar sólo esas fotos. Barato: si la
+   dirección ya está en caché (o hay una a menos de 150 m) no toca la red. */
+let completando=false, tareaCompletar=null;
+function faltanDirecciones(){ return batch.some(e=>e.tipo!=="video"&&e.status==="listo"&&e.datos&&esNum(e.datos.lat)&&!e.datos.lugar); }
+async function completarDirecciones(){
+  if(completando) return; completando=true;
+  try{ let cambio=false;
+    for(const e of batch){
+      if(e.tipo==="video"||e.status!=="listo"||!e.datos) continue;
+      if(e.datos.lugar||!esNum(e.datos.lat)) continue;
+      const d=await geocodeThrottled(e.datos.lat, e.datos.lon);
+      if(d){ e.datos.lugar=d.txt; e.datos.lugLin=d.lineas; if(await resellar(e)) cambio=true; }
+    }
+    if(cambio) renderLista();
+  } finally{ completando=false; }
+}
+/* Si la primera consulta falló (señal irregular al llegar al sitio), se reintenta sola en
+   segundo plano en vez de dejar la foto sellada con coordenadas para siempre. */
+function programarCompletado(){
+  if(tareaCompletar) return;
+  const pasos=[5000,15000,40000]; let i=0;
+  const tic=()=>{ tareaCompletar=setTimeout(async()=>{
+    await completarDirecciones(); tareaCompletar=null;
+    if(faltanDirecciones() && ++i<pasos.length) tic();
+  }, pasos[i]); };
+  tic();
+}
+function csvCell(v){ v=String(v==null?"":v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
+let enviando=false;
+function construirCSV(listas, radicado){
+  let csv="radicado,operador_cedula,operador_nombre,operador_celular,operador_proveedor,cliente,evento,evento_consec,evento_fecha,evento_ciudad,categoria,item,cantidad,proveedor,proveedor_nit,adicional,solicitado_por,justificacion,tipo,archivo,fecha,hora,lugar,lat,lon\n";
+  const evc=cfg.consec?evConsecTag(cfg.consec):""; const rad=radicado||"";
+  listas.forEach(e=>{ const ad=itemAdic(e.itemCodigo);
+    csv+=[rad,operador.cedula,operador.nombre,operador.celular,(operador.prov||""),cfg.cl,cfg.ev,evc,cfg.fe||"",cfg.ci||"",itemCat(e.itemCodigo),itemCod(e.itemCodigo),itemCant(e.itemCodigo),itemProv(e.itemCodigo),itemNit(e.itemCodigo),(ad?"SI":""),(ad?ad.solicitadoPor:""),(ad?ad.justificacion:""),e.tipo||"foto",e.filename,e.datos.fecha,e.datos.hora,e.datos.lugar,e.datos.lat,e.datos.lon].map(csvCell).join(",")+"\n"; });
+  return csv;
+}
+async function descargarZIP(listas, csv, exito){
+  $("sendInfo").textContent="Generando ZIP…";
+  const zip=new JSZip(); listas.forEach(e=>zip.file(e.filename,e.blob)); zip.file("manifiesto.csv",csv);
+  const blob=await zip.generateAsync({type:"blob"});
+  const nombre=`Evidencias_${slug(cfg.cl)}_${slug(cfg.ev)}_${slug(operador.cedula)}.zip`;
+  bajar(blob,nombre); $("sendInfo").innerHTML='ZIP «'+nombre+'» descargado (respaldo).'; exito();
+}
+async function empaquetar(accion, saltarMin){   // accion: "supabase" | "compartir" | "zip"; saltarMin: reintento de las que fallaron
+  if(enviando){ $("sendInfo").innerHTML='<b style="color:#b3261e">Ya hay un envío en curso.</b> Espera a que termine (verás el resultado aquí).'; return; }
+  const listas=batch.filter(e=>e.status==="listo");
+  if(!listas.length){
+    const est=batch.map(e=>(e.status||"?")).join(", ");
+    $("sendInfo").innerHTML = batch.length
+      ? `<b style="color:#b3261e">Ninguna de tus ${batch.length} foto(s) está lista todavía</b> (estado: ${est}). Espera unos segundos a que terminen de procesarse y vuelve a tocar Enviar.`
+      : `<b style="color:#b3261e">Aún no has agregado fotos.</b>`;
+    return;
+  }
+  const sinReq=listas.filter(e=>!e.itemCodigo);
+  if(sinReq.length){ alert(`Hay ${sinReq.length} evidencia(s) sin requerimiento asignado. Selecciona un requerimiento en cada una (menú ↑) antes de continuar.`); renderLista(); return; }
+  // Mínimo 3 por requerimiento para ENVIAR/COMPARTIR (Descargar ZIP se permite como respaldo sin el mínimo).
+  if(accion!=="zip" && !saltarMin){
+    const codsLote=[...new Set(listas.filter(e=>e.tipo==="foto"&&e.itemCodigo).map(e=>e.itemCodigo))];
+    const incompletos=codsLote.filter(cod=>fotosDeItem(cod)<3);
+    if(incompletos.length){
+      alert("Cada requerimiento necesita MÍNIMO 3 evidencias. Aún faltan:\n\n"+
+        incompletos.map(cod=>`• ${cod} · ${itemReqCorto(cod)} (${fotosDeItem(cod)}/3)`).join("\n")+
+        "\n\nCompleta las 3 fotos, o usa «Descargar ZIP» para respaldo.");
+      renderLista(); return; }
+  }
+  enviando=true;
+  const exito=()=>marcarSubidas(listas);
+  try{
+    $("enviar").disabled=true; if($("zip")) $("zip").disabled=true; if($("compartir")) $("compartir").disabled=true; $("sendInfo").textContent="Preparando…";
+    calcularNombres();
+    const csv=construirCSV(listas);
+    if(accion==="zip"){ await descargarZIP(listas, csv, exito); return; }
+    if(accion==="compartir"){ await compartirMedia(listas, csv, exito); return; }
+    await enviarASupabase(listas, exito);   // "supabase": sube a la base (bucket + tabla)
+  } catch(err){   // NADA falla en silencio: cualquier error muestra el popup + texto fijo con el detalle
+    const det=((err&&(err.message||err.name))||err);
+    $("sendInfo").innerHTML=`<span style="color:#b3261e">⚠️ Error al enviar. Detalle: ${det}</span>`;
+    $("failDet").innerHTML=`Ocurrió un error al enviar.<br><span class="mut" style="font-size:12px">Detalle: ${det}</span>`;
+    $("failm").classList.remove("hide");
+  } finally { enviando=false; $("enviar").textContent="Enviar evidencias"; renderLista(); }
+}
+/* Marca como enviadas SOLO las evidencias dadas: suma consecutivos y las saca del lote. */
+function marcarSubidas(subidas){
+  const cta={}; subidas.forEach(e=>{ if(e.tipo!=="foto") return; const k=claveDe(e.itemCodigo); cta[k]=(cta[k]||0)+1; });
+  for(const k in cta) counters[k]=(counters[k]||0)+cta[k]; saveJSON(NS+"counters",counters);
+  const ids=new Set(subidas.map(e=>e.id)); batch=batch.filter(e=>!ids.has(e.id)); renderLista();
+}
+/* Compartir por WhatsApp/correo (canal humano). Sin await antes de share() -> gesto vivo en Android. */
+async function compartirMedia(listas, csv, exito){
+  const media=listas.map(e=> new File([e.blob], e.filename, {type: e.tipo==="video" ? ((e.file&&e.file.type)||"video/mp4") : "image/jpeg"}));
+  const texto=(envioActual&&envioActual.texto)||"";
+  if(navigator.canShare && navigator.canShare({files:media})){
+    // El texto va sólo si el navegador acepta texto+archivos juntos; si no, se comparten los archivos
+    // y el resumen queda a un toque en "Enviar solo el resumen".
+    const payload = (texto && navigator.canShare({files:media, text:texto})) ? {files:media, text:texto, title:"Evidencias "+(cfg.ev||"")} : {files:media};
+    try{ await navigator.share(payload); $("sendInfo").innerHTML="Compartido. Elige la app (WhatsApp, correo…)."; exito(); }
+    catch(err){ if(err&&err.name==="AbortError"){ $("sendInfo").textContent="Compartir cancelado."; } else { await descargarZIP(listas, csv, exito); } }
+  } else { await descargarZIP(listas, csv, exito); }
+}
+/* fetch con timeout: si la señal es mala y no responde en `ms`, aborta (no deja el botón colgado). */
+async function fetchTO(url, opts, ms){ const c=new AbortController(); const t=setTimeout(()=>c.abort(), ms||30000);
+  try{ return await fetch(url, Object.assign({}, opts, {signal:c.signal})); } finally { clearTimeout(t); } }
+/* Sube UNA evidencia: la foto al bucket + la fila de metadatos a la tabla. Devuelve true si ambas OK. */
+let ultimoErr="";
+async function subirEvidencia(e, radicado){
+  try{
+    const path=(cfg.uid||"sinuid")+"/"+e.filename;
+    const up=await fetchTO(SB_URL+"/storage/v1/object/evidencias/"+encodeURI(path), {method:"POST",
+      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":(e.tipo==="video"?((e.file&&e.file.type)||"video/mp4"):"image/jpeg")}, body:e.blob}, 20000);
+    if(!up.ok){   // 409 "Duplicate" (reintento de una foto ya subida) cuenta como OK; cualquier otro error sí falla
+      let dup=false; try{ const t=await up.json(); dup=!!(t&&(t.statusCode==="409"||t.error==="Duplicate"||t.code==="KeyAlreadyExists")); }catch(_){}
+      if(!dup){ ultimoErr="subir foto: HTTP "+up.status; return false; }
+    }
+    const ad=itemAdic(e.itemCodigo)||{};
+    const row={ radicado:radicado||"", evento_uid:cfg.uid||"", consec:cfg.consec||null, cliente:cfg.cl, evento:cfg.ev,
+      categoria:itemCat(e.itemCodigo), item:itemCod(e.itemCodigo), item_id:claveDe(e.itemCodigo), requerimiento:itemReq(e.itemCodigo), proveedor:itemProv(e.itemCodigo), proveedor_nit:itemNit(e.itemCodigo),
+      cantidad:String(itemCant(e.itemCodigo)||""), adicional:!!itemAdic(e.itemCodigo), solicitado_por:ad.solicitadoPor||"", justificacion:ad.justificacion||"",
+      operador_nombre:operador.nombre, operador_cedula:operador.cedula, operador_celular:operador.celular,
+      tipo:e.tipo||"foto", archivo:e.filename, storage_path:"evidencias/"+path,
+      fecha:e.datos.fecha||"", hora:e.datos.hora||"", lugar:e.datos.lugar||"", lat:e.datos.lat, lon:e.datos.lon };
+    let ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row)}, 15000);
+    if(!ins.ok){   // reintento escalonado: primero soltar SOLO item_id (Capa9 sin correr) para NO perder la categoria
+      const row1=Object.assign({},row); delete row1.item_id; delete row1.cantidad;
+      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row1)}, 15000);
+      if(!ins.ok){ const row2=Object.assign({},row1); delete row2.radicado; delete row2.categoria; delete row2.proveedor_nit;   // último recurso: columnas viejas
+        ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row2)}, 15000); } }
+    if(!ins.ok) ultimoErr="registrar dato: HTTP "+ins.status;
+    return ins.ok;
+  }catch(err){ ultimoErr=(err&&err.name==="AbortError")?"tiempo agotado (señal muy lenta)":("red: "+((err&&err.name)||"error")); return false; }
+}
+/* Sube todo el lote a la base, con progreso. Las que fallan (sin señal) se quedan para reintentar. */
+let envioActual=null;
+function nuevoRadicado(){ const t=new Date(); const ev=(cfg&&cfg.consec)?String(cfg.consec).padStart(3,"0"):"000"; return `RAD-${ev}-${String(t.getFullYear()).slice(2)}${z(t.getMonth()+1)}${z(t.getDate())}-${z(t.getHours())}${z(t.getMinutes())}${z(t.getSeconds())}`; }
+async function enviarASupabase(listas, exito){
+  const radicado=nuevoRadicado(); const csv=construirCSV(listas, radicado);
+  const fallidos=[]; let ok=0; ultimoErr="";
+  for(let i=0;i<listas.length;i++){
+    const et=`Enviando ${i+1}/${listas.length}…`; $("sendInfo").textContent=et; $("enviar").textContent=et;
+    if(await subirEvidencia(listas[i], radicado)) ok++; else fallidos.push(listas[i]);
+  }
+  if(!fallidos.length){
+    const r=resumenEnvio(radicado, listas);   // se calcula ANTES de que marcarSubidas() vacíe el lote
+    envioActual={radicado, listas:listas.slice(), csv, texto:textoResumen(r)};
+    $("sendInfo").innerHTML=`<b style="color:#1a7f37">✅ Enviado. ${ok} evidencia(s) en la base.</b><br><span class="mut" style="font-size:12px">${radicado}</span>`;
+    $("okRad").textContent="Radicado: "+radicado;
+    $("okDet").innerHTML=htmlResumen(r);
+    $("okm").classList.remove("hide");
+    exito();
+  }
+  else{
+    const subidas=listas.filter(e=>!fallidos.includes(e));
+    if(subidas.length) marcarSubidas(subidas);   // las que sí subieron salen del lote
+    envioActual={radicado, listas:fallidos.slice(), csv:construirCSV(fallidos, radicado)};   // reintento/ZIP = solo las que fallaron
+    const txt=(ok>0
+      ? `Se subieron <b>${ok}</b>, pero <b>${fallidos.length}</b> no cargaron.`
+      : `No se pudo subir ninguna de las <b>${fallidos.length}</b> evidencias.`)
+      + (ultimoErr?`<br><span class="mut" style="font-size:12px">Motivo: ${ultimoErr}</span>`:"");
+    $("sendInfo").innerHTML=`<span style="color:#b3261e">⚠️ ${txt}</span>`;
+    $("failDet").innerHTML = txt;
+    $("failm").classList.remove("hide");
+  }
+}
+/* Resumen del envío: lo que el ejecutivo necesita para dar por recibido el soporte sin
+   abrir la app — quién, qué evento, cuánto entró en ESTE radicado y cómo va el evento. */
+function resumenEnvio(radicado, listas){
+  const items=itemsDelOperador(), total=items.length;
+  const compl=items.filter(it=>fotosDeItem(it.iid)>=3).length;
+  const reqs=new Set(listas.map(e=>e.itemCodigo).filter(Boolean));
+  const adics=new Set(listas.filter(e=>itemAdic(e.itemCodigo)).map(e=>e.itemCodigo));
+  const t=new Date();
+  return { cliente:cfg.cl||"—", evento:cfg.ev||"—",
+    consec:(cfg&&cfg.consec)?evConsecTag(cfg.consec):"",
+    ciudad:cfg.ci||"", fechaEv:cfg.fe||"", radicado,
+    cuando:`${z(t.getDate())}/${z(t.getMonth()+1)}/${t.getFullYear()} ${hora12(z(t.getHours())+":"+z(t.getMinutes()))}`,
+    operador:(operador&&operador.nombre)||"", prov:(operador&&operador.prov)||"",
+    fotos:listas.filter(e=>e.tipo!=="video").length, videos:listas.filter(e=>e.tipo==="video").length,
+    reqs:reqs.size, adics:adics.size,
+    sinUbi:listas.filter(e=>e.datos&&!esNum(e.datos.lat)).length,
+    compl, total, faltan:Math.max(0,total-compl), pct: total?Math.round(compl/total*100):0 };
+}
+function textoResumen(r){
+  const L=[];
+  L.push("✅ EVIDENCIAS ENVIADAS");
+  L.push("");
+  L.push("Cliente: "+r.cliente);
+  L.push("Evento: "+r.evento+(r.consec?" ("+r.consec+")":""));
+  if(r.fechaEv||r.ciudad) L.push("Fecha/lugar: "+[r.fechaEv,r.ciudad].filter(Boolean).join(" · "));
+  L.push("Radicado: "+r.radicado);
+  L.push("Enviado: "+r.cuando);
+  if(r.operador) L.push("Proveedor: "+r.operador+(r.prov?" · "+r.prov:""));
+  L.push("");
+  L.push("EN ESTE ENVÍO");
+  L.push("• "+r.fotos+" foto(s)"+(r.videos?" y "+r.videos+" video(s)":""));
+  L.push("• "+r.reqs+" requerimiento(s) documentado(s)");
+  if(r.adics) L.push("• "+r.adics+" adicional(es) reportado(s) en sitio");
+  if(r.sinUbi) L.push("• ⚠ "+r.sinUbi+" sin ubicación (revisar GPS del equipo)");
+  L.push("");
+  L.push("AVANCE DEL EVENTO");
+  L.push("• "+r.compl+" de "+r.total+" requerimientos completos ("+r.pct+"%)");
+  if(r.faltan) L.push("• faltan "+r.faltan);
+  else L.push("• ¡evento completo! ✅");
+  return L.join("\n");
+}
+function htmlResumen(r){
+  return `<b>${escAttr(r.cliente)}</b> · ${escAttr(r.evento)}${r.consec?" ("+escAttr(r.consec)+")":""}`
+    + `<div style="margin-top:5px">${r.fotos} foto(s)${r.videos?" y "+r.videos+" video(s)":""} · <b>${r.reqs}</b> requerimiento(s) en este radicado`
+    + (r.adics?` · ${r.adics} adicional(es)`:"") + `</div>`
+    + (r.sinUbi?`<div style="color:#b3261e;margin-top:3px">⚠ ${r.sinUbi} sin ubicación</div>`:"")
+    + `<div style="margin-top:5px">Avance del evento: <b>${r.compl}/${r.total}</b> completos (${r.pct}%)`
+    + (r.faltan?` · faltan ${r.faltan}`:" · ¡todo listo! ✅")+`</div>`
+    + (r.operador?`<div class="mut" style="margin-top:5px">${escAttr(r.operador)}${r.prov?" · "+escAttr(r.prov):""} · ${r.cuando}</div>`:"");
+}
+/* WhatsApp con varios archivos suele descartar el texto que los acompaña; por eso el resumen
+   también se puede mandar solo (share sin archivos, o wa.me) y copiarse al portapapeles. */
+async function compartirResumen(){
+  const t=(envioActual&&envioActual.texto)||""; if(!t) return;
+  try{ if(navigator.share){ await navigator.share({title:"Evidencias "+(cfg.ev||""), text:t}); return; } }
+  catch(err){ if(err&&err.name==="AbortError") return; }
+  window.open("https://wa.me/?text="+encodeURIComponent(t), "_blank");
+}
+async function copiarResumen(){
+  const t=(envioActual&&envioActual.texto)||""; if(!t) return;
+  try{ await navigator.clipboard.writeText(t); $("okCopiar").textContent="copiado ✓"; setTimeout(()=>{ $("okCopiar").textContent="copiar resumen"; },2000); }
+  catch(_){ window.prompt("Copia el resumen:", t); }
+}
+$("okClose").addEventListener("click", ()=>$("okm").classList.add("hide"));
+$("okShare").addEventListener("click", ()=>{ if(envioActual) compartirMedia(envioActual.listas, envioActual.csv, ()=>{}); });
+$("okTexto").addEventListener("click", compartirResumen);
+$("okCopiar").addEventListener("click", copiarResumen);
+$("okZip").addEventListener("click", ()=>{ if(envioActual) descargarZIP(envioActual.listas, envioActual.csv, ()=>{}); });
+$("failClose").addEventListener("click", ()=>$("failm").classList.add("hide"));
+$("failRetry").addEventListener("click", ()=>{ $("failm").classList.add("hide"); empaquetar("supabase", true); });
+$("failZip").addEventListener("click", ()=>{ if(envioActual) descargarZIP(envioActual.listas, envioActual.csv, ()=>{}); });
+function bajar(blob,nombre){ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=nombre; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); }
+
+/* ---- cámara (foto/video in-app) ---- */
+let stream=null, facing="environment", modo="foto", mediaRec=null, chunks=[], grabando=false, descartarGrab=false;
+/* GPS single-flight: UNA sola solicitud a la vez (evita el PERMISSION_DENIED espurio de iOS
+   por pedir watchPosition + getCurrentPosition al tiempo). Cachea la última posición 2 min. */
+let lastCoords=null, lastCoordsT=0, geoDenied=false, geoBuscando=false, geoPromise=null, watchId=null, gpsTras=null, sinGpsHasta=0;
+/* Los navegadores embebidos (WhatsApp, Instagram, Facebook) casi nunca entregan GPS: si el enlace
+   se abrió ahí, ninguna cantidad de permisos sirve; hay que mandar al operador a Safari/Chrome. */
+const IN_APP=/(FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|MicroMessenger)/i.test(navigator.userAgent||"");
+function gpsFresco(){ return lastCoords && (Date.now()-lastCoordsT)<120000; }
+function sinGpsVigente(){ return Date.now()<sinGpsHasta; }
+function fijarPos(coords){ lastCoords=coords; lastCoordsT=Date.now(); geoDenied=false; geoBuscando=false; iniciarWatch(); actualizarEstadoGPS(); precalentarDireccion(coords); }
+/* La dirección se pide APENAS hay posición, no cuando ya se disparó la foto: así la primera
+   captura la encuentra en caché en vez de esperar (o rendirse) mientras el operador mira la
+   pantalla. Sin esto las 2-3 primeras fotos salían selladas con coordenadas. */
+function precalentarDireccion(coords){ if(!coords||!esNum(coords.latitude)) return;
+  try{ geocodeThrottled(coords.latitude, coords.longitude).then(()=>completarDirecciones()).catch(()=>{}); }catch(_){} }
+/* Con el permiso ya concedido, mantener la posición caliente: al disparar la foto ya hay fix.
+   El watch arranca SÓLO después del primer fix bueno (pedirlo junto al getCurrentPosition inicial
+   es lo que producía el PERMISSION_DENIED espurio de iOS). */
+function iniciarWatch(){ if(watchId!=null||!navigator.geolocation) return;
+  try{ watchId=navigator.geolocation.watchPosition(
+    p=>{ lastCoords=p.coords; lastCoordsT=Date.now(); geoDenied=false; actualizarEstadoGPS(); precalentarDireccion(p.coords); },   // al moverse de escenario, la dirección nueva se pide sola
+    err=>{ if(err&&err.code===1){ geoDenied=true; actualizarEstadoGPS(); } },
+    {enableHighAccuracy:true, timeout:20000, maximumAge:30000}); }catch(_){} }
+function detenerWatch(){ if(watchId!=null){ try{ navigator.geolocation.clearWatch(watchId); }catch(_){} watchId=null; } }
+function actualizarEstadoGPS(){ const el=$("gpsEstado"), ch=$("gpsChip"); if(!el) return;
+  let cls="off";
+  if(gpsFresco()){ el.innerHTML="Ubicación lista ✓"+(lastCoords&&lastCoords.accuracy?` <span style="font-weight:600;opacity:.75">(±${Math.round(lastCoords.accuracy)} m)</span>`:""); cls="ok"; }
+  else if(geoBuscando){ el.textContent="Buscando ubicación…"; cls="busca"; }
+  else if(geoDenied){ el.innerHTML="⚠ Ubicación bloqueada. <b>Toca aquí para desbloquearla.</b>"; cls="den"; }
+  else if(gpsDiag){ el.innerHTML="⚠ Sin ubicación: "+gpsDiag+". <b>Toca aquí para reintentar.</b>"; cls="den"; }
+  else if(sinGpsVigente()){ el.innerHTML="⚠ Capturando SIN ubicación. <b>Toca aquí para activarla.</b>"; cls="den"; }
+  else { el.innerHTML="<b>Toca aquí para activar la ubicación.</b>"; cls="off"; }
+  if(ch) ch.className="gpschip "+cls;
+  pintarGpsModal(); }
+/* Permiso vigilado: si el sistema ya lo tiene concedido pedimos posición sin molestar, y si el
+   operador lo cambia desde los ajustes del navegador el chip se actualiza solo. */
+function vigilarPermisoGPS(){ try{ if(!navigator.permissions||!navigator.permissions.query) return;
+  navigator.permissions.query({name:"geolocation"}).then(st=>{
+    const ap=()=>{ if(st.state==="denied"){ geoDenied=true; detenerWatch(); actualizarEstadoGPS(); }
+      else { geoDenied=false; pedirUbicacion(); } };
+    ap(); st.onchange=ap; }).catch(()=>{}); }catch(_){} }
+/* ---- Puerta de ubicación ----
+   La web NO puede forzar el permiso (lo concede el navegador). Lo que sí se puede, y es lo que hace
+   esto: pedirlo dentro de un gesto, NO abrir la cámara sin él, y explicar cómo desbloquearlo.
+   Importante: no se hace await del GPS antes de getUserMedia — en iOS eso consume el gesto del
+   usuario y la cámara falla. Por eso la acción se reanuda con el toque del botón del modal. */
+function abrirGpsModal(tras){ gpsTras=tras||null; $("gpsm").classList.remove("hide"); pintarGpsModal(); pedirUbicacion(); }
+function cerrarGpsModal(seguir){ $("gpsm").classList.add("hide"); const t=gpsTras; gpsTras=null; if(seguir&&t){ try{ t(); }catch(_){} } }
+function pintarGpsModal(){ const m=$("gpsMsg"); if(!m||$("gpsm").classList.contains("hide")) return;
+  const h=$("gpsHelp"), b=$("gpsRetry"), sk=$("gpsSkip");
+  b.textContent = gpsFresco() ? (gpsTras?"Continuar y capturar":"Listo") : "Permitir ubicación / Reintentar";
+  m.className = "guia "+(gpsFresco()?"ok":"neutro"); m.style.textAlign="center"; m.style.fontWeight="600";
+  sk.style.display = gpsFresco() ? "none" : "";
+  if(gpsFresco()){ m.textContent="Ubicación lista ✓"; h.classList.add("hide"); }
+  else if(geoBuscando){ m.textContent="Buscando ubicación… si estás bajo cubierta, acércate a una puerta o ventana."; h.classList.add("hide"); }
+  else if(geoDenied){ m.textContent="El navegador tiene bloqueada la ubicación de esta página."; h.classList.remove("hide"); }
+  else if(gpsDiag){ m.textContent="No se pudo obtener la ubicación: "+gpsDiag+"."; h.classList.remove("hide"); }
+  else { m.textContent="Toca «Permitir ubicación» y acepta el aviso del navegador."; h.classList.add("hide"); } }
+function conUbicacion(accion){ if(gpsFresco()||sinGpsVigente()) return accion(); abrirGpsModal(accion); }
+/* Una única petición encadenada: alta precisión y, si falla por señal, baja precisión (wifi/celda). */
+/* El texto del error del navegador es lo único que distingue "el operador dijo que no" de
+   "la ubicación del teléfono está apagada" o "no hubo señal a tiempo". */
+let gpsDiag="";
+function motivoGPS(e){ const c=e&&e.code;
+  if(c===1) return "permiso denegado";
+  if(c===2) return "el teléfono no entregó posición (¿ubicación del sistema apagada?)";
+  if(c===3) return "tiempo agotado sin señal";
+  return (e&&e.message)||"error desconocido"; }
+function pedirUbicacion(){
+  if(!navigator.geolocation){ gpsDiag="este navegador no tiene geolocalización"; return Promise.resolve(null); }
+  if(gpsFresco()) return Promise.resolve(lastCoords);
+  if(geoPromise) return geoPromise;             // ya hay una en curso → reusar (single-flight)
+  geoBuscando=true; geoDenied=false; actualizarEstadoGPS();
+  geoPromise = new Promise(res=>{
+    const fin=coords=>{ geoPromise=null; if(coords){ fijarPos(coords); } else { geoBuscando=false; actualizarEstadoGPS(); } res(coords||lastCoords||null); };
+    navigator.geolocation.getCurrentPosition(
+      p=>{ gpsDiag=""; fin(p.coords); },
+      err=>{ gpsDiag=motivoGPS(err); if(err&&err.code===1){ geoDenied=true; fin(null); return; }   // permiso denegado real
+        // 2º intento por wifi/celda: en Android bajo techo el alta precisión vence casi siempre
+        navigator.geolocation.getCurrentPosition(
+          p2=>{ gpsDiag=""; fin(p2.coords); },
+          err2=>{ gpsDiag=motivoGPS(err2); if(err2&&err2.code===1) geoDenied=true; fin(null); },
+          {enableHighAccuracy:false, timeout:20000, maximumAge:300000}); },
+      {enableHighAccuracy:true, timeout:12000, maximumAge:60000});
+  });
+  return geoPromise; }
+$("camClose").addEventListener("click", cerrarCamara);
+$("camFlip").addEventListener("click", ()=>{ if(grabando) return; facing=facing==="environment"?"user":"environment"; abrirStream(modo==="video"); });
+$("camShot").addEventListener("click", ()=>{ if(modo==="foto") capturar(); else if(grabando) detenerGrabacion(); else iniciarGrabacion(); });
+$("modoFoto").addEventListener("click", ()=>{ if(grabando||modo==="foto") return; modo="foto"; setModoUI(); abrirStream(false); });
+$("modoVideo").addEventListener("click", ()=>{ if(grabando||modo==="video") return; modo="video"; setModoUI(); abrirStream(true); });
+function setModoUI(){ $("modoFoto").classList.toggle("on",modo==="foto"); $("modoVideo").classList.toggle("on",modo==="video");
+  const b=$("camShot"); if(modo==="foto"){ b.textContent="Capturar"; b.style.background=""; b.style.color=""; $("camhint").textContent="Encuadra la evidencia y captura."; }
+  else{ b.textContent=grabando?"Detener":"Grabar"; b.style.background=grabando?"#d33":""; b.style.color=grabando?"#fff":""; $("camhint").textContent=grabando?"Grabando… toca Detener":"Toca Grabar para iniciar el video"; } }
+async function abrirCamara(){ pedirUbicacion(); if(gpsFresco()) precalentarDireccion(lastCoords); modo="foto"; setModoUI(); if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ $("capf").click(); return; } $("camm").classList.remove("hide"); if(!await abrirStream(false)){ $("camm").classList.add("hide"); $("sendInfo").textContent="Cámara de la app bloqueada; se abrirá la cámara del teléfono. Para usar la guía, permite la cámara en Ajustes del navegador."; $("capf").click(); } }
+async function abrirStream(conAudio){ try{ if(stream)stream.getTracks().forEach(t=>t.stop()); stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing}},audio:!!conAudio}); $("video").srcObject=stream; return true; }
+  catch(_){ if(conAudio){ try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing}},audio:false}); $("video").srcObject=stream; return true; }catch(__){} } return false; } }
+function iniciarGrabacion(){
+  if(!window.MediaRecorder||!stream){ cerrarCamara(); $("vidf").click(); return; }   // respaldo: cámara nativa
+  chunks=[]; let mr=null; for(const t of ["video/mp4","video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"]){ try{ if(!MediaRecorder.isTypeSupported||MediaRecorder.isTypeSupported(t)){ mr=new MediaRecorder(stream,{mimeType:t}); break; } }catch(_){} }
+  if(!mr){ try{ mr=new MediaRecorder(stream); }catch(_){ cerrarCamara(); $("vidf").click(); return; } }
+  mediaRec=mr; descartarGrab=false;
+  mr.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
+  mr.onstop=async()=>{ grabando=false;
+    if(descartarGrab){ descartarGrab=false; return; }
+    const type=(mr.mimeType||"video/mp4").split(";")[0]; const ext=/mp4/.test(type)?"mp4":(/webm/.test(type)?"webm":"mp4");
+    const blob=new Blob(chunks,{type}); const coords=(gpsFresco()?lastCoords:await posActual()); const now=new Date();
+    const meta=coords?{fecha:`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`,hora:`${z(now.getHours())}:${z(now.getMinutes())}`,lat:coords.latitude,lon:coords.longitude}:null;
+    agregar([new File([blob],"video."+ext,{type})], meta); cerrarCamara();
+  };
+  pedirUbicacion(); mr.start(); grabando=true; setModoUI();
+}
+function detenerGrabacion(){ if(mediaRec&&grabando){ try{ mediaRec.stop(); }catch(_){ grabando=false; } } }
+function cerrarCamara(){ if(grabando){ descartarGrab=true; try{ mediaRec.stop(); }catch(_){} grabando=false; } if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } $("camm").classList.add("hide"); }
+function posActual(){ return pedirUbicacion(); }
+async function capturar(){
+  const v=$("video"); if(!v.videoWidth) return;
+  const c=document.createElement("canvas"); c.width=v.videoWidth; c.height=v.videoHeight; c.getContext("2d").drawImage(v,0,0);
+  const blob=await new Promise(r=>c.toBlob(r,"image/jpeg",0.92));
+  try{ const t=new Date(); bajar(blob, `foto_${slug(cfg.ev)}_${z(t.getHours())}${z(t.getMinutes())}${z(t.getSeconds())}.jpg`); }catch(_){}   // respaldo en el dispositivo (siempre activo)
+  $("camhint").textContent="Ubicando…"; const coords=await posActual(); const now=new Date();
+  const meta={fecha:`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`,hora:`${z(now.getHours())}:${z(now.getMinutes())}`,lat:coords?coords.latitude:null,lon:coords?coords.longitude:null};
+  agregar([new File([blob],"captura.jpg",{type:"image/jpeg"})], meta);
+  cerrarCamara();   // salir a la vista de clasificación tras cada foto
+  $("sendInfo").textContent = coords ? "" : (geoDenied ? "Última foto SIN GPS: toca «Toca aquí para activar la ubicación»." : "Última foto SIN GPS: aún sin señal, reintenta.");
+}
+
+/* ---- imagen ---- */
+function imgFromBlob(blob){
+  return new Promise((res,rej)=>{ const url=URL.createObjectURL(blob); const img=new Image();
+    img.onload=()=>res(img); img.onerror=()=>{ URL.revokeObjectURL(url); rej(new Error("img")); }; img.src=url; });
+}
+async function decodificar(file){
+  const heic=/heic|heif/i.test(file.type)||/\.hei[cf]$/i.test(file.name);
+  try{ return await imgFromBlob(file); }catch(_){}                    // <img> nativo: Safari/iOS decodifican HEIC sin createImageBitmap
+  if(heic&&typeof heic2any==="function"){ try{ const b=await heic2any({blob:file,toType:"image/jpeg",quality:0.92}); return await imgFromBlob(b); }catch(_){} }
+  throw new Error("no-decode");
+}
+function wrap(ctx,t,mw){ const w=t.split(" "),l=[]; let c=""; for(const x of w){ const q=c?c+" "+x:x; if(ctx.measureText(q).width<=mw||!c)c=q; else{ l.push(c); c=x; } } if(c)l.push(c); return l; }
+/* Tope de área del lienzo: por encima de ~16,7 MP iOS Safari devuelve un canvas VACÍO sin
+   lanzar error. Red de seguridad para equipos de 48-50 MP; se reduce SÓLO si la imagen lo
+   supera, así que una foto normal de 12 MP (4032x3024) no se toca. */
+const LIM_PX=16e6, DEST_PX=12e6;   // 16 MP = umbral (una foto de 12 MP, 4032x3024, no se toca); 12 MP = destino, con margen bajo el tope
+/* Un lienzo fallido sale de un color plano; una foto real, aunque sea de noche, tiene ruido.
+   Se muestrea la miniatura (barato) por fuera de la zona del sello. */
+function lienzoPlano(ctx,W,H){
+  try{
+    const alto=Math.max(1,Math.round(H*0.6));   // el sello va abajo: se mira la franja de arriba
+    const d=ctx.getImageData(0,0,W,alto).data; let mn=255,mx=0;
+    for(let i=0;i<d.length;i+=16){ const v=(d[i]+d[i+1]+d[i+2])/3; if(v<mn)mn=v; if(v>mx)mx=v; }
+    return (mx-mn)<=2;
+  }catch(_){ return false; }                    // ante cualquier fallo, no bloquear el envío
+}
+async function dibujar(src,texto,conMarca){
+  if(src&&typeof src.decode==="function"){ try{ await src.decode(); }catch(_){} }   // nunca estampar sobre una imagen a medio decodificar
+  const W0=src.naturalWidth||src.width, H0=src.naturalHeight||src.height;
+  const k=(W0*H0>LIM_PX)?Math.sqrt(DEST_PX/(W0*H0)):1;                              // k=1 => no se toca nada
+  const W=Math.round(W0*k), H=Math.round(H0*k);
+  const cv=document.createElement("canvas"); cv.width=W; cv.height=H; const ctx=cv.getContext("2d"); ctx.drawImage(src,0,0,W,H);
+  if(src&&typeof src.src==="string"&&src.src.indexOf("blob:")===0) URL.revokeObjectURL(src.src);
+  if(conMarca && texto){
+    const fpx=Math.max(14,Math.round(H*parseFloat($("esc").value)/100)); ctx.font=`700 ${fpx}px Montserrat,-apple-system,sans-serif`;
+    const pad=Math.round(fpx*0.5),mg=Math.round(fpx*0.6),lh=Math.round(fpx*1.32);
+    const lines=[]; String(texto).split("\n").forEach(t=>{ wrap(ctx,t,W-2*mg-2*pad).forEach(l=>lines.push(l)); });
+    const tw=Math.max(...lines.map(l=>ctx.measureText(l).width));
+    const bw=tw+2*pad,bh=lines.length*lh+2*pad,pos=$("pos").value;
+    let x=(pos==="br"||pos==="tr")?W-bw-mg:mg, y=(pos==="tl"||pos==="tr")?mg:H-bh-mg;
+    ctx.fillStyle="rgba(0,0,0,0.55)"; ctx.fillRect(x,y,bw,bh); ctx.fillStyle=VERDE; ctx.fillRect(x,y,Math.max(4,pad/2),bh);
+    ctx.fillStyle="#fff"; ctx.textBaseline="top"; lines.forEach((l,i)=>ctx.fillText(l,x+pad,y+pad+i*lh+(lh-fpx)/2));
+  }
+  const s=Math.min(1,420/Math.max(W,H)); const tc=document.createElement("canvas"); tc.width=Math.round(W*s); tc.height=Math.round(H*s); tc.getContext("2d").drawImage(cv,0,0,tc.width,tc.height);
+  const thumb=tc.toDataURL("image/jpeg",0.7); const blob=await new Promise(res=>cv.toBlob(res,"image/jpeg",0.9));
+  const vacio=lienzoPlano(tc.getContext("2d"),tc.width,tc.height);
+  /* iOS sólo libera la memoria de un canvas cuando se encoge. Sin esto, un lote de 12 fotos
+     de 12 MP retiene ~48 MB por lienzo, se pasa del techo de canvas del dispositivo y a partir
+     de ahí los siguientes salen EN NEGRO sin lanzar error. Es la causa medida de las 6 negras
+     del lote del 25-ago (todas de 12,2 MP, por debajo del límite de área). */
+  cv.width=cv.height=1; tc.width=tc.height=1;
+  return {blob,thumb,vacio};
+}
+/* Sello al estilo Timestamp: fecha y hora arriba, y debajo una línea por nivel de la dirección.
+   Si el geocoder no respondió pero sí hay GPS, se estampan las coordenadas: nunca una foto muda. */
+function hora12(h){ if(!h) return ""; const p=String(h).split(":"); let H=parseInt(p[0],10); if(isNaN(H)) return h;
+  const su=H<12?"a. m.":"p. m."; H=H%12||12; return `${H}:${p[1]||"00"} ${su}`; }
+function textoMarca(d){ if(!d) return "";
+  const L=[]; const f=String(d.fecha||"").split("-");
+  const fh=[(f.length===3?`${f[2]}/${f[1]}/${f[0]}`:(d.fecha||"")), hora12(d.hora)].filter(Boolean).join(", ");
+  if(fh) L.push(fh);
+  const lin=(d.lugLin&&d.lugLin.length)?d.lugLin:(d.lugar?[d.lugar]:[]);
+  lin.forEach(x=>L.push(x));
+  if(!lin.length && esNum(d.lat) && esNum(d.lon)) L.push(`${(+d.lat).toFixed(6)}, ${(+d.lon).toFixed(6)}`);
+  return L.join("\n"); }
+function geoKey(lat,lon){ return (+lat).toFixed(3)+","+(+lon).toFixed(3); }
+function metrosEntre(la1,lo1,la2,lo2){ const R=111320, dy=(la2-la1)*R, dx=(lo2-lo1)*R*Math.cos(la1*Math.PI/180); return Math.sqrt(dx*dx+dy*dy); }
+function geoCercano(lat,lon){ for(const k in geoCache){ const v=geoCache[k];
+  if(v&&esNum(v.lat)&&metrosEntre(lat,lon,v.lat,v.lon)<150) return v; } return null; }
+function guardarGeoCache(){ try{ const ks=Object.keys(geoCache);
+  if(ks.length>200) ks.slice(0,ks.length-200).forEach(k=>delete geoCache[k]);
+  saveJSON(NS+"geocache",geoCache); }catch(_){} }
+async function geocodeThrottled(lat,lon){ if(!esNum(lat)||!esNum(lon)) return null;
+  const k=geoKey(lat,lon);
+  if(geoCache[k]) return geoCache[k];
+  const cerca=geoCercano(lat,lon); if(cerca){ geoDiag="Dirección reutilizada (mismo sitio) ✓"; pintarGeoDiag(); return cerca; }
+  const p=geoChain.then(async()=>{ await sleep(1100);
+    if(geoCache[k]) return geoCache[k];
+    const cc=geoCercano(lat,lon); if(cc) return cc;
+    const r=await geocode(lat,lon);
+    if(r){ geoCache[k]={...r, lat:+lat, lon:+lon}; guardarGeoCache(); return geoCache[k]; }
+    return r; });
+  geoChain=p.catch(()=>{}); return p; }
+/* Devuelve {txt, lineas, fuente}: `txt` es la dirección de una línea que viaja al CSV y a la base
+   (compat), `lineas` es el desglose que se estampa en la foto al estilo Timestamp.
+   Tres proveedores en cascada porque ninguno solo es confiable en campo. */
+/* Cada proveedor reporta por qué falló: sin esto, "no hay dirección" es indistinguible de
+   "no hay señal", "el proveedor cortó" o "el navegador lo bloqueó". */
+let geoDiag="";
+function pintarGeoDiag(){ const el=$("geoDiag"); if(el) el.textContent=geoDiag; }
+/* Cada proveedor reporta cuánto detalle trae: 2 = calle o punto de interés, 1 = barrio,
+   0 = sólo ciudad. Hay sitios (urbanizaciones, veredas) donde Nominatim contesta sólo la
+   ciudad y Photon sí tiene la vía; quedarse con "el primero que responda" dejaba el sello
+   en "Rionegro 054047, Antioquia, Colombia". Se pregunta al siguiente y gana el más específico. */
+async function geocode(lat,lon){
+  for(let intento=1; intento<=2; intento++){
+    const d=[]; let best=null, f="";
+    const n=await geoNominatim(lat,lon,d); if(n){ best=n; f="nominatim"; }
+    if(!best || best.detalle<2){ const ph=await geoPhoton(lat,lon,d);
+      if(ph && (!best || ph.detalle>best.detalle)){ best=ph; f="photon"; } }
+    if(!best){ const b=await geoRespaldo(lat,lon,d); if(b){ best=b; f="bigdatacloud"; } }
+    if(best){ const lineas=(best.lineas||[]).filter(Boolean);
+      if(lineas.length){ geoDiag="Dirección por "+f+(best.detalle<2?" (sin calle en el mapa)":"")+" ✓"; pintarGeoDiag();
+        return {txt:lineas.join(", "), lineas, fuente:f}; } }
+    geoDiag="Sin dirección — "+d.join(" · ")+(intento===1?" · reintentando":"");
+    pintarGeoDiag();
+    if(intento===1) await sleep(2500);
+  }
+  return null;
+}
+/* fetch con tope de espera: en red móvil una petición colgada bloquea toda la cadena. */
+async function fetchT(url,ms){ const c=("AbortController" in window)?new AbortController():null;
+  const t=c?setTimeout(()=>c.abort(),ms||9000):null;
+  try{ const r=await fetch(url,c?{signal:c.signal}:undefined); if(t)clearTimeout(t);
+    if(!r.ok) throw new Error("HTTP "+r.status); return await r.json(); }
+  finally{ if(t)clearTimeout(t); } }
+/* JSONP, no fetch: nominatim.openstreetmap.org responde 200 pero SIN Access-Control-Allow-Origin,
+   así que todo fetch desde el navegador muere por CORS (era el bug de la v21: la foto terminaba
+   sellada con coordenadas). Con json_callback el mismo endpoint sí manda ACAO y funciona. */
+let jsonpN=0;
+function jsonp(url,ms){ return new Promise(res=>{
+  const cb="__geo"+(++jsonpN); let sc=document.createElement("script"), t=null, listo=false;
+  const limpiar=()=>{ if(listo) return; listo=true; try{ delete window[cb]; }catch(_){ window[cb]=undefined; }
+    if(sc&&sc.parentNode) sc.parentNode.removeChild(sc); sc=null; if(t) clearTimeout(t); };
+  window[cb]=d=>{ limpiar(); res(d); };
+  sc.onerror=()=>{ limpiar(); res(null); };
+  t=setTimeout(()=>{ limpiar(); res(null); }, ms||12000);
+  sc.src=url+"&json_callback="+cb; document.head.appendChild(sc);
+}); }
+/* Nominatim: el único gratuito y sin llave que llega a calle + número de placa + código postal. */
+async function geoNominatim(lat,lon,d){
+  try{ const j=await jsonp(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1&accept-language=es`,12000);
+    if(!j||!j.address){ if(d)d.push("nominatim: sin respuesta"); return null; } const a=j.address;
+    // Punto de interés (parque, coliseo, centro comercial): sólo cuando el resultado NO es una vía o una casa.
+    const tipo=j.addresstype||"";
+    const poi=(["road","house_number","postcode","place","residential"].indexOf(tipo)<0 && j.name) ? j.name
+              : (a.amenity||a.leisure||a.tourism||a.shop||a.office||"");
+    let road=a.road||a.pedestrian||a.footway||"";
+    if(road && a.house_number) road+=" #"+a.house_number;
+    let barrio=a.neighbourhood||a.suburb||a.quarter||a.city_district;
+    let ciudad=a.city||a.town||a.municipality||a.village,depto=a.state||a.region||a.state_district,pais=a.country;
+    if(ciudad)ciudad=ciudad.replace(/^Per\S+\s+Urbano\s+/i,"");   // sin acento literal: la respuesta puede venir con la í descompuesta (NFD) y el reemplazo fallaba if(barrio)barrio=barrio.replace(/^Comuna\s+\d+\s*-\s*/,"");
+    const p=[]; if(poi&&poi!==road)p.push(poi); if(road)p.push(road); if(barrio&&barrio!==ciudad)p.push(barrio);
+    if(ciudad)p.push(ciudad+(a.postcode?" "+a.postcode:"")); if(depto&&depto!==ciudad)p.push(depto); if(pais)p.push(pais);
+    if(!p.length && d) d.push("nominatim: respuesta sin dirección");
+    return p.length?{lineas:p, detalle:(poi||road)?2:(barrio?1:0)}:null; }catch(e){ if(d)d.push("nominatim: "+(e&&e.message||"error")); return null; }
+}
+/* Photon (Komoot, datos OSM): llega a calle y a veces al número. Primer respaldo. */
+async function geoPhoton(lat,lon,d){
+  try{ const j=await fetchT(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lon}&limit=1`,9000);
+    const f=j&&j.features&&j.features[0]; if(!f){ if(d)d.push("photon: sin resultados"); return null; } const q=f.properties||{};
+    const esPoi=["amenity","leisure","tourism","shop","building","office","place"].indexOf(q.osm_key)>=0;
+    const poi=esPoi?(q.name||""):"";
+    let road=q.street||((q.type==="street"||q.osm_key==="highway")?(q.name||""):"");
+    if(road && q.housenumber) road+=" #"+q.housenumber;
+    const barrio=q.district||q.locality||"", ciudad=q.city||q.county||"", depto=q.state||"", pais=q.country||"";
+    const p=[]; if(poi&&poi!==road)p.push(poi); if(road)p.push(road); if(barrio&&barrio!==ciudad)p.push(barrio);
+    if(ciudad)p.push(ciudad+(q.postcode?" "+q.postcode:"")); if(depto&&depto!==ciudad)p.push(depto); if(pais)p.push(pais);
+    if(!p.length && d) d.push("photon: respuesta sin dirección");
+    return p.length?{lineas:p, detalle:(poi||road)?2:(barrio?1:0)}:null; }catch(e){ if(d)d.push("photon: "+(e&&e.message||"error")); return null; }
+}
+/* Último respaldo: llega a barrio/ciudad, nunca a la calle. Mejor eso que unas coordenadas. */
+async function geoRespaldo(lat,lon,d){
+  try{ const j=await fetchT(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=es`,9000);
+    const p=[]; if(j.locality&&j.locality!==j.city)p.push(j.locality);
+    if(j.city)p.push(j.city+(j.postcode?" "+j.postcode:"")); if(j.principalSubdivision)p.push(j.principalSubdivision); if(j.countryName)p.push(j.countryName);
+    if(!p.length && d) d.push("bigdatacloud: respuesta sin dirección");
+    return p.length?{lineas:p, detalle:(j.locality&&j.locality!==j.city)?1:0}:null; }catch(e){ if(d)d.push("bigdatacloud: "+(e&&e.message||"error")); return null; }
+}
+/* Respaldo cuando Nominatim no responde (corta por cuota o no hay señal): llega a barrio/ciudad, no a la calle. */
+async function geoRespaldo(lat,lon){
+  try{ const j=await (await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=es`)).json();
+    const p=[]; if(j.locality&&j.locality!==j.city)p.push(j.locality);
+    if(j.city)p.push(j.city+(j.postcode?" "+j.postcode:"")); if(j.principalSubdivision)p.push(j.principalSubdivision); if(j.countryName)p.push(j.countryName);
+    return p.length?p:null; }catch(_){ return null; }
+}
+</script>
+</body>
+</html>
