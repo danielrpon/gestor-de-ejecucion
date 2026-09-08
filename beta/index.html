@@ -243,7 +243,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · Capa 12 evidencia por día · base v31 · 7sep · no usar para Semana de la Juventud</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · Capas 12-13 evidencia por día · base v31 · 8sep · no usar para Semana de la Juventud</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -672,13 +672,33 @@ function fechasDeItem(it, ini){ if(!it) return []; const i0=(ini!==undefined)?in
 function candidatoPorDia(it){ return !!it && !it.adicional && (it.pd===true || diasNum(it)>1 || parseFechas(it.fechas||[]).length>0); }
 function esPorDia(it){ return !!(cfg&&cfg.pd) && candidatoPorDia(it) && it.pd!==false && fechasDeItem(it).length>0; }
 function fmtDia(iso){ const d=new Date(iso+"T12:00:00"); if(isNaN(d)) return iso||""; return d.toLocaleDateString("es-CO",{weekday:"short",day:"numeric",month:"short"}).replace(/\./g,""); }
-function enLoteDeItemDia(iid,f){ return iid? batch.filter(e=>e.itemCodigo===iid && e.tipo!=="video" && (((e.datos&&e.datos.fecha)||(e.cargada&&e.cargada.fecha))||"")===f).length : 0; }
+function enLoteDeItemDia(iid,f){ return iid? batch.filter(e=>e.itemCodigo===iid && e.tipo!=="video" && fechaEfectiva(e)===f).length : 0; }
 function enviadasDeItemDia(iid,f){ try{ return countersDia[claveDe(iid)+"@"+f]||0; }catch(_){ return 0; } }
 function fotosDeItemDia(iid,f){ return enLoteDeItemDia(iid,f)+enviadasDeItemDia(iid,f); }
 function estadoDia(it){ const fs=fechasDeItem(it), hoy=isoHoy();
   const cub=fs.filter(f=>fotosDeItemDia(it.iid,f)>=1), atras=fs.filter(f=>f<hoy && fotosDeItemDia(it.iid,f)<1);
   return { fechas:fs, cubiertos:cub, hoy, hoyReq:fs.includes(hoy), hoyOk:fotosDeItemDia(it.iid,hoy)>=1, atrasados:atras, completo:fs.length>0&&cub.length===fs.length, idx:fs.indexOf(hoy)+1 }; }
 function itemCompleto(it){ return esPorDia(it) ? estadoDia(it).completo : fotosDeItem(it.iid)>=3; }
+/* ---- Capa 13 · de qué día es cada foto ----
+   origen: "captura" (cámara de la app, fecha del celular) · "metadatos" (galería con fecha original) ·
+   "declarada" (galería sin fecha: el proveedor dice de qué día es) · "carga" (sin fecha y el ítem no es por día). */
+/* Selector por líneas (idea de Kevin): un ítem por día es UNA línea por fecha. El valor del <option> es "iid@@YYYY-MM-DD";
+   los ítems normales siguen con el iid pelado. La línea elegida declara de qué día es la foto. */
+function selIidDe(v){ return String(v||"").split("@@")[0]; }
+function selFechaDe(v){ v=String(v||""); return v.includes("@@")?v.split("@@")[1]:""; }
+function selIid(){ return selIidDe($("item").value); }
+function selFecha(){ return selFechaDe($("item").value); }
+function lineasDe(it){ if(!esPorDia(it)) return [{value:it.iid,fecha:"",it}]; return fechasDeItem(it).map((f,k)=>({value:it.iid+"@@"+f,fecha:f,k:k+1,it})); }
+function fechaEfectiva(e){ if(!e) return ""; if(e.fechaOrigen==="declarada") return e.fechaSel||e.fechaDecl||""; const f=(e.datos&&e.datos.fecha)||""; if(f) return f; return (e.cargada&&e.cargada.fecha)||""; }
+/* Conflicto: la foto tiene fecha real (cámara o metadatos) distinta a la línea elegida. No se inventa: se bloquea hasta moverla. */
+function conflictoFecha(e){ if(!e||e.status!=="listo"||!e.itemCodigo||!e.fechaSel) return false; if(e.fechaOrigen==="declarada"||e.fechaOrigen==="carga") return false; const f=(e.datos&&e.datos.fecha)||""; return !!f && f!==e.fechaSel; }
+function pendienteFecha(e){ if(conflictoFecha(e)) return true; return !!(e && e.status==="listo" && e.itemCodigo && e.fechaOrigen==="declarada" && !e.fechaSel && !e.fechaDecl && esPorDia(itemById(e.itemCodigo))); }
+function diaDeFoto(e){ const it=itemById(e&&e.itemCodigo); if(!esPorDia(it)) return null; const fs=fechasDeItem(it); const f=fechaEfectiva(e); return { n:fs.length, idx:f?fs.indexOf(f)+1:0, fechas:fs }; }   // idx 0 = fecha fuera de las programadas
+function etiquetaFecha(e){ const f=fechaEfectiva(e); if(!f) return ""; const hoy=isoHoy(); const rel=f===hoy?"Hoy":(f===sumarDias(hoy,-1)?"Ayer":"");
+  const orig={captura:"",metadatos:" · fecha de la foto",declarada:" · declarada por el proveedor",carga:" · fecha de carga"}[e.fechaOrigen||""]||"";
+  const d=diaDeFoto(e); let dia=""; if(d){ dia = d.idx? ` · día ${d.idx} de ${d.n}` : ` · <span style="color:#b3261e;font-weight:700">fecha no programada para este requerimiento</span>`; }
+  return `<div class="mut" style="margin:2px 0 0;font-size:12px">📅 ${rel?rel+" ":""}${fmtDia(f)}${dia}${orig}</div>`; }
+window.declararFecha=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e) return; e.fechaDecl=v||""; if(e.datos){ e.datos.fecha=v||""; } renderLista(); if(v && typeof redibujarTodas==="function") redibujarTodas(); };   // re-sella con la fecha declarada
 function resumenHoy(items){ const pd=items.filter(esPorDia); const hoyReq=pd.filter(it=>estadoDia(it).hoyReq);
   return { porDia:pd.length, hoyTotal:hoyReq.length, hoyOk:hoyReq.filter(it=>estadoDia(it).hoyOk).length, atrasados:pd.filter(it=>estadoDia(it).atrasados.length>0).length }; }
 function itemAdic(cod){ const it=itemById(cod); return it&&it.adicional?it:null; }
@@ -1094,7 +1114,7 @@ window.adminFotosZIP=async()=>{
   if(!idx.length){ toast("Las fotos aún se están cargando…"); return; }
   toast("Generando ZIP…"); const zip=new JSZip();
   idx.forEach(j=>{ const f=adminFotoURLs[j]; if(f&&f.blob) zip.file(f.nombre||("foto_"+j+".jpg"), f.blob); });
-  const cols=["radicado","cliente","evento","categoria","item","item_id","requerimiento","operador_nombre","archivo","fecha","hora","lugar","creado"];
+  const cols=["radicado","cliente","evento","categoria","item","item_id","requerimiento","operador_nombre","archivo","fecha","hora","lugar","creado","fecha_origen","dia_evento","dias_evento"];
   let csv=cols.join(",")+"\n"; arr.forEach(e=>{ csv+=cols.map(c=>csvCell(e[c]!=null?e[c]:"")).join(",")+"\n"; });
   zip.file("manifiesto.csv", csv);
   bajar(await zip.generateAsync({type:"blob"}), `fotos_${slug(arr[0].cliente||"")}_${slug(arr[0].evento||"")}.zip`);
@@ -1104,23 +1124,24 @@ window.adminFotosZIP=async()=>{
 /* ---- OPERADOR: captura ---- */
 function poblarItemTop(){
   const s=$("item"); const cur=s.value; s.innerHTML="<option value=''>— Elige un requerimiento —</option>";
-  const todos=itemsDelOperador();
-  const opcion=(it)=>{ const o=document.createElement("option"); o.value=it.iid;   // iid, NO codigo: el mismo codigo vive en varios escenarios
-    const cta=String(it.cant||"").trim(), umd=String(it.um||"").trim(); let mark, extra="";
-    if(esPorDia(it)){ const e=estadoDia(it);   // Capa 12: el estado es el de HOY, no el del evento
-      mark = e.completo?"✓ ":(e.hoyReq?(e.hoyOk?"◔ ":"○ "):"· ");
-      extra = e.completo?"  (todos los días ✓)":(e.hoyReq?`  (hoy${e.hoyOk?" ✓":""} · día ${e.idx}/${e.fechas.length})`:`  (${e.cubiertos.length}/${e.fechas.length} días)`)+(e.atrasados.length?` ⚠${e.atrasados.length} atrasado${e.atrasados.length===1?"":"s"}`:"");
-    } else { const n=fotosDeItem(it.iid); mark = n>=3?"✓ ":(n>0?"◔ ":"○ "); extra = (n>0&&n<3)?`  (${n}/3)`:""; }   // ✓ completo · ◔ en progreso · ○ pendiente
-    o.textContent=(it.adicional?"➕ ":"")+mark+(it.cat?`${it.cat} · `:"")+(it.req?`${it.codigo} · ${it.req}`:it.codigo)+(cta?`  ×${cta}${umd?" "+umd:""}`:"")+extra;
+  const todos=itemsDelOperador(); const hoy=isoHoy(); let valores=[];
+  const opcionItem=(it)=>{ const o=document.createElement("option"); o.value=it.iid; valores.push(it.iid);
+    const cta=String(it.cant||"").trim(), umd=String(it.um||"").trim(); const n=fotosDeItem(it.iid); const mark = n>=3?"✓ ":(n>0?"◔ ":"○ ");   // ✓ completo · ◔ en progreso · ○ pendiente
+    o.textContent=(it.adicional?"➕ ":"")+mark+(it.cat?`${it.cat} · `:"")+(it.req?`${it.codigo} · ${it.req}`:it.codigo)+(cta?`  ×${cta}${umd?" "+umd:""}`:"")+((n>0&&n<3)?`  (${n}/3)`:"");
+    return o; };
+  const opcionLinea=(L)=>{ const it=L.it, n=fotosDeItemDia(it.iid,L.fecha); const o=document.createElement("option"); o.value=L.value; valores.push(L.value);   // Capa 13: una línea por día
+    const mark = n>=1?"✓ ":(L.fecha<hoy?"⚠ ":"○ "); const rel = L.fecha===hoy?" · HOY":(L.fecha===sumarDias(hoy,-1)?" · ayer":"");
+    o.textContent=mark+(it.cat?`${it.cat} · `:"")+`${it.codigo} · ${it.req||""}`+`  · día ${L.k}/${fechasDeItem(it).length} · ${fmtDia(L.fecha)}${rel}`+(n?` (${n})`:"");
     return o; };
   if(cfg&&cfg.pd && todos.some(esPorDia)){   // agrupado por lo que importa HOY
     const g={hoy:[],atras:[],hechos:[],resto:[]};
-    todos.forEach(it=>{ if(!esPorDia(it)){ g.resto.push(it); return; } const e=estadoDia(it);
-      if(e.hoyReq&&!e.hoyOk) g.hoy.push(it); else if(e.atrasados.length&&!e.completo) g.atras.push(it); else if(e.hoyReq&&e.hoyOk) g.hechos.push(it); else g.resto.push(it); });
-    [["⏰ PENDIENTES DE HOY",g.hoy],["⚠ CON DÍAS ATRASADOS",g.atras],["✓ HECHOS HOY",g.hechos],["DEMÁS REQUERIMIENTOS",g.resto]].forEach(([t,arr])=>{ if(!arr.length) return;
-      const og=document.createElement("optgroup"); og.label=`${t} (${arr.length})`; arr.forEach(it=>og.appendChild(opcion(it))); s.appendChild(og); });
-  } else todos.forEach(it=>s.appendChild(opcion(it)));
-  s.value = (cur && itemsDelOperador().some(it=>it.iid===cur)) ? cur : "";
+    todos.forEach(it=>{ if(!esPorDia(it)){ g.resto.push(opcionItem(it)); return; }
+      lineasDe(it).forEach(L=>{ const n=fotosDeItemDia(it.iid,L.fecha); const o=opcionLinea(L);
+        if(L.fecha===hoy && !n) g.hoy.push(o); else if(L.fecha<hoy && !n) g.atras.push(o); else if(L.fecha===hoy && n) g.hechos.push(o); else g.resto.push(o); }); });
+    [["⏰ PENDIENTES DE HOY",g.hoy],["⚠ DÍAS ATRASADOS",g.atras],["✓ HECHOS HOY",g.hechos],["DEMÁS LÍNEAS",g.resto]].forEach(([t,arr])=>{ if(!arr.length) return;
+      const og=document.createElement("optgroup"); og.label=`${t} (${arr.length})`; arr.forEach(o=>og.appendChild(o)); s.appendChild(og); });
+  } else todos.forEach(it=>s.appendChild(opcionItem(it)));
+  s.value = (cur && valores.includes(cur)) ? cur : "";
   itemAnterior = s.value;   // sincroniza el guardián de "mínimo 3 antes de cambiar"
 }
 function irACaptura(){
@@ -1260,7 +1281,7 @@ function tipDeItem(req){
 }
 function actualizarGuia(){
   const g=$("guiaItem"); if(!g) return;
-  const cod=$("item").value;
+  const cod=selIid(), fSel=selFecha();
   if(!cod){ g.className="guia neutro"; g.innerHTML="Elige un requerimiento arriba para ver la guía y el contador de fotos."; return; }
   const enLote=enLoteDeItem(cod), enviadas=enviadasDeItem(cod), n=enLote+enviadas, meta=3, ok=n>=meta;
   const it=itemsDelOperador().find(x=>x.iid===cod)||itemById(cod); const nombre=(it&&it.req)?it.req:cod;
@@ -1268,7 +1289,11 @@ function actualizarGuia(){
   let head;
   if(enviadas>0 && enLote===0) head=`✅ ${nombre.slice(0,44)} — ${enviadas} ya enviada${enviadas===1?"":"s"} · listo`;
   else{ head=`${ok?"✅":"📸"} ${nombre.slice(0,44)} — ${enLote} en este lote`+(enviadas>0?` (+${enviadas} enviadas)`:"")+(ok?" · meta cumplida":` · faltan ${meta-n} para el mínimo de 3`); }
-  g.innerHTML=`<div class="gcount">${head}</div>`
+  let linea=""; if(fSel){ const fs=fechasDeItem(it); const k=fs.indexOf(fSel)+1, hoy=isoHoy(); const nd=fotosDeItemDia(cod,fSel);   // Capa 13: línea por día
+    linea=`<div class="gcount">📅 Cargando <b>día ${k} de ${fs.length} · ${fmtDia(fSel)}${fSel===hoy?" (hoy)":(fSel===sumarDias(hoy,-1)?" (ayer)":"")}</b> · ${nd?nd+" foto"+(nd===1?"":"s")+" ✓":"sin foto aún"}</div>`
+      +(fSel<hoy?`<div class="mut" style="margin:2px 0 0">Día pasado: solo se aceptan fotos de la <b>galería tomadas ese día</b>. Una foto tomada ahora con la cámara pertenece a hoy.</div>`:"")
+      +(fSel>hoy?`<div class="mut" style="margin:2px 0 0;color:#b3261e">Esta línea es de un día futuro.</div>`:""); }
+  g.innerHTML=linea+`<div class="gcount">${head}</div>`
     +fichaDeItem(cod)
     +`<div class="gtips"><b>Enfoca:</b> ${tipDeItem(nombre)}.<br>Que ocupe <b>≥60%</b> del encuadre · <b>no rotes</b> el teléfono · el plano abierto solo como contexto.</div>`;
 }
@@ -1277,9 +1302,9 @@ $("item").addEventListener("change", ()=>{
   const nuevo=$("item").value;
   // Mínimo 3 por requerimiento: no dejar pasar a otro requerimiento si el actual está empezado (<3).
   if(itemAnterior && nuevo && nuevo!==itemAnterior){
-    const totalPrev=fotosDeItem(itemAnterior);
-    if(!esPorDia(itemById(itemAnterior)) && enLoteDeItem(itemAnterior)>0 && totalPrev<3){   // Capa 12: por día basta 1 foto
-      alert(`Aún no completas las 3 evidencias de «${itemReqCorto(itemAnterior)}» (llevas ${totalPrev}).\n\nCaptura al menos 3 fotos de un requerimiento antes de pasar a otro.`);
+    const iidPrev=selIidDe(itemAnterior); const totalPrev=fotosDeItem(iidPrev);
+    if(!esPorDia(itemById(iidPrev)) && enLoteDeItem(iidPrev)>0 && totalPrev<3){   // Capa 12: por día basta 1 foto
+      alert(`Aún no completas las 3 evidencias de «${itemReqCorto(iidPrev)}» (llevas ${totalPrev}).\n\nCaptura al menos 3 fotos de un requerimiento antes de pasar a otro.`);
       $("item").value=itemAnterior; actualizarGuia(); return;
     }
   }
@@ -1343,12 +1368,12 @@ window.addEventListener("online", ()=>{ if(batch.some(e=>e.status==="listo"&&e.d
 
 /* ---- lote ---- */
 function agregar(fileList, meta, metaResp){
-  const cod=$("item").value;
+  const cod=selIid(), fSel=selFecha();
   const now=new Date(); const cargada={fecha:`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`, hora:`${z(now.getHours())}:${z(now.getMinutes())}`};
   [...fileList].forEach(file=>{
     const video=/^video\//.test(file.type)||/\.(mp4|mov|m4v|3gp|webm|avi|mkv)$/i.test(file.name);
     const ext=video?((file.name.split(".").pop()||"mp4").toLowerCase()):"jpg";
-    const e={id:++seq,file,itemCodigo:cod,tipo:video?"video":"foto",ext,status:"procesando",blob:null,thumb:"",datos:{},filename:"",meta:meta||null,metaResp:metaResp||null,cargada};
+    const e={id:++seq,file,itemCodigo:cod,fechaSel:fSel||"",tipo:video?"video":"foto",ext,status:"procesando",blob:null,thumb:"",datos:{},filename:"",meta:meta||null,metaResp:metaResp||null,cargada};
     batch.push(e); procesar(e); });
   renderLista();
 }
@@ -1367,7 +1392,7 @@ function idbOpen(){ return new Promise(res=>{ try{ const r=indexedDB.open(NS+"es
 }catch(_){ res(null); } }); }
 function claveEvento(){ return cfg?`${slug(cfg.cl)}|${slug(cfg.ev)}`:"NA"; }
 async function guardarLote(){ try{ const db=IDB.db||await idbOpen(); if(!db||!cfg) return;
-  const items=batch.filter(e=>e.status==="listo").map(e=>({id:e.id,itemCodigo:e.itemCodigo,tipo:e.tipo,ext:e.ext,filename:e.filename,consec:e.consec,blob:e.blob,file:e.file,thumb:e.thumb,datos:e.datos,cargada:e.cargada,meta:e.meta,status:"listo"}));
+  const items=batch.filter(e=>e.status==="listo").map(e=>({id:e.id,itemCodigo:e.itemCodigo,fechaSel:e.fechaSel||"",fechaOrigen:e.fechaOrigen||"",fechaDecl:e.fechaDecl||"",tipo:e.tipo,ext:e.ext,filename:e.filename,consec:e.consec,blob:e.blob,file:e.file,thumb:e.thumb,datos:e.datos,cargada:e.cargada,meta:e.meta,status:"listo"}));
   const tx=db.transaction("lote","readwrite"); tx.objectStore("lote").put({k:claveEvento(),seq,items});
 }catch(_){} }
 async function cargarLote(){ try{ const db=IDB.db||await idbOpen(); if(!db||!cfg) return;
@@ -1402,13 +1427,17 @@ async function procesar(entry){
     }
     const bitmap=await decodificar(entry.file);
     let ex;
-    if(entry.meta){ ex={fecha:entry.meta.fecha||"",hora:entry.meta.hora||"",lat:num(entry.meta.lat),lon:num(entry.meta.lon)}; }
+    if(entry.meta){ ex={fecha:entry.meta.fecha||"",hora:entry.meta.hora||"",lat:num(entry.meta.lat),lon:num(entry.meta.lon)}; entry.fechaOrigen="captura"; }
     else{ ex={fecha:"",hora:"",lat:null,lon:null};
       try{ const d=await exifr.parse(entry.file,["DateTimeOriginal","CreateDate"]); const f=d&&(d.DateTimeOriginal||d.CreateDate); if(f instanceof Date){ ex.fecha=`${f.getFullYear()}-${z(f.getMonth()+1)}-${z(f.getDate())}`; ex.hora=`${z(f.getHours())}:${z(f.getMinutes())}`; } }catch(_){}
+      // Capa 13: con fecha original = "metadatos"; sin ella, si el ítem es por día el proveedor debe declararla; si no, queda la de carga.
+      if(ex.fecha) entry.fechaOrigen="metadatos";
+      else if(esPorDia(itemById(entry.itemCodigo))){ entry.fechaOrigen="declarada"; if(entry.fechaSel){ entry.fechaDecl=entry.fechaSel; } if(entry.fechaDecl){ ex.fecha=entry.fechaDecl; } }
+      else entry.fechaOrigen="carga";
       try{ const g=await exifr.gps(entry.file); if(g&&esNum(g.latitude)&&esNum(g.longitude)){ ex.lat=+g.latitude; ex.lon=+g.longitude; } }catch(_){}
       // Sin GPS utilizable en el EXIF: se usa la posición del teléfono si la foto es del día.
       const r=entry.metaResp;
-      if(ex.lat==null && r && esNum(r.lat) && fotoDelDia(ex.fecha)){ ex.lat=+r.lat; ex.lon=+r.lon; if(!ex.fecha){ ex.fecha=r.fecha||""; ex.hora=r.hora||""; } }
+      if(ex.lat==null && r && esNum(r.lat) && fotoDelDia(ex.fecha) && entry.fechaOrigen!=="declarada"){ ex.lat=+r.lat; ex.lon=+r.lon; if(!ex.fecha){ ex.fecha=r.fecha||""; ex.hora=r.hora||""; } }
     }
     ex.lat=num(ex.lat); ex.lon=num(ex.lon);
     let lugar="",lugLin=[]; if(ex.lat!=null&&ex.lon!=null){ const d=await geocodeThrottled(ex.lat,ex.lon); if(d){ lugar=d.txt; lugLin=d.lineas; } }
@@ -1423,34 +1452,47 @@ async function procesar(entry){
 }
 function claveDe(iid){ return `${(cfg&&cfg.uid)||"SIN-UID"}|${iid}`; }   // = item_id de la base: llave global e inmutable
 function calcularNombres(){ const u={}; batch.forEach(e=>{ if(!e.itemCodigo){ e.filename=""; return; } const base=counters[claveDe(e.itemCodigo)]||0; u[e.itemCodigo]=(u[e.itemCodigo]||0)+1; e.consec=base+u[e.itemCodigo]; const desc=slug(itemReq(e.itemCodigo)); const cat=itemCat(e.itemCodigo); const ot=opTag();
-  const fch=e.datos.fecha||(e.cargada?e.cargada.fecha:""); const hr=(e.datos.hora||(e.cargada?e.cargada.hora:"")).replace(/:/g,""); const fh=fch?("_"+fch+(hr?"_"+hr:"")):"";   // fecha/hora de captura (EXIF/dispositivo) o, si no hay, de carga
-  e.filename=`${slug(cfg.cl)}_${slug(cfg.ev)}_${cat?slug(cat)+"_":""}${itemCod(e.itemCodigo)}${desc&&desc!=="NA"?"_"+desc:""}${ot?"_"+ot:""}${fh}_${String(e.consec).padStart(3,"0")}.${e.ext||"jpg"}`; }); }
+  const fch=fechaEfectiva(e); const hr=(e.datos.hora||(e.cargada?e.cargada.hora:"")).replace(/:/g,""); const fh=fch?("_"+fch+(hr?"_"+hr:"")):"";   // fecha/hora de captura (EXIF/dispositivo), declarada, o de carga
+  const dd=diaDeFoto(e); const tokDia=dd?`_D${dd.idx}de${dd.n}`:"";   // Capa 13: D2de5 = día 2 de 5 del evento · D0de5 = fecha fuera de las programadas
+  e.filename=`${slug(cfg.cl)}_${slug(cfg.ev)}_${cat?slug(cat)+"_":""}${itemCod(e.itemCodigo)}${desc&&desc!=="NA"?"_"+desc:""}${ot?"_"+ot:""}${tokDia}${fh}_${String(e.consec).padStart(3,"0")}.${e.ext||"jpg"}`; }); }
 function renderLista(){
   calcularNombres(); if(typeof actualizarGuia==="function") actualizarGuia(); const c=$("list"); c.innerHTML="";
   const listas=batch.filter(e=>e.status==="listo").length;
   const sinReq=batch.filter(e=>e.status==="listo"&&!e.itemCodigo).length;
   $("cnt").innerHTML = batch.length ? (`${listas}/${batch.length} listas`+(sinReq?` · <span style="color:#b3261e">${sinReq} sin requerimiento</span>`:"")) : "Aún no agregas evidencias.";
-  $("enviar").disabled=listas===0;
+  const pendFecha=batch.filter(pendienteFecha).length;
+  $("enviar").disabled=listas===0 || pendFecha>0;
+  if(pendFecha && $("sendInfo")) $("sendInfo").innerHTML=`<span style="color:#b3261e">${pendFecha} foto${pendFecha===1?"":"s"} con el día sin resolver (fecha de la foto distinta a la línea elegida, o galería sin fecha). Corrígelo para poder enviar.</span>`;
+  else if($("sendInfo") && /sin resolver/.test($("sendInfo").textContent)) $("sendInfo").textContent="";
   batch.forEach(e=>{
-    const opts=`<option value="" ${!e.itemCodigo?"selected":""}>— Selecciona requerimiento —</option>`+itemsDelOperador().map(it=>`<option value="${escAttr(it.iid)}" ${it.iid===e.itemCodigo?"selected":""}>${it.cat?it.cat+" · ":""}${it.codigo}${it.req?" · "+it.req.slice(0,26):""}</option>`).join("");
+    const curVal=e.itemCodigo?(e.fechaSel?e.itemCodigo+"@@"+e.fechaSel:e.itemCodigo):"";
+    const opts=`<option value="" ${!e.itemCodigo?"selected":""}>— Selecciona requerimiento —</option>`+itemsDelOperador().flatMap(it=>lineasDe(it).map(L=>`<option value="${escAttr(L.value)}" ${L.value===curVal?"selected":""}>${it.cat?it.cat+" · ":""}${it.codigo}${it.req?" · "+it.req.slice(0,22):""}${L.fecha?` · día ${L.k} · ${fmtDia(L.fecha)}`:""}</option>`)).join("");
     const d=document.createElement("div"); d.className="ev";
     const badge=e.tipo==="video"?`<span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-size:22px;text-shadow:0 1px 4px #000">▶</span>`:"";
     const thumbHtml=e.thumb?`<div style="position:relative;flex:none;width:66px;height:66px"><img src="${e.thumb}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#000">${badge}</div>`
       :`<div style="width:66px;height:66px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px;background:#f0f0f0;border-radius:7px">${e.tipo==="video"?"▶":"…"}</div>`;
     const sinUbi = (e.status==="listo" && e.datos && !esNum(e.datos.lat)) ? ' <span style="color:#b3261e" title="Sin coordenadas: el sello no lleva dirección">⚠ sin ubicación</span>'
       : ((e.status==="listo" && e.datos && !e.datos.lugar) ? ' <span style="color:#7a4a12" title="Hay GPS pero ningún geocoder respondió; el sello quedó con coordenadas. Se reintenta al recuperar señal.">⚠ sin dirección</span>' : '');
+    const pend=pendienteFecha(e), confl=conflictoFecha(e);
     const fnHtml = (e.status!=="listo" ? '<span style="color:var(--muted)">'+e.status+'</span>'
-      : (!e.itemCodigo ? '<span style="color:#b3261e">Asigna un requerimiento ↑</span>' : e.filename)) + sinUbi;
+      : (!e.itemCodigo ? '<span style="color:#b3261e">Asigna un requerimiento ↑</span>'
+        : (confl ? `<span style="color:#b3261e">La foto es del <b>${fmtDia(e.datos.fecha)}</b> y la línea elegida es del <b>${fmtDia(e.fechaSel)}</b>: muévela a la línea correcta ↑ o quítala.</span>`
+        : (pend?'<span style="color:#b3261e">Foto de galería sin fecha: indica de qué día es ↓</span>':e.filename)))) + sinUbi;
+    let selFecha=""; if(e.status==="listo" && e.itemCodigo && e.fechaOrigen==="declarada" && !e.fechaSel){ const d=diaDeFoto(e); const fs=(d&&d.fechas)||[]; const hoy=isoHoy(); const ops=[...fs]; if(!ops.includes(hoy)) ops.push(hoy);
+      selFecha=`<select onchange="declararFecha(${e.id},this.value)" style="margin-top:4px"><option value="">— ¿De qué día es esta foto? —</option>${ops.map(f=>`<option value="${f}" ${e.fechaDecl===f?"selected":""}>${f===hoy?"Hoy · ":(f===sumarDias(hoy,-1)?"Ayer · ":"")}${fmtDia(f)}${fs.includes(f)?` (día ${fs.indexOf(f)+1} de ${fs.length})`:" (no programado)"}</option>`).join("")}</select>`; }
+    const etiqueta=(e.status==="listo"&&e.itemCodigo&&!pend)?etiquetaFecha(e):"";
     d.innerHTML=thumbHtml+
-      `<div class="in"><select onchange="cambiarItem(${e.id},this.value)">${opts}</select><div class="fn">${fnHtml}</div>
+      `<div class="in"><select onchange="cambiarItem(${e.id},this.value)">${opts}</select>${selFecha}${etiqueta}<div class="fn">${fnHtml}</div>
        <div class="ac">${e.status==="listo"&&e.itemCodigo?`<a class="lnk" onclick="descargarUno(${e.id})">descargar</a>`:""}<a class="lnk" onclick="quitar(${e.id})">quitar</a></div></div>`;
     c.appendChild(d);
   });
   pintarProgreso();
-  if($("item") && document.activeElement!==$("item")) poblarItemTop();   // refresca ✓/◔/○ en el selector
+  if($("item") && document.activeElement!==$("item")) poblarItemTop();   // refresca ✓/◔/○ en el selector (y las líneas por día)
   guardarLote();   // respalda el lote en curso (IndexedDB) ante recargas
 }
-window.cambiarItem=(id,v)=>{ const e=batch.find(x=>x.id===id); if(e){ e.itemCodigo=v; renderLista(); } };
+window.cambiarItem=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e) return; const antes=fechaEfectiva(e); e.itemCodigo=selIidDe(v); e.fechaSel=selFechaDe(v);
+  if(e.fechaOrigen==="declarada"){ e.fechaDecl=e.fechaSel||e.fechaDecl||""; if(e.datos) e.datos.fecha=e.fechaDecl||""; }
+  renderLista(); if(e.fechaOrigen==="declarada" && fechaEfectiva(e)!==antes && typeof redibujarTodas==="function") redibujarTodas(); };
 window.quitar=(id)=>{ batch=batch.filter(x=>x.id!==id); renderLista(); };
 window.descargarUno=(id)=>{ const e=batch.find(x=>x.id===id); if(e&&e.blob) bajar(e.blob,e.filename); };
 /* Re-dibuja la marca (posición/tamaño/on-off) reusando datos; y si a una foto le faltó la
@@ -1592,10 +1634,14 @@ async function subirEvidencia(e, radicado){
       cantidad:String(itemCant(e.itemCodigo)||""), adicional:!!itemAdic(e.itemCodigo), solicitado_por:ad.solicitadoPor||"", justificacion:ad.justificacion||"",
       operador_nombre:operador.nombre, operador_cedula:operador.cedula, operador_celular:operador.celular,
       tipo:e.tipo||"foto", archivo:e.filename, storage_path:"evidencias/"+path,
-      fecha:e.datos.fecha||"", hora:e.datos.hora||"", lugar:e.datos.lugar||"", lat:e.datos.lat, lon:e.datos.lon };
+      fecha:fechaEfectiva(e)||"", hora:e.datos.hora||"", lugar:e.datos.lugar||"", lat:e.datos.lat, lon:e.datos.lon };
+    const dd=diaDeFoto(e); row.fecha_origen=e.fechaOrigen||""; row.dia_evento=dd?dd.idx:null; row.dias_evento=dd?dd.n:null;   // Capa 13
     let ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row)}, 15000);
+    if(!ins.ok){   // Capa 13 sin correr: soltar SOLO sus columnas, sin perder item_id
+      const row0=Object.assign({},row); delete row0.fecha_origen; delete row0.dia_evento; delete row0.dias_evento;
+      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row0)}, 15000); }
     if(!ins.ok){   // reintento escalonado: primero soltar SOLO item_id (Capa9 sin correr) para NO perder la categoria
-      const row1=Object.assign({},row); delete row1.item_id; delete row1.cantidad;
+      const row1=Object.assign({},row); delete row1.item_id; delete row1.cantidad; delete row1.fecha_origen; delete row1.dia_evento; delete row1.dias_evento;
       ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row1)}, 15000);
       if(!ins.ok){ const row2=Object.assign({},row1); delete row2.radicado; delete row2.categoria; delete row2.proveedor_nit;   // último recurso: columnas viejas
         ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row2)}, 15000); } }
