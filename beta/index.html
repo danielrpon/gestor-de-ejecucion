@@ -471,8 +471,47 @@ async function persistirEvento(shortOper, shortExec){
 }
 
 /* ---- arranque: decide rol ---- */
+/* ---- Capa 11 (parcial) · Recuperación de contraseña del administrador ----
+   Supabase manda el enlace de "Send password recovery" a la Site URL con #access_token=…&type=recovery.
+   Aquí se recibe: se pide la contraseña nueva y se guarda con PUT /auth/v1/user usando ese token.
+   Solo interfaz: no toca tablas ni políticas. Si el enlace venció, Supabase manda #error=…&error_code=otp_expired. */
+function recuperacionDesdeHash(){
+  const h=new URLSearchParams((location.hash||"").replace(/^#/,""));
+  if(h.get("type")!=="recovery" && !h.get("error_code")) return false;
+  const tok=h.get("access_token")||"", exp=h.get("error_code")==="otp_expired"||/expired/i.test(h.get("error_description")||"");
+  try{ history.replaceState(null,"",location.pathname+location.search); }catch(_){}   // el token no se queda en la barra ni en el historial
+  const w=document.createElement("div"); w.id="recov";
+  w.style.cssText="position:fixed;inset:0;z-index:9998;background:var(--bg,#f2f4f7);display:flex;align-items:flex-start;justify-content:center;padding:40px 14px;overflow:auto";
+  w.innerHTML=`<div class="card" style="max-width:420px;width:100%">
+    <div class="role">Administrador</div>
+    <div class="h">Nueva contraseña</div>
+    ${exp||!tok ? `<div class="guia falta">El enlace de recuperación ${exp?"ya venció":"no es válido"}. Pide uno nuevo desde el panel de Supabase (Authentication → Users → el usuario → Send password recovery) y ábrelo antes de una hora.</div>
+      <div style="height:12px"></div><button class="btn sec" onclick="document.getElementById('recov').remove()">Ir al inicio</button>`
+    : `<div class="mut" style="margin:0 0 10px">Escribe la contraseña nueva para tu usuario de administrador. Mínimo 8 caracteres.</div>
+      <div class="fld"><label>Contraseña nueva</label><input id="rcP1" type="password" autocomplete="new-password"></div>
+      <div class="fld"><label>Repítela</label><input id="rcP2" type="password" autocomplete="new-password"></div>
+      <div class="mut" id="rcMsg" style="margin-top:8px;min-height:18px"></div>
+      <button class="btn" id="rcOk" style="margin-top:10px">Guardar contraseña</button>
+      <div class="mut" style="margin-top:10px"><a class="lnk" onclick="document.getElementById('recov').remove()">Cancelar</a></div>`}
+  </div>`;
+  document.body.appendChild(w);
+  const ok=document.getElementById("rcOk"); if(!ok) return true;
+  ok.addEventListener("click", async ()=>{
+    const p1=document.getElementById("rcP1").value, p2=document.getElementById("rcP2").value, m=document.getElementById("rcMsg");
+    if(p1.length<8){ m.innerHTML='<span style="color:#b3261e">Mínimo 8 caracteres.</span>'; return; }
+    if(p1!==p2){ m.innerHTML='<span style="color:#b3261e">Las dos contraseñas no coinciden.</span>'; return; }
+    ok.disabled=true; m.textContent="Guardando…";
+    try{
+      const r=await fetch(SB_URL+"/auth/v1/user",{method:"PUT",headers:{apikey:SB_KEY,Authorization:"Bearer "+tok,"Content-Type":"application/json"},body:JSON.stringify({password:p1})});
+      if(r.ok){ m.innerHTML='<span style="color:#1a9e56;font-weight:700">✅ Contraseña actualizada.</span> Ya puedes entrar por «Soy administrador» con la nueva.'; ok.textContent="Listo"; setTimeout(()=>{ const el=document.getElementById("recov"); if(el) el.remove(); },4000); }
+      else{ let t=""; try{ const j=await r.json(); t=j.msg||j.message||j.error_description||""; }catch(_){} m.innerHTML=`<span style="color:#b3261e">No se pudo guardar (HTTP ${r.status})${t?": "+t:""}. Si el enlace venció, pide uno nuevo.</span>`; ok.disabled=false; }
+    }catch(_){ m.innerHTML='<span style="color:#b3261e">Sin conexión. Intenta de nuevo.</span>'; ok.disabled=false; }
+  });
+  return true;
+}
 window.addEventListener("DOMContentLoaded", async () => {
   aplicarMarca();
+  recuperacionDesdeHash();   // Capa 11 parcial: enlace de recuperación de contraseña
   const params=new URLSearchParams(location.search);
   const evUid=params.get("ev"); const rolQ=params.get("rol");
   const m = location.hash.match(/[#&]c=([^&]+)/);
