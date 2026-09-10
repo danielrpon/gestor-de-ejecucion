@@ -125,12 +125,12 @@
       <div class="guia neutro hide" id="execNuevo" style="margin-bottom:10px">Evento <b>nuevo</b>, en blanco. Para modificar uno que ya existe, ábrelo en <b>▸ Configuración de eventos</b> (al final) o con el enlace del productor.</div>
       <div class="fld"><label>Cliente</label><input id="ecliente" type="text" autocomplete="off"></div>
       <div class="fld"><label>Evento</label><input id="eevento" type="text" autocomplete="off"></div>
-      <div class="fld"><label>Fecha del evento</label><input id="efecha" type="date"></div>
+      <div class="row"><div class="fld"><label>Fecha del evento (inicio)</label><input id="efecha" type="date"></div><div class="fld"><label>Fecha fin (si dura varios días)</label><input id="efechafin" type="date"></div></div>
       <div class="fld"><label>Ciudad</label><input id="eciudad" type="text" autocomplete="off"></div>
       <div style="height:14px"></div>
       <button class="btn sec" id="ebtnReq">Cargar lista de evidencias (Excel / CSV)</button>
       <input id="efileReq" type="file" accept=".xlsx,.xls,.csv">
-      <div class="mut" id="ereqInfo">Carga un Excel/CSV o agrega manualmente. Columnas: proveedor · requerimiento · cantidad (el código lo asigna la app).</div>
+      <div class="mut" id="ereqInfo">Carga un Excel/CSV o agrega manualmente. Columnas: proveedor · requerimiento · cantidad · días · fechas (2026-09-08 o D1;D2;D4) · por día (SI/NO). El código lo asigna la app.</div>
       <div style="height:8px"></div>
       <button class="btn sec" id="ebtnFicha">Completar ficha desde plantilla (ubicación · cantidad · características)</button>
       <input id="efileFicha" type="file" accept=".xlsx,.xls,.csv">
@@ -150,6 +150,17 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span class="mut" id="fltInfo"></span><a class="lnk" id="fltLimpiar" style="font-size:13px">Limpiar filtros</a></div>
       </div>
       <div id="execList" class="list" style="margin-top:10px"></div>
+      <!-- Capa 12 · evidencia por requerimiento por día -->
+      <div id="epdWrap" class="hide" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+        <div class="h">Evidencia por día</div>
+        <label class="tgl"><input id="epd" type="checkbox"><span>Exigir una evidencia por requerimiento <b>por cada día</b> (aplica a los de varios días)</span></label>
+        <div class="mut" id="epdInfo" style="margin-top:6px"></div>
+        <div id="epdList" class="list" style="margin-top:8px"></div>
+        <div class="row" style="margin-top:10px;align-items:flex-end">
+          <div class="fld" style="flex:2"><label>Marcar por día un requerimiento que no lo trae (p.ej. el sonido, solo el primer día)</label><select id="epdSel"></select></div>
+          <div style="flex:1"><button class="btn sec" id="epdAdd" style="margin:0;width:100%">Agregar</button></div>
+        </div>
+      </div>
       <div class="h" style="margin-top:16px">Marca de agua (aplica a TODOS los proveedores del evento)</div>
       <div class="opts">
         <div class="row">
@@ -231,7 +242,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v31 · 1sep</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v32 · 10sep · evidencia por día</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -352,6 +363,8 @@
 <script src="jszip.min.js"></script>
 <script src="qrcode.min.js"></script>
 <script>
+/* Espacio de nombres del almacenamiento del celular: la raíz usa "est_"; la beta (/beta/) usa "estb_" para no pisarlo. */
+const NS="est_";
 const $ = id => document.getElementById(id);
 /* Red de seguridad: cualquier error de JS no capturado se muestra en pantalla (nunca falla en silencio). */
 function mostrarErr(msg){ try{ let b=$("errbar"); if(!b){ b=document.createElement("div"); b.id="errbar"; b.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:200;background:#b3261e;color:#fff;font:600 12px/1.4 system-ui;padding:10px 14px;text-align:center"; document.body.appendChild(b);} b.textContent="⚠️ "+msg+"  (toca para ocultar)"; b.onclick=()=>b.remove(); }catch(_){} }
@@ -386,14 +399,15 @@ async function sbGet(uid){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos?uid
 async function sbList(){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos?select=*&order=consec.desc",{headers:SB_H}); if(!r.ok) return null; return await r.json(); }catch(_){ return null; } }
 async function sbMaxConsec(){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos?select=consec&order=consec.desc&limit=1",{headers:SB_H}); if(r.ok){ const a=await r.json(); if(a.length) return a[0].consec||0; } }catch(_){} return 0; }
 let cfg = null;              // {cl, ev, it:[{codigo,req}], od}
-let operador = loadJSON("est_operador", null);
-let counters = loadJSON("est_counters", {});
+let operador = loadJSON(NS+"operador", null);
+let counters = loadJSON(NS+"counters", {});
+let countersDia = loadJSON(NS+"counters_dia", {});   // Capa 12: fotos ya enviadas por requerimiento y por fecha (item_id@YYYY-MM-DD)
 let batch = [], seq = 0;
 /* Caché de direcciones. Antes la llave tenía 5 decimales (~1 m): como el GPS baila metro a metro,
    CADA foto pedía una dirección nueva y los proveedores gratuitos empezaban a cortar (de ahí que
    unas fotos trajeran dirección y otras no). Ahora la llave es de ~110 m y, además, se reutiliza
    cualquier dirección ya resuelta a menos de 150 m: en un evento eso es una sola consulta. */
-let geoCache = loadJSON("est_geocache", {}) || {}; let geoChain = Promise.resolve();
+let geoCache = loadJSON(NS+"geocache", {}) || {}; let geoChain = Promise.resolve();
 
 function loadJSON(k,d){ try{ return JSON.parse(localStorage.getItem(k))||d; }catch(_){ return d; } }
 function saveJSON(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(_){} }
@@ -439,8 +453,8 @@ function decCfg(s){ try{ return JSON.parse(decodeURIComponent(escape(atob(s))));
    Cada evento queda registrado con un consecutivo (EV-001, EV-002…) y el config codificado,
    para reconstruir el link de operador (#c=) y el de ejecutivo (#e=). Los datos de cada evento
    (counters, adicionales, lote) ya viven namespaced por cliente|evento, así que NO se mezclan. */
-function eventos(){ return loadJSON("est_eventos", {}); }                 // cache local por uid (respaldo si no hay señal)
-function cacheEvento(rec){ try{ if(rec&&rec.uid){ const all=eventos(); all[rec.uid]=rec; saveJSON("est_eventos",all); } }catch(_){} }
+function eventos(){ return loadJSON(NS+"eventos", {}); }                 // cache local por uid (respaldo si no hay señal)
+function cacheEvento(rec){ try{ if(rec&&rec.uid){ const all=eventos(); all[rec.uid]=rec; saveJSON(NS+"eventos",all); } }catch(_){} }
 function evConsecTag(n){ return "EV-"+String(n).padStart(3,"0"); }
 function nuevoUid(){ return "ev"+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function linkOper(uid){ return PROD+"?ev="+uid; }                          // link estable de operador
@@ -454,8 +468,47 @@ async function persistirEvento(shortOper, shortExec){
 }
 
 /* ---- arranque: decide rol ---- */
+/* ---- Capa 11 (parcial) · Recuperación de contraseña del administrador ----
+   Supabase manda el enlace de "Send password recovery" a la Site URL con #access_token=…&type=recovery.
+   Aquí se recibe: se pide la contraseña nueva y se guarda con PUT /auth/v1/user usando ese token.
+   Solo interfaz: no toca tablas ni políticas. Si el enlace venció, Supabase manda #error=…&error_code=otp_expired. */
+function recuperacionDesdeHash(){
+  const h=new URLSearchParams((location.hash||"").replace(/^#/,""));
+  if(h.get("type")!=="recovery" && !h.get("error_code")) return false;
+  const tok=h.get("access_token")||"", exp=h.get("error_code")==="otp_expired"||/expired/i.test(h.get("error_description")||"");
+  try{ history.replaceState(null,"",location.pathname+location.search); }catch(_){}   // el token no se queda en la barra ni en el historial
+  const w=document.createElement("div"); w.id="recov";
+  w.style.cssText="position:fixed;inset:0;z-index:9998;background:var(--bg,#f2f4f7);display:flex;align-items:flex-start;justify-content:center;padding:40px 14px;overflow:auto";
+  w.innerHTML=`<div class="card" style="max-width:420px;width:100%">
+    <div class="role">Administrador</div>
+    <div class="h">Nueva contraseña</div>
+    ${exp||!tok ? `<div class="guia falta">El enlace de recuperación ${exp?"ya venció":"no es válido"}. Pide uno nuevo desde el panel de Supabase (Authentication → Users → el usuario → Send password recovery) y ábrelo antes de una hora.</div>
+      <div style="height:12px"></div><button class="btn sec" onclick="document.getElementById('recov').remove()">Ir al inicio</button>`
+    : `<div class="mut" style="margin:0 0 10px">Escribe la contraseña nueva para tu usuario de administrador. Mínimo 8 caracteres.</div>
+      <div class="fld"><label>Contraseña nueva</label><input id="rcP1" type="password" autocomplete="new-password"></div>
+      <div class="fld"><label>Repítela</label><input id="rcP2" type="password" autocomplete="new-password"></div>
+      <div class="mut" id="rcMsg" style="margin-top:8px;min-height:18px"></div>
+      <button class="btn" id="rcOk" style="margin-top:10px">Guardar contraseña</button>
+      <div class="mut" style="margin-top:10px"><a class="lnk" onclick="document.getElementById('recov').remove()">Cancelar</a></div>`}
+  </div>`;
+  document.body.appendChild(w);
+  const ok=document.getElementById("rcOk"); if(!ok) return true;
+  ok.addEventListener("click", async ()=>{
+    const p1=document.getElementById("rcP1").value, p2=document.getElementById("rcP2").value, m=document.getElementById("rcMsg");
+    if(p1.length<8){ m.innerHTML='<span style="color:#b3261e">Mínimo 8 caracteres.</span>'; return; }
+    if(p1!==p2){ m.innerHTML='<span style="color:#b3261e">Las dos contraseñas no coinciden.</span>'; return; }
+    ok.disabled=true; m.textContent="Guardando…";
+    try{
+      const r=await fetch(SB_URL+"/auth/v1/user",{method:"PUT",headers:{apikey:SB_KEY,Authorization:"Bearer "+tok,"Content-Type":"application/json"},body:JSON.stringify({password:p1})});
+      if(r.ok){ m.innerHTML='<span style="color:#1a9e56;font-weight:700">✅ Contraseña actualizada.</span> Ya puedes entrar por «Soy administrador» con la nueva.'; ok.textContent="Listo"; setTimeout(()=>{ const el=document.getElementById("recov"); if(el) el.remove(); },4000); }
+      else{ let t=""; try{ const j=await r.json(); t=j.msg||j.message||j.error_description||""; }catch(_){} m.innerHTML=`<span style="color:#b3261e">No se pudo guardar (HTTP ${r.status})${t?": "+t:""}. Si el enlace venció, pide uno nuevo.</span>`; ok.disabled=false; }
+    }catch(_){ m.innerHTML='<span style="color:#b3261e">Sin conexión. Intenta de nuevo.</span>'; ok.disabled=false; }
+  });
+  return true;
+}
 window.addEventListener("DOMContentLoaded", async () => {
   aplicarMarca();
+  recuperacionDesdeHash();   // Capa 11 parcial: enlace de recuperación de contraseña
   const params=new URLSearchParams(location.search);
   const evUid=params.get("ev"); const rolQ=params.get("rol");
   const m = location.hash.match(/[#&]c=([^&]+)/);
@@ -465,15 +518,15 @@ window.addEventListener("DOMContentLoaded", async () => {
   if(evUid){                                                 // link ESTABLE ?ev=<uid> (config desde Supabase)
     const rec=await sbGet(evUid) || eventos()[evUid];
     if(rec&&rec.config){
-      cfg=rec.config; cfg.uid=evUid; cfg.consec=rec.consec; saveJSON("est_config",cfg); cacheEvento(rec);
+      cfg=rec.config; cfg.uid=evUid; cfg.consec=rec.consec; saveJSON(NS+"config",cfg); cacheEvento(rec);
       pintarWho();
       if(rolQ==="ex"){ prefillExec(); editandoId=evUid; aplicarModoExec(); show("exec"); }   // ejecutivo -> editar (editandoId DESPUÉS de prefillExec, que lo resetea)
       else irALogin();                                       // operador -> capturar
-    } else { cfg=loadJSON("est_config",null); pintarWho(); if($("homeHint")) $("homeHint").textContent="No pude cargar el evento. Revisa tu conexión y vuelve a abrir el enlace."; show("home"); }
+    } else { cfg=loadJSON(NS+"config",null); pintarWho(); if($("homeHint")) $("homeHint").textContent="No pude cargar el evento. Revisa tu conexión y vuelve a abrir el enlace."; show("home"); }
     return;
   }
-  cfg = fromExec || fromLink || loadJSON("est_config", null);
-  if(fromExec || fromLink){ saveJSON("est_config", cfg); }
+  cfg = fromExec || fromLink || loadJSON(NS+"config", null);
+  if(fromExec || fromLink){ saveJSON(NS+"config", cfg); }
   pintarWho();
   const hash = location.hash.replace(/^#/,"");
   if(fromExec){ prefillExec(); show("exec"); }             // link viejo del EJECUTIVO (compatibilidad)
@@ -501,7 +554,7 @@ $("verHist").addEventListener("click", ()=>{ const l=$("histList"); l.classList.
 async function renderHistorial(){
   const l=$("histList"); if(!l) return;
   let arr=await sbList();                                       // fuente: Supabase (compartido entre dispositivos)
-  if(arr){ const cache={}; arr.forEach(e=>cache[e.uid]=e); saveJSON("est_eventos",cache); }   // refresca cache local
+  if(arr){ const cache={}; arr.forEach(e=>cache[e.uid]=e); saveJSON(NS+"eventos",cache); }   // refresca cache local
   else arr=Object.values(eventos());                           // respaldo: cache local si no hay señal
   arr=arr.slice().sort((a,b)=>(b.consec||0)-(a.consec||0));
   if(!arr.length){ l.innerHTML='<div class="mut">Aún no hay eventos configurados.</div>'; return; }
@@ -521,7 +574,7 @@ $("miadd").addEventListener("click", ()=>{ const req=$("mireq").value.trim(), ca
    ítems del "Evento de prueba"), y de ahí que el desplegable del proveedor mostrara empresas
    que no eran de su evento. Para partir de una copia está "Duplicar como evento nuevo". */
 function nuevoExec(){
-  $("ecliente").value=""; $("eevento").value=""; $("efecha").value=""; $("eciudad").value="";
+  $("ecliente").value=""; $("eevento").value=""; $("efecha").value=""; $("efechafin").value=""; $("epd").checked=false; $("eciudad").value="";
   execItems=[]; renderExecItems();
   $("emPos").value="bl"; $("emEsc").value="3.4"; $("emOn").checked=true;
   if($("acWrap")) $("acWrap").classList.add("hide");
@@ -532,7 +585,7 @@ function nuevoExec(){
   if($("execNuevo")) $("execNuevo").classList.remove("hide");
   window.scrollTo(0,0);
 }
-function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||""})); renderExecItems();
+function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("efechafin").value=cfg.ff||""; $("epd").checked=!!cfg.pd; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null))})); renderExecItems();
     const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; } if(typeof renderHistorial==="function") renderHistorial();
   editandoId=null; aplicarModoExec(); }   // por defecto: modo NUEVO (los que editan fijan editandoId DESPUÉS y llaman aplicarModoExec)
 /* Modo de la vista ejecutivo: EDITAR (editandoId fijado) muestra solo "Guardar cambios" + "Duplicar";
@@ -567,14 +620,48 @@ function renderExecItems(){
   if(mostrados===0 && n){ c.innerHTML='<div class="mut" style="padding:8px 2px">Ningún requerimiento coincide con el filtro.</div>'; }
   if($("miCodHint")) $("miCodHint").textContent = "La app asignará el código "+nextCodigo()+" a la próxima evidencia.";
   const dl=$("provList"); if(dl){ dl.innerHTML=""; proveedores().forEach(p=>{ const o=document.createElement("option"); o.value=p; dl.appendChild(o); }); }
+  renderPorDia();
   chequearGen();
 }
+/* Capa 12 · panel del productor: qué requerimientos son de varios días y en qué fechas. Se muestra en cuanto hay
+   lista; el interruptor se prende solo la primera vez que aparece un ítem con más de un día. */
+var epdAuto=false;
+function renderPorDia(){
+  const w=$("epdWrap"), l=$("epdList"), inf=$("epdInfo"), sel=$("epdSel"); if(!w||!l) return;
+  if(!execItems.length){ w.classList.add("hide"); return; }
+  w.classList.remove("hide");
+  const ini=$("efecha").value||"";
+  const cand=execItems.map((it,idx)=>({it,idx})).filter(x=>candidatoPorDia(x.it));
+  const activos=cand.filter(x=>x.it.pd!==false);
+  if(activos.length && !epdAuto && !$("epd").checked && !editandoId){ $("epd").checked=true; epdAuto=true; }
+  const on=$("epd").checked;
+  if(on && !$("efechafin").value){ const todas=activos.flatMap(x=>fechasDeItem(x.it,ini)); if(todas.length) $("efechafin").value=todas.sort().slice(-1)[0]; }
+  if(!ini && cand.length) inf.innerHTML='<span style="color:#b3261e">Pon la <b>fecha de inicio</b> del evento: de ahí salen los días de cada requerimiento.</span>';
+  else if(!cand.length) inf.textContent="Ningún requerimiento viene marcado por día ni trae más de 1 día. Si alguno debe evidenciarse en días concretos, agrégalo abajo o márcalo en la plantilla (columnas días · fechas · por día).";
+  else inf.innerHTML=`<b>${activos.length}</b> de ${cand.length} candidato${cand.length===1?"":"s"} con evidencia por día. ${on?"Cada uno pedirá una foto <b>por cada fecha</b>; los demás requerimientos siguen con 3 fotos en total.":"Con el interruptor general apagado, ninguno exige foto por día (3 fotos en total)."} Fechas: ISO (2026-09-08) o relativas al inicio (D1 = primer día, D1;D2;D4).`
+    +(cand.length>1?` <a class="lnk" style="font-size:12px" onclick="epdTodos(true)">todos</a> · <a class="lnk" style="font-size:12px" onclick="epdTodos(false)">ninguno</a>`:"");
+  l.innerHTML=cand.map(({it,idx})=>{ const fs=fechasDeItem(it,ini); const nd=diasNum(it)||fs.length||1; const off=it.pd===false; const toks=parseFechas(it.fechas||[]);
+    return `<div class="ev" style="${off?"opacity:.55":""}"><div class="in"><label class="tgl" style="font-size:14px"><input type="checkbox" ${off?"":"checked"} onchange="epdToggle(${idx},this.checked)"><span><b style="color:var(--azul)">${escAttr(it.codigo)}</b> · ${escAttr(it.req||"")}${it.cat?` <span class="mut" style="margin:0">· ${escAttr(it.cat)}</span>`:""}</span></label>
+      ${off?`<div class="mut" style="margin:3px 0 0">Sin evidencia por día: se comporta como los demás (3 fotos en total).</div>`:`
+      <div class="row" style="margin-top:6px;align-items:flex-end"><div class="fld" style="flex:0 0 78px"><label>Días</label><input type="number" min="1" value="${nd}" onchange="epdDias(${idx},this.value)"></div>
+      <div class="fld" style="flex:1"><label>Fechas (${fs.length})</label><input type="text" value="${escAttr(toks.length?toks.join(", "):fs.join(", "))}" placeholder="2026-09-08, D1, D3…" onchange="epdFechas(${idx},this.value)"></div></div>
+      <div class="mut" style="margin:3px 0 0">${fs.length?fs.map(fmtDia).join(" · "):"(sin fechas: falta la fecha de inicio)"}</div>`}
+      </div></div>`; }).join("");
+  if(sel){ sel.innerHTML='<option value="">— elige un requerimiento —</option>'; execItems.forEach((it,idx)=>{ if(candidatoPorDia(it)) return; const o=document.createElement("option"); o.value=idx; o.textContent=`${it.codigo} · ${(it.req||"").slice(0,48)}`; sel.appendChild(o); }); }
+}
+window.epdDias=(idx,v)=>{ const it=execItems[idx]; if(!it) return; const n=Math.max(1,parseInt(v,10)||1); it.dias=String(n); it.fechas=[]; if(n===1) it.pd=true; renderPorDia(); };   // fechas vuelven a derivarse
+window.epdFechas=(idx,v)=>{ const it=execItems[idx]; if(!it) return; const fs=parseFechas(v); if(!fs.length){ renderPorDia(); return; } it.fechas=fs; it.dias=String(resolverFechas(fs,$("efecha").value).length||fs.length); it.pd=true; renderPorDia(); };
+window.epdToggle=(idx,on)=>{ const it=execItems[idx]; if(!it) return; it.pd=!!on; renderPorDia(); };
+window.epdTodos=(on)=>{ execItems.forEach(it=>{ if(candidatoPorDia(it)||it.pd===false) it.pd=!!on; }); renderPorDia(); };
+if($("epd")) $("epd").addEventListener("change", renderPorDia);
+if($("efecha")) $("efecha").addEventListener("change", ()=>{ if($("efechafin").value && $("efechafin").value<$("efecha").value) $("efechafin").value=""; renderPorDia(); });
+if($("epdAdd")) $("epdAdd").addEventListener("click", ()=>{ const idx=parseInt($("epdSel").value,10); const it=execItems[idx]; if(!it){ toast("Elige un requerimiento"); return; } it.pd=true; it.fechas=["D1"]; $("epd").checked=true; renderPorDia(); toast("Marcado por día: queda en el primer día; edita las fechas si es otro"); });
 window.quitarExec=(i)=>{ execItems.splice(i,1); renderExecItems(); };
 ["fltBuscar","fltCat","fltProv"].forEach(id=>{ const el=$(id); if(el) el.addEventListener(id==="fltBuscar"?"input":"change", renderExecItems); });
 if($("fltLimpiar")) $("fltLimpiar").addEventListener("click", ()=>{ $("fltBuscar").value=""; $("fltCat").value=""; $("fltProv").value=""; renderExecItems(); });
 /* Requerimientos ADICIONALES agregados por el operador en sitio (locales al dispositivo, por evento) */
-function adicKey(){ return "est_adic_"+((cfg&&cfg.uid)||"SIN-UID"); }
-function adicKeyVieja(){ return "est_adic_"+(cfg?`${slug(cfg.cl)}|${slug(cfg.ev)}`:"NA"); }   // se anclaba a cliente|evento: se rompía al renombrar el evento
+function adicKey(){ return NS+"adic_"+((cfg&&cfg.uid)||"SIN-UID"); }
+function adicKeyVieja(){ return NS+"adic_"+(cfg?`${slug(cfg.cl)}|${slug(cfg.ev)}`:"NA"); }   // se anclaba a cliente|evento: se rompía al renombrar el evento
 function adicionalesDelEvento(){
   let a=loadJSON(adicKey(), null);
   if(a===null){ a=loadJSON(adicKeyVieja(), []); if(a.length) saveJSON(adicKey(), a); }   // migración de los guardados antes de la v17
@@ -592,6 +679,64 @@ function itemNit(cod){ const it=itemById(cod); return it?(it.nit||""):""; }
 function itemCar(cod){ const it=itemById(cod); return it?(it.car||""):""; }     // características / especificaciones
 function itemUm(cod){ const it=itemById(cod); return it?(it.um||""):""; }       // unidad de medida
 function itemDias(cod){ const it=itemById(cod); return it?(it.dias||""):""; }
+/* ---- Capa 12 · evidencia por requerimiento por día ----
+   El ítem sigue siendo UNO en la base (misma llave categoria|codigo|ordinal); lo que cambia es que su
+   estado pendiente/completo se calcula por fecha. Un ítem es "por día" si el evento lo exige (cfg.pd) y
+   trae fechas: explícitas (it.fechas) o derivadas (it.dias consecutivos desde la fecha de inicio). Los de
+   un solo día conservan la regla de siempre (3 fotos). Día cubierto = 1 foto sellada ese día. */
+function isoHoy(){ const d=new Date(); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
+function sumarDias(iso,n){ const d=new Date(iso+"T12:00:00"); if(isNaN(d)) return ""; d.setDate(d.getDate()+n); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
+/* Fechas de un ítem: ISO (2026-09-08), dd/mm/aaaa, o RELATIVAS al inicio del evento: D1 = primer día, D2 = segundo…
+   Se guardan tal cual (ISO o "D#") y se resuelven con la fecha de inicio al usarlas. Así la plantilla puede decir
+   "D1" para el sonido sin saber la fecha, o "D1;D2;D4;D5" para un ítem de 4 de los 5 días. */
+function parseFechas(v){ const arr=Array.isArray(v)?v:String(v||"").split(/[,;|]+|\s+(?![0-9]{1,2}$)/);
+  return arr.map(t=>{ t=String(t||"").trim(); let m;
+    if((m=t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))) return `${m[1]}-${z(+m[2])}-${z(+m[3])}`;
+    if((m=t.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})$/))) return `${m[3]}-${z(+m[2])}-${z(+m[1])}`;
+    if((m=t.match(/^d(?:[ií]a)?\s*(\d{1,3})$/i))) return "D"+(+m[1]);
+    return ""; }).filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i); }
+function resolverFechas(arr, ini){ return (arr||[]).map(t=>{ const m=String(t).match(/^D(\d+)$/); if(!m) return t; return ini?sumarDias(ini,(+m[1])-1):""; }).filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).sort(); }
+function parseBool(v){ const t=String(v||"").trim().toLowerCase(); if(!t) return null; if(["si","sí","s","x","1","true","yes","y","diaria","por dia","por día"].includes(t)) return true; if(["no","n","0","false"].includes(t)) return false; return null; }
+function fechasConsecutivas(ini,n){ const out=[]; if(!ini||!(n>0)) return out; for(let i=0;i<n;i++){ const f=sumarDias(ini,i); if(f) out.push(f); } return out; }
+function diasNum(it){ const n=parseInt(String((it&&it.dias)||"").replace(/\D/g,""),10); return isNaN(n)?0:n; }
+/* Prioridad: fechas explícitas → días consecutivos desde el inicio → si el ítem está marcado por día sin nada más, el primer día. */
+function fechasDeItem(it, ini){ if(!it) return []; const i0=(ini!==undefined)?ini:((cfg&&cfg.fe)||"");
+  const ex=resolverFechas(parseFechas(it.fechas||[]), i0); if(ex.length) return ex;
+  const n=diasNum(it); if(n>1) return fechasConsecutivas(i0, n);
+  if(it.pd===true && i0) return [i0]; return []; }
+/* Candidato a "por día" = trae más de un día, o fechas, o viene marcado. Se excluye si el productor lo apagó (pd=false). */
+function candidatoPorDia(it){ return !!it && !it.adicional && (it.pd===true || diasNum(it)>1 || parseFechas(it.fechas||[]).length>0); }
+function esPorDia(it){ return !!(cfg&&cfg.pd) && candidatoPorDia(it) && it.pd!==false && fechasDeItem(it).length>0; }
+function fmtDia(iso){ const d=new Date(iso+"T12:00:00"); if(isNaN(d)) return iso||""; return d.toLocaleDateString("es-CO",{weekday:"short",day:"numeric",month:"short"}).replace(/\./g,""); }
+function enLoteDeItemDia(iid,f){ return iid? batch.filter(e=>e.itemCodigo===iid && e.tipo!=="video" && fechaEfectiva(e)===f).length : 0; }
+function enviadasDeItemDia(iid,f){ try{ return countersDia[claveDe(iid)+"@"+f]||0; }catch(_){ return 0; } }
+function fotosDeItemDia(iid,f){ return enLoteDeItemDia(iid,f)+enviadasDeItemDia(iid,f); }
+function estadoDia(it){ const fs=fechasDeItem(it), hoy=isoHoy();
+  const cub=fs.filter(f=>fotosDeItemDia(it.iid,f)>=1), atras=fs.filter(f=>f<hoy && fotosDeItemDia(it.iid,f)<1);
+  return { fechas:fs, cubiertos:cub, hoy, hoyReq:fs.includes(hoy), hoyOk:fotosDeItemDia(it.iid,hoy)>=1, atrasados:atras, completo:fs.length>0&&cub.length===fs.length, idx:fs.indexOf(hoy)+1 }; }
+function itemCompleto(it){ return esPorDia(it) ? estadoDia(it).completo : fotosDeItem(it.iid)>=3; }
+/* ---- Capa 13 · de qué día es cada foto ----
+   origen: "captura" (cámara de la app, fecha del celular) · "metadatos" (galería con fecha original) ·
+   "declarada" (galería sin fecha: el proveedor dice de qué día es) · "carga" (sin fecha y el ítem no es por día). */
+/* Selector por líneas (idea de Kevin): un ítem por día es UNA línea por fecha. El valor del <option> es "iid@@YYYY-MM-DD";
+   los ítems normales siguen con el iid pelado. La línea elegida declara de qué día es la foto. */
+function selIidDe(v){ return String(v||"").split("@@")[0]; }
+function selFechaDe(v){ v=String(v||""); return v.includes("@@")?v.split("@@")[1]:""; }
+function selIid(){ return selIidDe($("item").value); }
+function selFecha(){ return selFechaDe($("item").value); }
+function lineasDe(it){ if(!esPorDia(it)) return [{value:it.iid,fecha:"",it}]; return fechasDeItem(it).map((f,k)=>({value:it.iid+"@@"+f,fecha:f,k:k+1,it})); }
+function fechaEfectiva(e){ if(!e) return ""; if(e.fechaOrigen==="declarada") return e.fechaSel||e.fechaDecl||""; const f=(e.datos&&e.datos.fecha)||""; if(f) return f; return (e.cargada&&e.cargada.fecha)||""; }
+/* Conflicto: la foto tiene fecha real (cámara o metadatos) distinta a la línea elegida. No se inventa: se bloquea hasta moverla. */
+function conflictoFecha(e){ if(!e||e.status!=="listo"||!e.itemCodigo||!e.fechaSel) return false; if(e.fechaOrigen==="declarada"||e.fechaOrigen==="carga") return false; const f=(e.datos&&e.datos.fecha)||""; return !!f && f!==e.fechaSel; }
+function pendienteFecha(e){ if(conflictoFecha(e)) return true; return !!(e && e.status==="listo" && e.itemCodigo && e.fechaOrigen==="declarada" && !e.fechaSel && !e.fechaDecl && esPorDia(itemById(e.itemCodigo))); }
+function diaDeFoto(e){ const it=itemById(e&&e.itemCodigo); if(!esPorDia(it)) return null; const fs=fechasDeItem(it); const f=fechaEfectiva(e); return { n:fs.length, idx:f?fs.indexOf(f)+1:0, fechas:fs }; }   // idx 0 = fecha fuera de las programadas
+function etiquetaFecha(e){ const f=fechaEfectiva(e); if(!f) return ""; const hoy=isoHoy(); const rel=f===hoy?"Hoy":(f===sumarDias(hoy,-1)?"Ayer":"");
+  const orig={captura:"",metadatos:" · fecha de la foto",declarada:" · declarada por el proveedor",carga:" · fecha de carga"}[e.fechaOrigen||""]||"";
+  const d=diaDeFoto(e); let dia=""; if(d){ dia = d.idx? ` · día ${d.idx} de ${d.n}` : ` · <span style="color:#b3261e;font-weight:700">fecha no programada para este requerimiento</span>`; }
+  return `<div class="mut" style="margin:2px 0 0;font-size:12px">📅 ${rel?rel+" ":""}${fmtDia(f)}${dia}${orig}</div>`; }
+window.declararFecha=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e) return; e.fechaDecl=v||""; if(e.datos){ e.datos.fecha=v||""; } renderLista(); if(v && typeof redibujarTodas==="function") redibujarTodas(); };   // re-sella con la fecha declarada
+function resumenHoy(items){ const pd=items.filter(esPorDia); const hoyReq=pd.filter(it=>estadoDia(it).hoyReq);
+  return { porDia:pd.length, hoyTotal:hoyReq.length, hoyOk:hoyReq.filter(it=>estadoDia(it).hoyOk).length, atrasados:pd.filter(it=>estadoDia(it).atrasados.length>0).length }; }
 function itemAdic(cod){ const it=itemById(cod); return it&&it.adicional?it:null; }
 function proveedores(){ const s=new Set(); (execItems&&execItems.length?execItems:itemsCfg()).forEach(it=>{ const p=(it.prov||"").trim(); if(p) s.add(p); }); return [...s].sort((a,b)=>a.localeCompare(b,'es')); }
 function provDeItems(){ const s=new Set(); itemsCfg().forEach(it=>{ const p=(it.prov||"").trim(); if(p) s.add(p); }); return [...s].sort((a,b)=>a.localeCompare(b,'es')); }
@@ -624,7 +769,7 @@ async function parsearPlantilla(file){
       cat:get(r,["categoria","categoría","modulo","módulo","grupo","hoja"]),
       car:get(r,["caracteristicas","características","especificaciones","observaciones","nota"]),
       um:get(r,["unidad de medida","unidad_de_medida","unidad","um","medida"]),
-      dias:get(r,["dias","días","dias_servicio"]) })).filter(x=>x.req||x.codigo);
+      dias:get(r,["dias","días","dias_servicio"]), fechas:parseFechas(get(r,["fechas","fechas requeridas","dias especificos","días específicos","fechas_evidencia"])), pd:parseBool(get(r,["por dia","por día","por_dia","evidencia por dia","evidencia por día","evidencia diaria","diaria"])) })).filter(x=>x.req||x.codigo);
   let mx=0; items.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx)mx=n; });
   items.forEach(it=>{ if(!String(it.codigo).trim()){ mx++; it.codigo=String(mx).padStart(2,"0"); } });   // la app asigna código a los ítems sin código
   return {rows, items, get};
@@ -644,7 +789,7 @@ async function completarFicha(file){
       const m=mapa[it.iid];
       if(!m){ sin++; return; }
       let toco=false;
-      ["car","um","dias"].forEach(f=>{ if(!String(it[f]||"").trim() && String(m[f]||"").trim()){ it[f]=m[f]; toco=true; } });
+      ["car","um","dias","fechas"].forEach(f=>{ if(!String(it[f]||"").trim() && String(m[f]||"").trim()){ it[f]=m[f]; toco=true; } }); if(it.pd==null && m.pd!=null){ it.pd=m.pd; toco=true; }
       if(!String(it.cant||"").trim() && String(m.cant||"").trim()){ it.cant=m.cant; toco=true; }
       if(toco) ok++;
     });
@@ -667,7 +812,7 @@ async function cargarReq(file){
     execItems = rows.map(r=>({ codigo:get(r,["item_codigo","codigo","código","item","ítem","id","cod"]), req:get(r,["requerimiento","descripcion","descripción","detalle","concepto"]), cant:get(r,["cantidad","cant","qty","unidades"]), prov:get(r,["nombre proveedores","nombre proveedor","proveedor","provider","prov","proveedor_nombre","empresa","contratista"]), nit:get(r,["nit proveedor","nit","nit_proveedor","identificacion proveedor","identificación proveedor"]), cat:get(r,["categoria","categoría","modulo","módulo","grupo","hoja"]),
       car:get(r,["caracteristicas","características","especificaciones","observaciones","nota"]),
       um:get(r,["unidad de medida","unidad_de_medida","unidad","um","medida"]),
-      dias:get(r,["dias","días","dias_servicio"]) })).filter(x=>x.req||x.codigo);
+      dias:get(r,["dias","días","dias_servicio"]), fechas:parseFechas(get(r,["fechas","fechas requeridas","dias especificos","días específicos","fechas_evidencia"])), pd:parseBool(get(r,["por dia","por día","por_dia","evidencia por dia","evidencia por día","evidencia diaria","diaria"])) })).filter(x=>x.req||x.codigo);
     let mx=0; execItems.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx)mx=n; });
     execItems.forEach(it=>{ if(!String(it.codigo).trim()){ mx++; it.codigo=String(mx).padStart(2,"0"); } });   // la app asigna código a los ítems sin código
     const c=rows.map(r=>get(r,["cliente","client"])).find(Boolean), e=rows.map(r=>get(r,["evento","nombre_evento"])).find(Boolean), ci=rows.map(r=>get(r,["ciudad","municipio"])).find(Boolean);
@@ -681,17 +826,17 @@ async function cargarReq(file){
 function chequearGen(){ $("egen").disabled = !(execItems.length && $("ecliente").value.trim() && $("eevento").value.trim()); }
 function saveConfigDesdeExec(){
   const uid=cfg&&cfg.uid, consec=cfg&&cfg.consec;   // preservar identidad del evento si ya existe
-  cfg = { cl:$("ecliente").value.trim(), ev:$("eevento").value.trim(), fe:$("efecha").value, ci:$("eciudad").value.trim(),
-          it:execItems.map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||""})),
+  cfg = { cl:$("ecliente").value.trim(), ev:$("eevento").value.trim(), fe:$("efecha").value, ff:$("efechafin").value||"", pd:!!$("epd").checked, ci:$("eciudad").value.trim(),
+          it:execItems.map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null))})),
           marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked} };   // marca definida por el ejecutivo, igual para todos
   if(uid) cfg.uid=uid; if(consec) cfg.consec=consec;
-  saveJSON("est_config", cfg);
+  saveJSON(NS+"config", cfg);
 }
 let accesoLink="", accesoExec="", accesoCorto="", editandoId=null;
 /* Generar acceso = PUBLICAR este config como evento NUEVO (uid + consecutivo nuevos) en Supabase. */
 async function generarAcceso(){
   saveConfigDesdeExec();
-  cfg.uid=nuevoUid(); cfg.consec=await nextConsec(); saveJSON("est_config",cfg);
+  cfg.uid=nuevoUid(); cfg.consec=await nextConsec(); saveJSON(NS+"config",cfg);
   accesoLink=linkOper(cfg.uid); accesoExec=linkExec(cfg.uid); accesoCorto="";
   editandoId=cfg.uid; aplicarModoExec();   // el evento ya existe: pasa a modo EDITAR (más cambios se guardan en sitio, sin re-duplicar)
   await mostrarAcceso(cfg.consec);
@@ -699,7 +844,7 @@ async function generarAcceso(){
 /* Panel de acceso: consecutivo + ambos enlaces (operador + ejecutivo) acortados; guarda en Supabase. */
 async function mostrarAcceso(consec){
   $("invCli").textContent = evConsecTag(consec)+" · "+(cfg.cl || "—");
-  $("invEv").textContent = [cfg.ev, cfg.fe, cfg.ci].filter(Boolean).join("  ·  ");
+  $("invEv").textContent = [cfg.ev, cfg.fe?(cfg.fe+(cfg.ff&&cfg.ff!==cfg.fe?" → "+cfg.ff:"")):"", cfg.ci, cfg.pd?"evidencia por día":""].filter(Boolean).join("  ·  ");
   $("acWrap").classList.remove("hide"); $("acCopy").textContent="Copiar invitación (proveedor)";
   accesoCorto=accesoLink;   // sin acortador: el enlace ?ev= ya es corto, DIRECTO y estable (sin página intermedia)
   $("acLink").textContent=accesoLink; $("acLinkExec").textContent=accesoExec;
@@ -712,7 +857,7 @@ function pintarQR(url){ $("acQR").innerHTML=""; if(window.QRCode){ try{ new QRCo
 async function editarEvento(uid){
   let rec=await sbGet(uid) || eventos()[uid];
   if(!rec||!rec.config){ alert("No pude abrir ese evento (¿sin conexión?). Intenta de nuevo."); return; }
-  cfg=rec.config; cfg.uid=uid; cfg.consec=rec.consec; saveJSON("est_config",cfg); cacheEvento(rec);
+  cfg=rec.config; cfg.uid=uid; cfg.consec=rec.consec; saveJSON(NS+"config",cfg); cacheEvento(rec);
   prefillExec(); show("exec");
   editandoId=uid; aplicarModoExec();   // se setea DESPUÉS de prefillExec (que lo resetea)
   $("acWrap").classList.add("hide"); window.scrollTo(0,0);
@@ -722,7 +867,7 @@ async function guardarEventoEditado(){
   if(!editandoId){ return generarAcceso(); }
   saveConfigDesdeExec();
   cfg.uid=editandoId; if(!cfg.consec){ const e=eventos()[editandoId]; cfg.consec=(e&&e.consec)||await nextConsec(); }
-  saveJSON("est_config",cfg);
+  saveJSON(NS+"config",cfg);
   accesoLink=linkOper(cfg.uid); accesoExec=linkExec(cfg.uid); accesoCorto="";
   await mostrarAcceso(cfg.consec);
   alert("Cambios guardados en "+evConsecTag(cfg.consec)+".\n\nEl enlace NO cambia: los proveedores verán el contenido actualizado al reabrirlo.");
@@ -750,20 +895,20 @@ $("lentrar").addEventListener("click", ()=>{
     const nitReq=nitDeProveedor(p);
     if(nitReq && !nitCoincide($("lnit").value, nitReq)){ alert("El NIT no corresponde a la empresa seleccionada.\n\nIngresa el NIT del proveedor (sin dígito de verificación) para continuar."); return; }
     o.prov=p; }
-  operador=o; saveJSON("est_operador",o); pintarWho(); irACaptura();
+  operador=o; saveJSON(NS+"operador",o); pintarWho(); irACaptura();
 });
 $("reconfig").addEventListener("click", ()=>{ nuevoExec(); show("exec"); });
 $("salir").addEventListener("click", ()=>{ detenerWatch(); if(operador){ $("lnom").value=operador.nombre; $("lced").value=operador.cedula; $("lcel").value=operador.celular; } show("login"); });
 
 /* ---- ADMINISTRADOR: visualizador (login + eventos + evidencias con fotos) ---- */
-let adminSes = loadJSON("est_admin_ses", null);
+let adminSes = loadJSON(NS+"admin_ses", null);
 let adminEventos = [];
 function adminValido(){ return !!(adminSes && adminSes.token && Date.now() < (adminSes.exp||0)); }
 function adminHeaders(){ return {apikey:SB_KEY, Authorization:"Bearer "+(adminSes&&adminSes.token)}; }
-function adminSesExpirada(){ adminSes=null; localStorage.removeItem("est_admin_ses"); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent="Tu sesión expiró. Ingresa de nuevo."; }
+function adminSesExpirada(){ adminSes=null; localStorage.removeItem(NS+"admin_ses"); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent="Tu sesión expiró. Ingresa de nuevo."; }
 $("goAdmin").addEventListener("click", ()=>{ show("admin"); if(adminValido()){ adminMostrarPanel(); } else { $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent=""; } });
 $("adVolver").addEventListener("click", ()=>show("home"));
-$("adSalir").addEventListener("click", ()=>{ adminSes=null; localStorage.removeItem("est_admin_ses"); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); });
+$("adSalir").addEventListener("click", ()=>{ adminSes=null; localStorage.removeItem(NS+"admin_ses"); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); });
 $("adBackLink").addEventListener("click", ()=>adminMostrarPanel());
 $("adEntrar").addEventListener("click", adminLogin);
 async function adminLogin(){
@@ -773,7 +918,7 @@ async function adminLogin(){
   try{
     const r=await fetch(SB_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({email,password:pass})});
     const d=await r.json();
-    if(r.ok && d.access_token){ adminSes={token:d.access_token, exp:Date.now()+((d.expires_in||3600)*1000)}; saveJSON("est_admin_ses",adminSes); $("adPass").value=""; $("adMsg").textContent=""; adminMostrarPanel(); }
+    if(r.ok && d.access_token){ adminSes={token:d.access_token, exp:Date.now()+((d.expires_in||3600)*1000)}; saveJSON(NS+"admin_ses",adminSes); $("adPass").value=""; $("adMsg").textContent=""; adminMostrarPanel(); }
     else { $("adMsg").textContent="No se pudo ingresar: "+((d&&(d.error_description||d.msg||d.message))||"credenciales inválidas"); }
   }catch(e){ $("adMsg").textContent="Error de conexión."; }
   finally{ $("adEntrar").disabled=false; }
@@ -784,17 +929,18 @@ async function adminCargarEventos(){
   try{
     const [rEv,rEvi]=await Promise.all([
       fetch(SB_URL+"/rest/v1/eventos?select=uid,consec,cl,ev,fe,config,short_oper,short_exec&order=consec.desc",{headers:adminHeaders()}),
-      fetch(SB_URL+"/rest/v1/evidencias?select=evento_uid,item,item_id,categoria,adicional",{headers:adminHeaders()})
+      fetch(SB_URL+"/rest/v1/evidencias?select=evento_uid,item,item_id,categoria,adicional,fecha,tipo",{headers:adminHeaders()})
     ]);
     if(rEv.status===401||rEvi.status===401){ adminSesExpirada(); return; }
     adminEventos=await rEv.json();
     const evis = rEvi.ok ? await rEvi.json() : [];
-    const porEvento={}, porItem={};
+    const porEvento={}, porItem={}; adminPorItemDia={};
     // llave global por evidencia; si la fila es anterior a la Capa9 se reconstruye con categoria+item
     const extrasPorEvento={};
     evis.forEach(x=>{ porEvento[x.evento_uid]=(porEvento[x.evento_uid]||0)+1;
       const k = x.item_id || (x.evento_uid+"|"+iidDe(x.item,x.categoria,1));
       porItem[k]=(porItem[k]||0)+1;
+      if((x.tipo||"foto")!=="video" && x.fecha) adminPorItemDia[k+"@"+x.fecha]=(adminPorItemDia[k+"@"+x.fecha]||0)+1;   // Capa 12
       if(x.adicional){ (extrasPorEvento[x.evento_uid]=extrasPorEvento[x.evento_uid]||new Set()).add(k); } });
     if(!adminEventos.length){ l.innerHTML='<div class="mut">Aún no hay eventos.</div>'; return; }
     // ---- métricas por evento + totales globales (Dashboard) ----
@@ -802,28 +948,63 @@ async function adminCargarEventos(){
       const items=anotarIids((e.config&&e.config.it)||[]);
       const reg=porEvento[e.uid]||0;
       const conEvi=items.filter(it=>(porItem[e.uid+"|"+it.iid]||0)>=1).length;
-      const comp=items.filter(it=>(porItem[e.uid+"|"+it.iid]||0)>=3).length;
+      const pdm=adminPorDia(e, items);   // Capa 12: ítems por día se completan con foto en cada fecha
+      const comp=items.filter(it=>pdm.mapa[it.iid]?pdm.mapa[it.iid].completo:(porItem[e.uid+"|"+it.iid]||0)>=3).length;
       const pend=items.length-comp;
       const av=items.length?Math.round(comp/items.length*100):0;
       const extras=(extrasPorEvento[e.uid]||new Set()).size;   // adicionales creados en sitio, no están en el config
       gReq+=items.length; gComp+=comp; gEvi+=reg; gExtra+=extras;
-      return {n:items.length,reg,conEvi,comp,pend,av,extras};
+      return {n:items.length,reg,conEvi,comp,pend,av,extras,pd:pdm};
     });
-    const gAv=gReq?Math.round(gComp/gReq*100):0;
+    adminMetricas=metricas; const gAv=gReq?Math.round(gComp/gReq*100):0;
     const kpi=(v,t)=>`<div style="flex:1;min-width:70px;text-align:center;border:1px solid var(--bd,#e3e3e3);border-radius:10px;padding:8px 4px"><div style="font-size:20px;font-weight:800;color:var(--azul)">${v}</div><div class="mut" style="margin:2px 0 0;font-size:11px">${t}</div></div>`;
     const bar=av=>`<div style="height:7px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0 2px"><div style="height:100%;width:${av}%;background:${av>=100?'#1a9e56':(av>0?'var(--azul)':'#e9e9ee')}"></div></div>`;
     const dash=`<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">`
-      +kpi(adminEventos.length,"Eventos")+kpi(gReq,"Requerimientos")+kpi(gEvi,"Evidencias")+kpi(gComp+"/"+gReq,"Completos ≥3")+kpi(gAv+"%","Avance")+kpi(gExtra,"Extras en sitio")
+      +kpi(adminEventos.length,"Eventos")+kpi(gReq,"Requerimientos")+kpi(gEvi,"Evidencias")+kpi(gComp+"/"+gReq,"Completos")+kpi(gAv+"%","Avance")+kpi(gExtra,"Extras en sitio")
       +`</div>`;
     l.innerHTML=dash+adminEventos.map((e,i)=>{
       const m=metricas[i];
-      return `<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}`
+      return `<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe}${e.config&&e.config.ff&&e.config.ff!==e.fe?" → "+e.config.ff:""})</span>`:""}${e.config&&e.config.pd?` <span class="mut" style="margin:0;color:var(--azul)">· por día</span>`:""}`
         +bar(m.av)
-        +`<div class="mut" style="margin:2px 0 0">Requerimientos: <b>${m.n}</b> · Con evidencia: <b>${m.conEvi}</b> · Completos ≥3: <b>${m.comp}</b> · Pendientes: <b>${m.pend}</b> · Evidencias: <b>${m.reg}</b> · Avance: <b>${m.av}%</b>${m.extras?` · <span style="color:var(--oro-d)">Extras en sitio: <b>${m.extras}</b></span>`:""}</div>`
-        +`<div class="ac"><a class="lnk" onclick="adminCopiar(${i},'oper')">link proveedor</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link productor</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a></div></div></div>`;
+        +`<div class="mut" style="margin:2px 0 0">Requerimientos: <b>${m.n}</b> · Con evidencia: <b>${m.conEvi}</b> · Completos: <b>${m.comp}</b> · Pendientes: <b>${m.pend}</b> · Evidencias: <b>${m.reg}</b> · Avance: <b>${m.av}%</b>${m.extras?` · <span style="color:var(--oro-d)">Extras en sitio: <b>${m.extras}</b></span>`:""}</div>`
+        +(m.pd.n?`<div class="mut" style="margin:3px 0 0">📅 Por día: <b>${m.pd.n}</b> req · días cubiertos <b>${m.pd.diasCub}/${m.pd.diasReq}</b> · hoy <b>${m.pd.hoyOk}/${m.pd.hoyTotal}</b>${m.pd.atras?` · <span style="color:#b3261e">⚠ ${m.pd.atras} con días atrasados</span>`:""}</div><div id="adHoy${i}" class="hide"></div>`:"")
+        +`<div class="ac">${m.pd.n?`<a class="lnk" style="font-weight:700" onclick="adminHoy(${i})">hoy por proveedor</a>`:""}<a class="lnk" onclick="adminCopiar(${i},'oper')">link proveedor</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link productor</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a></div></div></div>`;
     }).join("");
   }catch(_){ l.innerHTML='<div class="mut">Error al cargar.</div>'; }
 }
+/* ---- Capa 12 · ADMIN: estado por día de un evento (con su propio config, no el cfg del teléfono) ---- */
+var adminPorItemDia={}, adminMetricas=[];
+function adminPorDia(e, items){
+  const c=e.config||{}; const out={n:0,diasReq:0,diasCub:0,hoyTotal:0,hoyOk:0,atras:0,mapa:{},hoy:isoHoy()};
+  if(!c.pd) return out;
+  items.forEach(it=>{ if(!candidatoPorDia(it)||it.pd===false) return; const fs=fechasDeItem(it, c.fe||""); if(!fs.length) return;
+    const cnt=f=>adminPorItemDia[e.uid+"|"+it.iid+"@"+f]||0;
+    const cub=fs.filter(f=>cnt(f)>=1), atras=fs.filter(f=>f<out.hoy&&cnt(f)<1), hoyReq=fs.includes(out.hoy), hoyOk=cnt(out.hoy)>=1;
+    out.n++; out.diasReq+=fs.length; out.diasCub+=cub.length; if(hoyReq){ out.hoyTotal++; if(hoyOk) out.hoyOk++; } if(atras.length) out.atras++;
+    out.mapa[it.iid]={fechas:fs,cubiertos:cub,atrasados:atras,hoyReq,hoyOk,completo:cub.length===fs.length,idx:fs.indexOf(out.hoy)+1,it}; });
+  return out;
+}
+/* Vista "Hoy por proveedor": semáforo de quién subió lo del día y quién no, con recordatorio listo para WhatsApp. */
+window.adminHoy=(i)=>{ const e=adminEventos[i], m=adminMetricas[i], box=$("adHoy"+i); if(!e||!m||!box) return;
+  if(!box.classList.contains("hide")){ box.classList.add("hide"); return; }
+  const porProv={}; Object.values(m.pd.mapa).forEach(x=>{ const p=(x.it.prov||"").trim()||"Sin proveedor"; (porProv[p]=porProv[p]||[]).push(x); });
+  const provs=Object.keys(porProv).sort((a,b)=>a.localeCompare(b,"es"));
+  box.innerHTML=`<div style="margin:6px 0 2px;font-weight:700">Hoy ${fmtDia(m.pd.hoy)}</div>`+provs.map((p,j)=>{ const L=porProv[p];
+    const hoyL=L.filter(x=>x.hoyReq), okL=hoyL.filter(x=>x.hoyOk), faltan=hoyL.filter(x=>!x.hoyOk), atr=L.filter(x=>x.atrasados.length);
+    const color = !hoyL.length?"var(--muted)":(faltan.length?"#b3261e":"#1a9e56");
+    return `<div style="border-top:1px solid var(--line);padding:6px 0"><div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};margin-right:6px"></span><b>${escAttr(p)}</b> · hoy <b>${okL.length}/${hoyL.length}</b>${atr.length?` · <span style="color:#b3261e">⚠ ${atr.length} con días atrasados</span>`:""}</div>`
+      +(faltan.length?`<div class="mut" style="margin:2px 0 0 16px">Faltan hoy: ${faltan.map(x=>`${escAttr(x.it.codigo)} ${escAttr(String(x.it.req||"").slice(0,28))} (día ${x.idx}/${x.fechas.length})`).join(" · ")}</div>`:"")
+      +(atr.length?`<div class="mut" style="margin:2px 0 0 16px;color:#b3261e">Sin foto: ${atr.map(x=>`${escAttr(x.it.codigo)} → ${x.atrasados.map(fmtDia).join(", ")}`).join(" · ")}</div>`:"")
+      +((faltan.length||atr.length)?`<div class="ac" style="margin-left:16px"><a class="lnk" onclick="adminRecordatorio(${i},'${escAttr(p).replace(/'/g,"&#39;")}')">copiar recordatorio</a></div>`:"")+`</div>`; }).join("");
+  box.classList.remove("hide"); };
+window.adminRecordatorio=(i,prov)=>{ const e=adminEventos[i], m=adminMetricas[i]; if(!e||!m) return;
+  const L=Object.values(m.pd.mapa).filter(x=>((x.it.prov||"").trim()||"Sin proveedor")===prov);
+  const faltan=L.filter(x=>x.hoyReq&&!x.hoyOk), atr=L.filter(x=>x.atrasados.length);
+  const T=[`Hola ${prov}, evento ${e.ev||""} (${e.cl||""}). Hoy ${fmtDia(m.pd.hoy)} faltan las evidencias de:`];
+  faltan.forEach(x=>T.push(`• ${x.it.codigo} ${x.it.req||""} (día ${x.idx} de ${x.fechas.length})`));
+  if(atr.length){ T.push("Días anteriores sin foto:"); atr.forEach(x=>T.push(`• ${x.it.codigo} ${x.it.req||""}: ${x.atrasados.map(fmtDia).join(", ")}`)); }
+  T.push(`Súbelas desde la app: ${linkOper(e.uid)}`); T.push("Gracias.");
+  copiarAlPortapapeles(T.join("\n"), "Recordatorio para "+prov); };
 window.adminCopiar=(i,tipo)=>{ const e=adminEventos[i]; if(!e) return; const u=tipo==="exec"?linkExec(e.uid):linkOper(e.uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del productor":"Enlace del proveedor")); };   // siempre el enlace directo ?ev= (nunca tinyurl viejo)
 window.adminBorrarEvento=async(i)=>{
   const ev=adminEventos[i]; if(!ev) return;
@@ -840,7 +1021,7 @@ window.adminBorrarEvento=async(i)=>{
     if(!de.ok){ alert("No se pudo borrar el evento (HTTP "+de.status+").\n\nCorre las Capas 5 y 6 en Supabase y reintenta."); return; }
     let evBorr=[]; try{ evBorr=await de.json(); }catch(_){}
     if(!Array.isArray(evBorr)||!evBorr.length){ alert("El evento NO se borró (0 filas eliminadas).\n\nFalta activar el permiso de borrado: corre las Capas 5 y 6 en Supabase y reintenta."); return; }
-    try{ const all=eventos(); delete all[ev.uid]; saveJSON("est_eventos",all); }catch(_){}
+    try{ const all=eventos(); delete all[ev.uid]; saveJSON(NS+"eventos",all); }catch(_){}
     toast("Evento borrado ✓"); adminCargarEventos();
   }catch(_){ toast("Error al borrar el evento"); }
 };
@@ -969,7 +1150,7 @@ window.adminFotosZIP=async()=>{
   if(!idx.length){ toast("Las fotos aún se están cargando…"); return; }
   toast("Generando ZIP…"); const zip=new JSZip();
   idx.forEach(j=>{ const f=adminFotoURLs[j]; if(f&&f.blob) zip.file(f.nombre||("foto_"+j+".jpg"), f.blob); });
-  const cols=["radicado","cliente","evento","categoria","item","item_id","requerimiento","operador_nombre","archivo","fecha","hora","lugar","creado"];
+  const cols=["radicado","cliente","evento","categoria","item","item_id","requerimiento","operador_nombre","archivo","fecha","hora","lugar","creado","fecha_origen","dia_evento","dias_evento"];
   let csv=cols.join(",")+"\n"; arr.forEach(e=>{ csv+=cols.map(c=>csvCell(e[c]!=null?e[c]:"")).join(",")+"\n"; });
   zip.file("manifiesto.csv", csv);
   bajar(await zip.generateAsync({type:"blob"}), `fotos_${slug(arr[0].cliente||"")}_${slug(arr[0].evento||"")}.zip`);
@@ -979,18 +1160,30 @@ window.adminFotosZIP=async()=>{
 /* ---- OPERADOR: captura ---- */
 function poblarItemTop(){
   const s=$("item"); const cur=s.value; s.innerHTML="<option value=''>— Elige un requerimiento —</option>";
-  itemsDelOperador().forEach(it=>{ const n=fotosDeItem(it.iid); const mark = n>=3?"✓ ":(n>0?"◔ ":"○ ");   // ✓ completo · ◔ en progreso · ○ pendiente
-    const o=document.createElement("option"); o.value=it.iid;   // iid, NO codigo: el mismo codigo vive en varios escenarios
-    const cta=String(it.cant||"").trim(), umd=String(it.um||"").trim();
-    o.textContent=(it.adicional?"➕ ":"")+mark+(it.cat?`${it.cat} · `:"")+(it.req?`${it.codigo} · ${it.req}`:it.codigo)+(cta?`  ×${cta}${umd?" "+umd:""}`:"")+(n>0&&n<3?`  (${n}/3)`:"");
-    s.appendChild(o); });
-  s.value = (cur && itemsDelOperador().some(it=>it.iid===cur)) ? cur : "";
+  const todos=itemsDelOperador(); const hoy=isoHoy(); let valores=[];
+  const opcionItem=(it)=>{ const o=document.createElement("option"); o.value=it.iid; valores.push(it.iid);
+    const cta=String(it.cant||"").trim(), umd=String(it.um||"").trim(); const n=fotosDeItem(it.iid); const mark = n>=3?"✓ ":(n>0?"◔ ":"○ ");   // ✓ completo · ◔ en progreso · ○ pendiente
+    o.textContent=(it.adicional?"➕ ":"")+mark+(it.cat?`${it.cat} · `:"")+(it.req?`${it.codigo} · ${it.req}`:it.codigo)+(cta?`  ×${cta}${umd?" "+umd:""}`:"")+((n>0&&n<3)?`  (${n}/3)`:"");
+    return o; };
+  const opcionLinea=(L)=>{ const it=L.it, n=fotosDeItemDia(it.iid,L.fecha); const o=document.createElement("option"); o.value=L.value; valores.push(L.value);   // Capa 13: una línea por día
+    const mark = n>=1?"✓ ":(L.fecha<hoy?"⚠ ":"○ "); const rel = L.fecha===hoy?" · HOY":(L.fecha===sumarDias(hoy,-1)?" · ayer":"");
+    o.textContent=mark+(it.cat?`${it.cat} · `:"")+`${it.codigo} · ${it.req||""}`+`  · día ${L.k}/${fechasDeItem(it).length} · ${fmtDia(L.fecha)}${rel}`+(n?` (${n})`:"");
+    return o; };
+  if(cfg&&cfg.pd && todos.some(esPorDia)){   // agrupado por lo que importa HOY
+    const g={hoy:[],atras:[],hechos:[],resto:[]};
+    todos.forEach(it=>{ if(!esPorDia(it)){ g.resto.push(opcionItem(it)); return; }
+      lineasDe(it).forEach(L=>{ const n=fotosDeItemDia(it.iid,L.fecha); const o=opcionLinea(L);
+        if(L.fecha===hoy && !n) g.hoy.push(o); else if(L.fecha<hoy && !n) g.atras.push(o); else if(L.fecha===hoy && n) g.hechos.push(o); else g.resto.push(o); }); });
+    [["⏰ PENDIENTES DE HOY",g.hoy],["⚠ DÍAS ATRASADOS",g.atras],["✓ HECHOS HOY",g.hechos],["DEMÁS LÍNEAS",g.resto]].forEach(([t,arr])=>{ if(!arr.length) return;
+      const og=document.createElement("optgroup"); og.label=`${t} (${arr.length})`; arr.forEach(o=>og.appendChild(o)); s.appendChild(og); });
+  } else todos.forEach(it=>s.appendChild(opcionItem(it)));
+  s.value = (cur && valores.includes(cur)) ? cur : "";
   itemAnterior = s.value;   // sincroniza el guardián de "mínimo 3 antes de cambiar"
 }
 function irACaptura(){
   poblarItemTop();
   const mk=(cfg&&cfg.marca)||{}; $("pos").value=mk.pos||"bl"; $("esc").value=mk.esc||"3.4"; $("marca").checked=mk.on!==false;   // marca fijada por el ejecutivo
-  $("ctx").textContent = (cfg.cl||"—")+" · "+(cfg.ev||"—")+((operador&&operador.prov)?("  ·  "+operador.prov):"");
+  $("ctx").textContent = (cfg.cl||"—")+" · "+(cfg.ev||"—")+((operador&&operador.prov)?("  ·  "+operador.prov):"")+(cfg.pd?("  ·  hoy "+fmtDia(isoHoy())):"");
   batch=[]; renderLista(); show("cap"); window.scrollTo(0,0);
   if(IN_APP) $("inAppAviso").classList.remove("hide");
   sinGpsHasta=0; pedirUbicacion(); vigilarPermisoGPS(); actualizarGuia();
@@ -1018,7 +1211,14 @@ async function sincronizarProgreso(silencioso){
           // llave global tal cual la guarda la base; si la Capa9 aún no corre, se reconstruye con categoria+item (ordinal 1)
           const k = row.item_id || (row.item ? `${cfg.uid}|${iidDe(row.item,row.categoria,1)}` : "");
           if(!k) return; counters[k]=Math.max(counters[k]||0,n); });
-        saveJSON("est_counters",counters); poblarItemTop(); if(typeof actualizarGuia==="function") actualizarGuia(); if(typeof renderLista==="function") renderLista();
+        saveJSON(NS+"counters",counters);
+        if(cfg.pd){   // Capa 12: conteo por fecha. Si la función aún no existe en la base (404), se sigue con lo local.
+          try{ const rd=await fetchTO(SB_URL+"/rest/v1/rpc/progreso_evento_dia",{method:"POST",headers:SB_H,body:JSON.stringify({p_uid:cfg.uid})},15000);
+            if(rd.ok){ const ad=await rd.json(); if(Array.isArray(ad)){ ad.forEach(row=>{ if(!row.item_id||!row.fecha) return; const k=row.item_id+"@"+row.fecha; countersDia[k]=Math.max(countersDia[k]||0,parseInt(row.n,10)||0); }); saveJSON(NS+"counters_dia",countersDia); } }
+            else if(lnk&&!silencioso) toast("Falta la Capa 12 en la base: el avance por día solo cuenta lo de este teléfono");
+          }catch(_){}
+        }
+        poblarItemTop(); if(typeof actualizarGuia==="function") actualizarGuia(); if(typeof renderLista==="function") renderLista();
         if(lnk&&!silencioso) toast("Progreso actualizado desde la base ✓");
       }
     } else if(lnk&&!silencioso){ toast("No se pudo actualizar (¿falta correr la Capa8?)"); }
@@ -1034,10 +1234,11 @@ var faltAbierto=false;
 function pintarProgreso(){
   const pi=$("prog"); if(!pi) return;
   const items=itemsDelOperador(); const total=items.length;
-  const faltan=items.filter(it=>fotosDeItem(it.iid)<3); const compl=total-faltan.length;
+  const faltan=items.filter(it=>!itemCompleto(it)); const compl=total-faltan.length;   // Capa 12: completo = todos sus días cubiertos
   const pct=total?Math.round(compl/total*100):0;
   const span=pi.querySelector(".bar>span"); if(span) span.style.width=pct+"%";
-  const lbl=pi.querySelector(".lbl"); if(lbl) lbl.innerHTML = total ? (`<b>${compl}/${total}</b> requerimientos completos`+resumenFaltantes(faltan)) : "Sin requerimientos cargados.";
+  let hoyTxt=""; if(cfg&&cfg.pd){ const h=resumenHoy(items); if(h.porDia) hoyTxt=`<div style="margin:4px 0 2px">📅 Hoy ${fmtDia(isoHoy())}: <b>${h.hoyOk}/${h.hoyTotal}</b> del día${h.atrasados?` · <span style="color:#b3261e">⚠ ${h.atrasados} con días atrasados</span>`:""}</div>`; }
+  const lbl=pi.querySelector(".lbl"); if(lbl) lbl.innerHTML = total ? (hoyTxt+`<b>${compl}/${total}</b> requerimientos completos`+resumenFaltantes(faltan)) : "Sin requerimientos cargados.";
 }
 window.verFaltantes=()=>{ faltAbierto=!faltAbierto; pintarProgreso(); };
 function resumenFaltantes(faltan){
@@ -1064,6 +1265,9 @@ function fichaDeItem(iid){
   const cant=String(itemCant(iid)||"").trim(), um=String(itemUm(iid)||"").trim(),
         dias=String(itemDias(iid)||"").trim(), car=String(itemCar(iid)||"").trim(), codigo=itemCod(iid);
   const L=[];
+  const itPD=itemById(iid); if(esPorDia(itPD)){ const e=estadoDia(itPD);   // Capa 12
+    const estado = e.completo?"todos los días cubiertos ✅":(e.hoyReq?(e.hoyOk?`hoy ${fmtDia(e.hoy)} ✓ (día ${e.idx} de ${e.fechas.length})`:`<b>hoy ${fmtDia(e.hoy)}: falta la foto</b> (día ${e.idx} de ${e.fechas.length})`):`hoy no está programado · ${e.cubiertos.length}/${e.fechas.length} días`);
+    L.push(`<span class="fl">📅 <span class="fk">Evidencia por día:</span> ${estado}${e.atrasados.length?`<br><span style="color:#b3261e">⚠ sin foto: ${e.atrasados.map(fmtDia).join(", ")}</span>`:""}</span>`); }
   const med=[cant?(cant+(um?" "+um:"")):"", (dias&&dias!=="0")?(dias+" día"+(dias==="1"?"":"s")):""].filter(Boolean).join(" · ");
   if(med)  L.push(`<span class="fl">📦 <span class="fk">Cantidad:</span> ${escAttr(med)}</span>`);
   if(car){
@@ -1113,7 +1317,7 @@ function tipDeItem(req){
 }
 function actualizarGuia(){
   const g=$("guiaItem"); if(!g) return;
-  const cod=$("item").value;
+  const cod=selIid(), fSel=selFecha();
   if(!cod){ g.className="guia neutro"; g.innerHTML="Elige un requerimiento arriba para ver la guía y el contador de fotos."; return; }
   const enLote=enLoteDeItem(cod), enviadas=enviadasDeItem(cod), n=enLote+enviadas, meta=3, ok=n>=meta;
   const it=itemsDelOperador().find(x=>x.iid===cod)||itemById(cod); const nombre=(it&&it.req)?it.req:cod;
@@ -1121,7 +1325,11 @@ function actualizarGuia(){
   let head;
   if(enviadas>0 && enLote===0) head=`✅ ${nombre.slice(0,44)} — ${enviadas} ya enviada${enviadas===1?"":"s"} · listo`;
   else{ head=`${ok?"✅":"📸"} ${nombre.slice(0,44)} — ${enLote} en este lote`+(enviadas>0?` (+${enviadas} enviadas)`:"")+(ok?" · meta cumplida":` · faltan ${meta-n} para el mínimo de 3`); }
-  g.innerHTML=`<div class="gcount">${head}</div>`
+  let linea=""; if(fSel){ const fs=fechasDeItem(it); const k=fs.indexOf(fSel)+1, hoy=isoHoy(); const nd=fotosDeItemDia(cod,fSel);   // Capa 13: línea por día
+    linea=`<div class="gcount">📅 Cargando <b>día ${k} de ${fs.length} · ${fmtDia(fSel)}${fSel===hoy?" (hoy)":(fSel===sumarDias(hoy,-1)?" (ayer)":"")}</b> · ${nd?nd+" foto"+(nd===1?"":"s")+" ✓":"sin foto aún"}</div>`
+      +(fSel<hoy?`<div class="mut" style="margin:2px 0 0">Día pasado: solo se aceptan fotos de la <b>galería tomadas ese día</b>. Una foto tomada ahora con la cámara pertenece a hoy.</div>`:"")
+      +(fSel>hoy?`<div class="mut" style="margin:2px 0 0;color:#b3261e">Esta línea es de un día futuro.</div>`:""); }
+  g.innerHTML=linea+`<div class="gcount">${head}</div>`
     +fichaDeItem(cod)
     +`<div class="gtips"><b>Enfoca:</b> ${tipDeItem(nombre)}.<br>Que ocupe <b>≥60%</b> del encuadre · <b>no rotes</b> el teléfono · el plano abierto solo como contexto.</div>`;
 }
@@ -1130,9 +1338,9 @@ $("item").addEventListener("change", ()=>{
   const nuevo=$("item").value;
   // Mínimo 3 por requerimiento: no dejar pasar a otro requerimiento si el actual está empezado (<3).
   if(itemAnterior && nuevo && nuevo!==itemAnterior){
-    const totalPrev=fotosDeItem(itemAnterior);
-    if(enLoteDeItem(itemAnterior)>0 && totalPrev<3){
-      alert(`Aún no completas las 3 evidencias de «${itemReqCorto(itemAnterior)}» (llevas ${totalPrev}).\n\nCaptura al menos 3 fotos de un requerimiento antes de pasar a otro.`);
+    const iidPrev=selIidDe(itemAnterior); const totalPrev=fotosDeItem(iidPrev);
+    if(!esPorDia(itemById(iidPrev)) && enLoteDeItem(iidPrev)>0 && totalPrev<3){   // Capa 12: por día basta 1 foto
+      alert(`Aún no completas las 3 evidencias de «${itemReqCorto(iidPrev)}» (llevas ${totalPrev}).\n\nCaptura al menos 3 fotos de un requerimiento antes de pasar a otro.`);
       $("item").value=itemAnterior; actualizarGuia(); return;
     }
   }
@@ -1188,7 +1396,7 @@ $("opSave").addEventListener("click", ()=>{ const n=$("onom").value.trim(),c=$("
     const nitReq=nitDeProveedor(p);
     if(nitReq && !nitCoincide($("onit").value, nitReq)){ alert("El NIT no corresponde a la empresa seleccionada.\n\nIngresa el NIT del proveedor (sin dígito de verificación) para continuar."); return; }
     nuevo.prov=p; }
-  operador=nuevo; saveJSON("est_operador",operador); pintarWho(); $("opm").classList.add("hide"); poblarItemTop(); $("ctx").textContent=(cfg.cl||"—")+" · "+(cfg.ev||"—")+(operador.prov?("  ·  "+operador.prov):""); renderLista(); });
+  operador=nuevo; saveJSON(NS+"operador",operador); pintarWho(); $("opm").classList.add("hide"); poblarItemTop(); $("ctx").textContent=(cfg.cl||"—")+" · "+(cfg.ev||"—")+(operador.prov?("  ·  "+operador.prov):""); renderLista(); });
 $("enviar").addEventListener("click", ()=>empaquetar("supabase"));
 /* Si el geocoder falló por falta de señal, al reconectar se completan las direcciones y se re-sella. */
 window.addEventListener("online", ()=>{ if(batch.some(e=>e.status==="listo"&&e.datos&&esNum(e.datos.lat)&&!e.datos.lugar)) redibujarTodas(); });
@@ -1196,12 +1404,12 @@ window.addEventListener("online", ()=>{ if(batch.some(e=>e.status==="listo"&&e.d
 
 /* ---- lote ---- */
 function agregar(fileList, meta, metaResp){
-  const cod=$("item").value;
+  const cod=selIid(), fSel=selFecha();
   const now=new Date(); const cargada={fecha:`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`, hora:`${z(now.getHours())}:${z(now.getMinutes())}`};
   [...fileList].forEach(file=>{
     const video=/^video\//.test(file.type)||/\.(mp4|mov|m4v|3gp|webm|avi|mkv)$/i.test(file.name);
     const ext=video?((file.name.split(".").pop()||"mp4").toLowerCase()):"jpg";
-    const e={id:++seq,file,itemCodigo:cod,tipo:video?"video":"foto",ext,status:"procesando",blob:null,thumb:"",datos:{},filename:"",meta:meta||null,metaResp:metaResp||null,cargada};
+    const e={id:++seq,file,itemCodigo:cod,fechaSel:fSel||"",tipo:video?"video":"foto",ext,status:"procesando",blob:null,thumb:"",datos:{},filename:"",meta:meta||null,metaResp:metaResp||null,cargada};
     batch.push(e); procesar(e); });
   renderLista();
 }
@@ -1214,13 +1422,13 @@ function agregar(fileList, meta, metaResp){
    Guarda las evidencias LISTAS (con su blob) por evento. Todo va con guardas: si IDB falla,
    la app sigue funcionando igual, solo sin respaldo de sesión. ---- */
 const IDB={db:null,pend:false};
-function idbOpen(){ return new Promise(res=>{ try{ const r=indexedDB.open("estrella_ev",1);
+function idbOpen(){ return new Promise(res=>{ try{ const r=indexedDB.open(NS+"estrella_ev",1);
   r.onupgradeneeded=()=>{ try{ r.result.createObjectStore("lote",{keyPath:"k"}); }catch(_){} };
   r.onsuccess=()=>{ IDB.db=r.result; res(IDB.db); }; r.onerror=()=>res(null);
 }catch(_){ res(null); } }); }
 function claveEvento(){ return cfg?`${slug(cfg.cl)}|${slug(cfg.ev)}`:"NA"; }
 async function guardarLote(){ try{ const db=IDB.db||await idbOpen(); if(!db||!cfg) return;
-  const items=batch.filter(e=>e.status==="listo").map(e=>({id:e.id,itemCodigo:e.itemCodigo,tipo:e.tipo,ext:e.ext,filename:e.filename,consec:e.consec,blob:e.blob,file:e.file,thumb:e.thumb,datos:e.datos,cargada:e.cargada,meta:e.meta,status:"listo"}));
+  const items=batch.filter(e=>e.status==="listo").map(e=>({id:e.id,itemCodigo:e.itemCodigo,fechaSel:e.fechaSel||"",fechaOrigen:e.fechaOrigen||"",fechaDecl:e.fechaDecl||"",tipo:e.tipo,ext:e.ext,filename:e.filename,consec:e.consec,blob:e.blob,file:e.file,thumb:e.thumb,datos:e.datos,cargada:e.cargada,meta:e.meta,status:"listo"}));
   const tx=db.transaction("lote","readwrite"); tx.objectStore("lote").put({k:claveEvento(),seq,items});
 }catch(_){} }
 async function cargarLote(){ try{ const db=IDB.db||await idbOpen(); if(!db||!cfg) return;
@@ -1255,13 +1463,17 @@ async function procesar(entry){
     }
     const bitmap=await decodificar(entry.file);
     let ex;
-    if(entry.meta){ ex={fecha:entry.meta.fecha||"",hora:entry.meta.hora||"",lat:num(entry.meta.lat),lon:num(entry.meta.lon)}; }
+    if(entry.meta){ ex={fecha:entry.meta.fecha||"",hora:entry.meta.hora||"",lat:num(entry.meta.lat),lon:num(entry.meta.lon)}; entry.fechaOrigen="captura"; }
     else{ ex={fecha:"",hora:"",lat:null,lon:null};
       try{ const d=await exifr.parse(entry.file,["DateTimeOriginal","CreateDate"]); const f=d&&(d.DateTimeOriginal||d.CreateDate); if(f instanceof Date){ ex.fecha=`${f.getFullYear()}-${z(f.getMonth()+1)}-${z(f.getDate())}`; ex.hora=`${z(f.getHours())}:${z(f.getMinutes())}`; } }catch(_){}
+      // Capa 13: con fecha original = "metadatos"; sin ella, si el ítem es por día el proveedor debe declararla; si no, queda la de carga.
+      if(ex.fecha) entry.fechaOrigen="metadatos";
+      else if(esPorDia(itemById(entry.itemCodigo))){ entry.fechaOrigen="declarada"; if(entry.fechaSel){ entry.fechaDecl=entry.fechaSel; } if(entry.fechaDecl){ ex.fecha=entry.fechaDecl; } }
+      else entry.fechaOrigen="carga";
       try{ const g=await exifr.gps(entry.file); if(g&&esNum(g.latitude)&&esNum(g.longitude)){ ex.lat=+g.latitude; ex.lon=+g.longitude; } }catch(_){}
       // Sin GPS utilizable en el EXIF: se usa la posición del teléfono si la foto es del día.
       const r=entry.metaResp;
-      if(ex.lat==null && r && esNum(r.lat) && fotoDelDia(ex.fecha)){ ex.lat=+r.lat; ex.lon=+r.lon; if(!ex.fecha){ ex.fecha=r.fecha||""; ex.hora=r.hora||""; } }
+      if(ex.lat==null && r && esNum(r.lat) && fotoDelDia(ex.fecha) && entry.fechaOrigen!=="declarada"){ ex.lat=+r.lat; ex.lon=+r.lon; if(!ex.fecha){ ex.fecha=r.fecha||""; ex.hora=r.hora||""; } }
     }
     ex.lat=num(ex.lat); ex.lon=num(ex.lon);
     let lugar="",lugLin=[]; if(ex.lat!=null&&ex.lon!=null){ const d=await geocodeThrottled(ex.lat,ex.lon); if(d){ lugar=d.txt; lugLin=d.lineas; } }
@@ -1276,34 +1488,47 @@ async function procesar(entry){
 }
 function claveDe(iid){ return `${(cfg&&cfg.uid)||"SIN-UID"}|${iid}`; }   // = item_id de la base: llave global e inmutable
 function calcularNombres(){ const u={}; batch.forEach(e=>{ if(!e.itemCodigo){ e.filename=""; return; } const base=counters[claveDe(e.itemCodigo)]||0; u[e.itemCodigo]=(u[e.itemCodigo]||0)+1; e.consec=base+u[e.itemCodigo]; const desc=slug(itemReq(e.itemCodigo)); const cat=itemCat(e.itemCodigo); const ot=opTag();
-  const fch=e.datos.fecha||(e.cargada?e.cargada.fecha:""); const hr=(e.datos.hora||(e.cargada?e.cargada.hora:"")).replace(/:/g,""); const fh=fch?("_"+fch+(hr?"_"+hr:"")):"";   // fecha/hora de captura (EXIF/dispositivo) o, si no hay, de carga
-  e.filename=`${slug(cfg.cl)}_${slug(cfg.ev)}_${cat?slug(cat)+"_":""}${itemCod(e.itemCodigo)}${desc&&desc!=="NA"?"_"+desc:""}${ot?"_"+ot:""}${fh}_${String(e.consec).padStart(3,"0")}.${e.ext||"jpg"}`; }); }
+  const fch=fechaEfectiva(e); const hr=(e.datos.hora||(e.cargada?e.cargada.hora:"")).replace(/:/g,""); const fh=fch?("_"+fch+(hr?"_"+hr:"")):"";   // fecha/hora de captura (EXIF/dispositivo), declarada, o de carga
+  const dd=diaDeFoto(e); const tokDia=dd?`_D${dd.idx}de${dd.n}`:"";   // Capa 13: D2de5 = día 2 de 5 del evento · D0de5 = fecha fuera de las programadas
+  e.filename=`${slug(cfg.cl)}_${slug(cfg.ev)}_${cat?slug(cat)+"_":""}${itemCod(e.itemCodigo)}${desc&&desc!=="NA"?"_"+desc:""}${ot?"_"+ot:""}${tokDia}${fh}_${String(e.consec).padStart(3,"0")}.${e.ext||"jpg"}`; }); }
 function renderLista(){
   calcularNombres(); if(typeof actualizarGuia==="function") actualizarGuia(); const c=$("list"); c.innerHTML="";
   const listas=batch.filter(e=>e.status==="listo").length;
   const sinReq=batch.filter(e=>e.status==="listo"&&!e.itemCodigo).length;
   $("cnt").innerHTML = batch.length ? (`${listas}/${batch.length} listas`+(sinReq?` · <span style="color:#b3261e">${sinReq} sin requerimiento</span>`:"")) : "Aún no agregas evidencias.";
-  $("enviar").disabled=listas===0;
+  const pendFecha=batch.filter(pendienteFecha).length;
+  $("enviar").disabled=listas===0 || pendFecha>0;
+  if(pendFecha && $("sendInfo")) $("sendInfo").innerHTML=`<span style="color:#b3261e">${pendFecha} foto${pendFecha===1?"":"s"} con el día sin resolver (fecha de la foto distinta a la línea elegida, o galería sin fecha). Corrígelo para poder enviar.</span>`;
+  else if($("sendInfo") && /sin resolver/.test($("sendInfo").textContent)) $("sendInfo").textContent="";
   batch.forEach(e=>{
-    const opts=`<option value="" ${!e.itemCodigo?"selected":""}>— Selecciona requerimiento —</option>`+itemsDelOperador().map(it=>`<option value="${escAttr(it.iid)}" ${it.iid===e.itemCodigo?"selected":""}>${it.cat?it.cat+" · ":""}${it.codigo}${it.req?" · "+it.req.slice(0,26):""}</option>`).join("");
+    const curVal=e.itemCodigo?(e.fechaSel?e.itemCodigo+"@@"+e.fechaSel:e.itemCodigo):"";
+    const opts=`<option value="" ${!e.itemCodigo?"selected":""}>— Selecciona requerimiento —</option>`+itemsDelOperador().flatMap(it=>lineasDe(it).map(L=>`<option value="${escAttr(L.value)}" ${L.value===curVal?"selected":""}>${it.cat?it.cat+" · ":""}${it.codigo}${it.req?" · "+it.req.slice(0,22):""}${L.fecha?` · día ${L.k} · ${fmtDia(L.fecha)}`:""}</option>`)).join("");
     const d=document.createElement("div"); d.className="ev";
     const badge=e.tipo==="video"?`<span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-size:22px;text-shadow:0 1px 4px #000">▶</span>`:"";
     const thumbHtml=e.thumb?`<div style="position:relative;flex:none;width:66px;height:66px"><img src="${e.thumb}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#000">${badge}</div>`
       :`<div style="width:66px;height:66px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px;background:#f0f0f0;border-radius:7px">${e.tipo==="video"?"▶":"…"}</div>`;
     const sinUbi = (e.status==="listo" && e.datos && !esNum(e.datos.lat)) ? ' <span style="color:#b3261e" title="Sin coordenadas: el sello no lleva dirección">⚠ sin ubicación</span>'
       : ((e.status==="listo" && e.datos && !e.datos.lugar) ? ' <span style="color:#7a4a12" title="Hay GPS pero ningún geocoder respondió; el sello quedó con coordenadas. Se reintenta al recuperar señal.">⚠ sin dirección</span>' : '');
+    const pend=pendienteFecha(e), confl=conflictoFecha(e);
     const fnHtml = (e.status!=="listo" ? '<span style="color:var(--muted)">'+e.status+'</span>'
-      : (!e.itemCodigo ? '<span style="color:#b3261e">Asigna un requerimiento ↑</span>' : e.filename)) + sinUbi;
+      : (!e.itemCodigo ? '<span style="color:#b3261e">Asigna un requerimiento ↑</span>'
+        : (confl ? `<span style="color:#b3261e">La foto es del <b>${fmtDia(e.datos.fecha)}</b> y la línea elegida es del <b>${fmtDia(e.fechaSel)}</b>: muévela a la línea correcta ↑ o quítala.</span>`
+        : (pend?'<span style="color:#b3261e">Foto de galería sin fecha: indica de qué día es ↓</span>':e.filename)))) + sinUbi;
+    let selFecha=""; if(e.status==="listo" && e.itemCodigo && e.fechaOrigen==="declarada" && !e.fechaSel){ const d=diaDeFoto(e); const fs=(d&&d.fechas)||[]; const hoy=isoHoy(); const ops=[...fs]; if(!ops.includes(hoy)) ops.push(hoy);
+      selFecha=`<select onchange="declararFecha(${e.id},this.value)" style="margin-top:4px"><option value="">— ¿De qué día es esta foto? —</option>${ops.map(f=>`<option value="${f}" ${e.fechaDecl===f?"selected":""}>${f===hoy?"Hoy · ":(f===sumarDias(hoy,-1)?"Ayer · ":"")}${fmtDia(f)}${fs.includes(f)?` (día ${fs.indexOf(f)+1} de ${fs.length})`:" (no programado)"}</option>`).join("")}</select>`; }
+    const etiqueta=(e.status==="listo"&&e.itemCodigo&&!pend)?etiquetaFecha(e):"";
     d.innerHTML=thumbHtml+
-      `<div class="in"><select onchange="cambiarItem(${e.id},this.value)">${opts}</select><div class="fn">${fnHtml}</div>
+      `<div class="in"><select onchange="cambiarItem(${e.id},this.value)">${opts}</select>${selFecha}${etiqueta}<div class="fn">${fnHtml}</div>
        <div class="ac">${e.status==="listo"&&e.itemCodigo?`<a class="lnk" onclick="descargarUno(${e.id})">descargar</a>`:""}<a class="lnk" onclick="quitar(${e.id})">quitar</a></div></div>`;
     c.appendChild(d);
   });
   pintarProgreso();
-  if($("item") && document.activeElement!==$("item")) poblarItemTop();   // refresca ✓/◔/○ en el selector
+  if($("item") && document.activeElement!==$("item")) poblarItemTop();   // refresca ✓/◔/○ en el selector (y las líneas por día)
   guardarLote();   // respalda el lote en curso (IndexedDB) ante recargas
 }
-window.cambiarItem=(id,v)=>{ const e=batch.find(x=>x.id===id); if(e){ e.itemCodigo=v; renderLista(); } };
+window.cambiarItem=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e) return; const antes=fechaEfectiva(e); e.itemCodigo=selIidDe(v); e.fechaSel=selFechaDe(v);
+  if(e.fechaOrigen==="declarada"){ e.fechaDecl=e.fechaSel||e.fechaDecl||""; if(e.datos) e.datos.fecha=e.fechaDecl||""; }
+  renderLista(); if(e.fechaOrigen==="declarada" && fechaEfectiva(e)!==antes && typeof redibujarTodas==="function") redibujarTodas(); };
 window.quitar=(id)=>{ batch=batch.filter(x=>x.id!==id); renderLista(); };
 window.descargarUno=(id)=>{ const e=batch.find(x=>x.id===id); if(e&&e.blob) bajar(e.blob,e.filename); };
 /* Re-dibuja la marca (posición/tamaño/on-off) reusando datos; y si a una foto le faltó la
@@ -1410,7 +1635,7 @@ async function empaquetar(accion, saltarMin){   // accion: "supabase" | "compart
 /* Marca como enviadas SOLO las evidencias dadas: suma consecutivos y las saca del lote. */
 function marcarSubidas(subidas){
   const cta={}; subidas.forEach(e=>{ if(e.tipo!=="foto") return; const k=claveDe(e.itemCodigo); cta[k]=(cta[k]||0)+1; });
-  for(const k in cta) counters[k]=(counters[k]||0)+cta[k]; saveJSON("est_counters",counters);
+  for(const k in cta) counters[k]=(counters[k]||0)+cta[k]; saveJSON(NS+"counters",counters);
   const ids=new Set(subidas.map(e=>e.id)); batch=batch.filter(e=>!ids.has(e.id)); renderLista();
 }
 /* Compartir por WhatsApp/correo (canal humano). Sin await antes de share() -> gesto vivo en Android. */
@@ -1445,10 +1670,14 @@ async function subirEvidencia(e, radicado){
       cantidad:String(itemCant(e.itemCodigo)||""), adicional:!!itemAdic(e.itemCodigo), solicitado_por:ad.solicitadoPor||"", justificacion:ad.justificacion||"",
       operador_nombre:operador.nombre, operador_cedula:operador.cedula, operador_celular:operador.celular,
       tipo:e.tipo||"foto", archivo:e.filename, storage_path:"evidencias/"+path,
-      fecha:e.datos.fecha||"", hora:e.datos.hora||"", lugar:e.datos.lugar||"", lat:e.datos.lat, lon:e.datos.lon };
+      fecha:fechaEfectiva(e)||"", hora:e.datos.hora||"", lugar:e.datos.lugar||"", lat:e.datos.lat, lon:e.datos.lon };
+    const dd=diaDeFoto(e); row.fecha_origen=e.fechaOrigen||""; row.dia_evento=dd?dd.idx:null; row.dias_evento=dd?dd.n:null;   // Capa 13
     let ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row)}, 15000);
+    if(!ins.ok){   // Capa 13 sin correr: soltar SOLO sus columnas, sin perder item_id
+      const row0=Object.assign({},row); delete row0.fecha_origen; delete row0.dia_evento; delete row0.dias_evento;
+      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row0)}, 15000); }
     if(!ins.ok){   // reintento escalonado: primero soltar SOLO item_id (Capa9 sin correr) para NO perder la categoria
-      const row1=Object.assign({},row); delete row1.item_id; delete row1.cantidad;
+      const row1=Object.assign({},row); delete row1.item_id; delete row1.cantidad; delete row1.fecha_origen; delete row1.dia_evento; delete row1.dias_evento;
       ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row1)}, 15000);
       if(!ins.ok){ const row2=Object.assign({},row1); delete row2.radicado; delete row2.categoria; delete row2.proveedor_nit;   // último recurso: columnas viejas
         ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row2)}, 15000); } }
@@ -1492,7 +1721,8 @@ async function enviarASupabase(listas, exito){
    abrir la app — quién, qué evento, cuánto entró en ESTE radicado y cómo va el evento. */
 function resumenEnvio(radicado, listas){
   const items=itemsDelOperador(), total=items.length;
-  const compl=items.filter(it=>fotosDeItem(it.iid)>=3).length;
+  const compl=items.filter(itemCompleto).length;   // Capa 12
+  const hoyR=(cfg&&cfg.pd)?resumenHoy(items):null;
   const reqs=new Set(listas.map(e=>e.itemCodigo).filter(Boolean));
   const adics=new Set(listas.filter(e=>itemAdic(e.itemCodigo)).map(e=>e.itemCodigo));
   const t=new Date();
@@ -1504,7 +1734,8 @@ function resumenEnvio(radicado, listas){
     fotos:listas.filter(e=>e.tipo!=="video").length, videos:listas.filter(e=>e.tipo==="video").length,
     reqs:reqs.size, adics:adics.size,
     sinUbi:listas.filter(e=>e.datos&&!esNum(e.datos.lat)).length,
-    compl, total, faltan:Math.max(0,total-compl), pct: total?Math.round(compl/total*100):0 };
+    compl, total, faltan:Math.max(0,total-compl), pct: total?Math.round(compl/total*100):0,
+    hoy:(hoyR&&hoyR.porDia)?{fecha:fmtDia(isoHoy()), ok:hoyR.hoyOk, total:hoyR.hoyTotal, atrasados:hoyR.atrasados}:null };
 }
 function textoResumen(r){
   const L=[];
@@ -1524,6 +1755,7 @@ function textoResumen(r){
   if(r.sinUbi) L.push("• ⚠ "+r.sinUbi+" sin ubicación (revisar GPS del equipo)");
   L.push("");
   L.push("AVANCE DEL EVENTO");
+  if(r.hoy){ L.push("• Hoy "+r.hoy.fecha+": "+r.hoy.ok+" de "+r.hoy.total+" requerimientos del día"); if(r.hoy.atrasados) L.push("• ⚠ "+r.hoy.atrasados+" con días anteriores sin foto"); }
   L.push("• "+r.compl+" de "+r.total+" requerimientos completos ("+r.pct+"%)");
   if(r.faltan) L.push("• faltan "+r.faltan);
   else L.push("• ¡evento completo! ✅");
@@ -1534,6 +1766,7 @@ function htmlResumen(r){
     + `<div style="margin-top:5px">${r.fotos} foto(s)${r.videos?" y "+r.videos+" video(s)":""} · <b>${r.reqs}</b> requerimiento(s) en este radicado`
     + (r.adics?` · ${r.adics} adicional(es)`:"") + `</div>`
     + (r.sinUbi?`<div style="color:#b3261e;margin-top:3px">⚠ ${r.sinUbi} sin ubicación</div>`:"")
+    + (r.hoy?`<div style="margin-top:5px">📅 Hoy ${escAttr(r.hoy.fecha)}: <b>${r.hoy.ok}/${r.hoy.total}</b> del día${r.hoy.atrasados?` · <span style="color:#b3261e">⚠ ${r.hoy.atrasados} con días atrasados</span>`:""}</div>`:"")
     + `<div style="margin-top:5px">Avance del evento: <b>${r.compl}/${r.total}</b> completos (${r.pct}%)`
     + (r.faltan?` · faltan ${r.faltan}`:" · ¡todo listo! ✅")+`</div>`
     + (r.operador?`<div class="mut" style="margin-top:5px">${escAttr(r.operador)}${r.prov?" · "+escAttr(r.prov):""} · ${r.cuando}</div>`:"");
@@ -1760,7 +1993,7 @@ function geoCercano(lat,lon){ for(const k in geoCache){ const v=geoCache[k];
   if(v&&esNum(v.lat)&&metrosEntre(lat,lon,v.lat,v.lon)<150) return v; } return null; }
 function guardarGeoCache(){ try{ const ks=Object.keys(geoCache);
   if(ks.length>200) ks.slice(0,ks.length-200).forEach(k=>delete geoCache[k]);
-  saveJSON("est_geocache",geoCache); }catch(_){} }
+  saveJSON(NS+"geocache",geoCache); }catch(_){} }
 async function geocodeThrottled(lat,lon){ if(!esNum(lat)||!esNum(lon)) return null;
   const k=geoKey(lat,lon);
   if(geoCache[k]) return geoCache[k];
