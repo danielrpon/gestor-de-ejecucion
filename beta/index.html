@@ -243,7 +243,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · Capas 12-13 evidencia por día · base v31 · 8sep · no usar para Semana de la Juventud</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · Capa 14 segmentador + visor liviano + descarga confiable · base v32 · 10sep</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -927,53 +927,98 @@ async function adminLogin(){
   finally{ $("adEntrar").disabled=false; }
 }
 function adminMostrarPanel(){ $("adLogin").classList.add("hide"); $("adPanel").classList.remove("hide"); $("adBack").classList.add("hide"); $("adTitulo").textContent="Eventos"; adminCargarEventos(); }
+let adminDatos=null, adminSeg=loadJSON(NS+"admin_seg",{})||{};
+const SEG_KEYS=["cl","ev","mes","desde","hasta","estado","prov","cat"];
 async function adminCargarEventos(){
   const l=$("adLista"); l.innerHTML='<div class="mut">Cargando…</div>';
   try{
     const [rEv,rEvi]=await Promise.all([
       fetch(SB_URL+"/rest/v1/eventos?select=uid,consec,cl,ev,fe,config,short_oper,short_exec&order=consec.desc",{headers:adminHeaders()}),
-      fetch(SB_URL+"/rest/v1/evidencias?select=evento_uid,item,item_id,categoria,adicional,fecha,tipo",{headers:adminHeaders()})
+      fetch(SB_URL+"/rest/v1/evidencias?select=evento_uid,item,item_id,categoria,adicional,fecha,tipo,proveedor",{headers:adminHeaders()})
     ]);
     if(rEv.status===401||rEvi.status===401){ adminSesExpirada(); return; }
     adminEventos=await rEv.json();
     const evis = rEvi.ok ? await rEvi.json() : [];
-    const porEvento={}, porItem={}; adminPorItemDia={};
-    // llave global por evidencia; si la fila es anterior a la Capa9 se reconstruye con categoria+item
-    const extrasPorEvento={};
-    evis.forEach(x=>{ porEvento[x.evento_uid]=(porEvento[x.evento_uid]||0)+1;
-      const k = x.item_id || (x.evento_uid+"|"+iidDe(x.item,x.categoria,1));
-      porItem[k]=(porItem[k]||0)+1;
-      if((x.tipo||"foto")!=="video" && x.fecha) adminPorItemDia[k+"@"+x.fecha]=(adminPorItemDia[k+"@"+x.fecha]||0)+1;   // Capa 12
-      if(x.adicional){ (extrasPorEvento[x.evento_uid]=extrasPorEvento[x.evento_uid]||new Set()).add(k); } });
     if(!adminEventos.length){ l.innerHTML='<div class="mut">Aún no hay eventos.</div>'; return; }
-    // ---- métricas por evento + totales globales (Dashboard) ----
-    let gReq=0,gComp=0,gEvi=0,gExtra=0; const metricas=adminEventos.map(e=>{
-      const items=anotarIids((e.config&&e.config.it)||[]);
-      const reg=porEvento[e.uid]||0;
-      const conEvi=items.filter(it=>(porItem[e.uid+"|"+it.iid]||0)>=1).length;
-      const pdm=adminPorDia(e, items);   // Capa 12: ítems por día se completan con foto en cada fecha
-      const comp=items.filter(it=>pdm.mapa[it.iid]?pdm.mapa[it.iid].completo:(porItem[e.uid+"|"+it.iid]||0)>=3).length;
-      const pend=items.length-comp;
-      const av=items.length?Math.round(comp/items.length*100):0;
-      const extras=(extrasPorEvento[e.uid]||new Set()).size;   // adicionales creados en sitio, no están en el config
-      gReq+=items.length; gComp+=comp; gEvi+=reg; gExtra+=extras;
-      return {n:items.length,reg,conEvi,comp,pend,av,extras,pd:pdm};
-    });
-    adminMetricas=metricas; const gAv=gReq?Math.round(gComp/gReq*100):0;
-    const kpi=(v,t)=>`<div style="flex:1;min-width:70px;text-align:center;border:1px solid var(--bd,#e3e3e3);border-radius:10px;padding:8px 4px"><div style="font-size:20px;font-weight:800;color:var(--azul)">${v}</div><div class="mut" style="margin:2px 0 0;font-size:11px">${t}</div></div>`;
-    const bar=av=>`<div style="height:7px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0 2px"><div style="height:100%;width:${av}%;background:${av>=100?'#1a9e56':(av>0?'var(--azul)':'#e9e9ee')}"></div></div>`;
-    const dash=`<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">`
-      +kpi(adminEventos.length,"Eventos")+kpi(gReq,"Requerimientos")+kpi(gEvi,"Evidencias")+kpi(gComp+"/"+gReq,"Completos")+kpi(gAv+"%","Avance")+kpi(gExtra,"Extras en sitio")
-      +`</div>`;
-    l.innerHTML=dash+adminEventos.map((e,i)=>{
-      const m=metricas[i];
+    adminEventos.forEach(e=>{ e._items=anotarIids((e.config&&e.config.it)||[]); e._ff=(e.config&&e.config.ff)||e.fe||""; });
+    adminDatos={evis};
+    adminRenderDash();
+  }catch(_){ l.innerHTML='<div class="mut">Error al cargar.</div>'; }
+}
+/* ---- Capa 14 · SEGMENTADOR del tablero: recorta eventos / requerimientos / evidencias y recalcula tarjetas y lista
+   en el navegador (no toca la base). Cliente, evento y estado filtran EVENTOS; empresa proveedora y categoría filtran
+   REQUERIMIENTOS (y sus evidencias); el periodo filtra eventos cuyo rango lo toca y evidencias por fecha de captura. ---- */
+function segEstadoEvento(e){ const hoy=isoHoy(); if(!e.fe) return "curso"; if(e._ff<hoy) return "cerrado"; if(e.fe>hoy) return "proximo"; return "curso"; }
+function segPeriodo(){ const s=adminSeg; let d=s.desde||"", h=s.hasta||""; if(s.mes){ d=s.mes+"-01"; const [y,m]=s.mes.split("-").map(Number); h=`${y}-${z(m)}-${z(new Date(y,m,0).getDate())}`; } return (d||h)?{d:d||"0000-00-00",h:h||"9999-99-99"}:null; }
+function segPasaEvento(e, evisEv){ const s=adminSeg, per=segPeriodo();
+  if(s.cl && (e.cl||"")!==s.cl) return false; if(s.ev && e.uid!==s.ev) return false; if(s.estado && segEstadoEvento(e)!==s.estado) return false;
+  if(per){ const cruza = !!e.fe && !(e._ff<per.d || e.fe>per.h); if(!cruza && !(evisEv||[]).some(x=>x.fecha && x.fecha>=per.d && x.fecha<=per.h)) return false; }
+  return true; }
+function segPasaItem(it){ const s=adminSeg; if(s.prov && String(it.prov||"").trim()!==s.prov) return false; if(s.cat && String(it.cat||"").trim()!==s.cat) return false; return true; }
+function segPasaEvi(x){ const s=adminSeg, per=segPeriodo(); if(per && !(x.fecha && x.fecha>=per.d && x.fecha<=per.h)) return false; if(s.prov && String(x.proveedor||"").trim()!==s.prov) return false; if(s.cat && String(x.categoria||"").trim()!==s.cat) return false; return true; }
+function adminRenderDash(){
+  const l=$("adLista"); if(!l||!adminDatos) return; const evis=adminDatos.evis; const s=adminSeg;
+  const evisPorEv={}; evis.forEach(x=>{ (evisPorEv[x.evento_uid]=evisPorEv[x.evento_uid]||[]).push(x); });
+  // opciones de los selectores: siempre sobre el total, para poder cambiar de filtro sin quedar atrapado
+  const uniq=a=>[...new Set(a.filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
+  const clientes=uniq(adminEventos.map(e=>e.cl||"")); const eventosOpc=adminEventos.filter(e=>!s.cl||(e.cl||"")===s.cl);
+  if(s.ev && !eventosOpc.some(e=>e.uid===s.ev)) s.ev="";
+  const provs=uniq(adminEventos.flatMap(e=>e._items.map(it=>String(it.prov||"").trim())).concat(evis.map(x=>String(x.proveedor||"").trim())));
+  const cats=uniq(adminEventos.flatMap(e=>e._items.map(it=>String(it.cat||"").trim())).concat(evis.map(x=>String(x.categoria||"").trim())));
+  const meses=uniq(adminEventos.flatMap(e=>{ const a=[]; if(e.fe){ let m=e.fe.slice(0,7); const fin=e._ff.slice(0,7); let g=0; while(m<=fin && g++<36){ a.push(m); const [y,mm]=m.split("-").map(Number); m=`${mm===12?y+1:y}-${z(mm===12?1:mm+1)}`; } } return a; }).concat(evis.map(x=>(x.fecha||"").slice(0,7)))).reverse();
+  const fmtMes=m=>{ const d=new Date(m+"-01T12:00:00"); return isNaN(d)?m:d.toLocaleDateString("es-CO",{month:"short",year:"numeric"}); };
+  const opt=(vals,ph,cur,fmt)=>`<option value="">${ph}</option>`+vals.map(v=>{ const val=Array.isArray(v)?v[0]:v, txt=Array.isArray(v)?v[1]:(fmt?fmt(v):v); return `<option value="${escAttr(String(val))}"${String(val)===String(cur||"")?" selected":""}>${escAttr(String(txt))}</option>`; }).join("");
+  const sel=(id,inner,w)=>`<select id="${id}" style="flex:1;min-width:${w||120}px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;font:600 12px var(--font);background:#fff;color:var(--txt)">${inner}</select>`;
+  const inp=(id,val)=>`<input type="date" id="${id}" value="${escAttr(val||"")}" style="padding:5px 6px;border:1px solid var(--line);border-radius:8px;font:12px var(--font);background:#fff;color:var(--txt)">`;
+  const activos=SEG_KEYS.filter(k=>s[k]);
+  const seg=`<div id="adSeg" style="border:1px solid ${activos.length?"var(--azul)":"var(--line)"};border-radius:10px;padding:8px;margin-bottom:10px;background:#f7f9fc">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:12px;color:var(--azul)">🔎 Ver: ${activos.length?"filtrado":"todo"}</b>${activos.length?`<a class="lnk" id="segTodo">Todo (limpiar filtros)</a>`:""}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">`
+    +sel("segCl",opt(clientes,"Todos los clientes",s.cl))
+    +sel("segEv",opt(eventosOpc.map(e=>[e.uid,evConsecTag(e.consec)+" · "+(e.ev||"")]),"Todos los eventos",s.ev),150)
+    +sel("segMes",opt(meses,"Todos los meses",s.mes,fmtMes),110)
+    +sel("segEstado",opt([["curso","En curso"],["cerrado","Cerrados"],["proximo","Próximos"]],"Cualquier estado",s.estado),110)
+    +sel("segProv",opt(provs,"Todas las empresas proveedoras",s.prov),150)
+    +sel("segCat",opt(cats,"Todas las categorías",s.cat),130)
+    +`</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px"><span class="mut" style="margin:0">Rango:</span>${inp("segDesde",s.desde)}<span class="mut" style="margin:0">a</span>${inp("segHasta",s.hasta)}<span class="mut" id="segInfo" style="margin:0 0 0 auto"></span></div>
+  </div>`;
+  // ---- cálculo sobre el recorte ----
+  const porItem={}; adminPorItemDia={}; const extrasPorEvento={}; const evisF={};
+  adminEventos.forEach(e=>{ evisF[e.uid]=(evisPorEv[e.uid]||[]).filter(segPasaEvi); });
+  Object.values(evisF).flat().forEach(x=>{ const k = x.item_id || (x.evento_uid+"|"+iidDe(x.item,x.categoria,1)); porItem[k]=(porItem[k]||0)+1;
+    if((x.tipo||"foto")!=="video" && x.fecha) adminPorItemDia[k+"@"+x.fecha]=(adminPorItemDia[k+"@"+x.fecha]||0)+1;   // Capa 12
+    if(x.adicional){ (extrasPorEvento[x.evento_uid]=extrasPorEvento[x.evento_uid]||new Set()).add(k); } });
+  let gReq=0,gComp=0,gEvi=0,gExtra=0,gReqTot=0; adminMetricas=[]; const visibles=[];
+  adminEventos.forEach((e,i)=>{ if(!segPasaEvento(e, evisPorEv[e.uid])) return; visibles.push(i);
+    const items=e._items.filter(segPasaItem); gReqTot+=e._items.length;
+    const reg=evisF[e.uid].length;
+    const conEvi=items.filter(it=>(porItem[e.uid+"|"+it.iid]||0)>=1).length;
+    const pdm=adminPorDia(e, items);   // Capa 12: ítems por día se completan con foto en cada fecha
+    const comp=items.filter(it=>pdm.mapa[it.iid]?pdm.mapa[it.iid].completo:(porItem[e.uid+"|"+it.iid]||0)>=3).length;
+    const pend=items.length-comp, av=items.length?Math.round(comp/items.length*100):0;
+    const extras=(extrasPorEvento[e.uid]||new Set()).size;   // adicionales creados en sitio, no están en el config
+    gReq+=items.length; gComp+=comp; gEvi+=reg; gExtra+=extras;
+    adminMetricas[i]={n:items.length,tot:e._items.length,reg,conEvi,comp,pend,av,extras,pd:pdm}; });
+  const gAv=gReq?Math.round(gComp/gReq*100):0;
+  const kpi=(v,t)=>`<div style="flex:1;min-width:70px;text-align:center;border:1px solid var(--bd,#e3e3e3);border-radius:10px;padding:8px 4px"><div style="font-size:20px;font-weight:800;color:var(--azul)">${v}</div><div class="mut" style="margin:2px 0 0;font-size:11px">${t}</div></div>`;
+  const bar=av=>`<div style="height:7px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0 2px"><div style="height:100%;width:${av}%;background:${av>=100?'#1a9e56':(av>0?'var(--azul)':'#e9e9ee')}"></div></div>`;
+  const dash=`<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">`
+    +kpi(visibles.length+(visibles.length!==adminEventos.length?`<span class="mut" style="margin:0;font-size:12px">/${adminEventos.length}</span>`:""),"Eventos")
+    +kpi(gReq+(gReq!==gReqTot?`<span class="mut" style="margin:0;font-size:12px">/${gReqTot}</span>`:""),"Requerimientos")
+    +kpi(gEvi,"Evidencias")+kpi(gComp+"/"+gReq,"Completos")+kpi(gAv+"%","Avance")+kpi(gExtra,"Extras en sitio")+`</div>`;
+  l.innerHTML=seg+dash+(visibles.length?visibles.map(i=>{
+      const e=adminEventos[i], m=adminMetricas[i];
       return `<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe}${e.config&&e.config.ff&&e.config.ff!==e.fe?" → "+e.config.ff:""})</span>`:""}${e.config&&e.config.pd?` <span class="mut" style="margin:0;color:var(--azul)">· por día</span>`:""}`
         +bar(m.av)
-        +`<div class="mut" style="margin:2px 0 0">Requerimientos: <b>${m.n}</b> · Con evidencia: <b>${m.conEvi}</b> · Completos: <b>${m.comp}</b> · Pendientes: <b>${m.pend}</b> · Evidencias: <b>${m.reg}</b> · Avance: <b>${m.av}%</b>${m.extras?` · <span style="color:var(--oro-d)">Extras en sitio: <b>${m.extras}</b></span>`:""}</div>`
+        +`<div class="mut" style="margin:2px 0 0">Requerimientos: <b>${m.n}</b>${m.n!==m.tot?` <span class="mut" style="margin:0">(de ${m.tot})</span>`:""} · Con evidencia: <b>${m.conEvi}</b> · Completos: <b>${m.comp}</b> · Pendientes: <b>${m.pend}</b> · Evidencias: <b>${m.reg}</b> · Avance: <b>${m.av}%</b>${m.extras?` · <span style="color:var(--oro-d)">Extras en sitio: <b>${m.extras}</b></span>`:""}</div>`
         +(m.pd.n?`<div class="mut" style="margin:3px 0 0">📅 Por día: <b>${m.pd.n}</b> req · días cubiertos <b>${m.pd.diasCub}/${m.pd.diasReq}</b> · hoy <b>${m.pd.hoyOk}/${m.pd.hoyTotal}</b>${m.pd.atras?` · <span style="color:#b3261e">⚠ ${m.pd.atras} con días atrasados</span>`:""}</div><div id="adHoy${i}" class="hide"></div>`:"")
         +`<div class="ac">${m.pd.n?`<a class="lnk" style="font-weight:700" onclick="adminHoy(${i})">hoy por proveedor</a>`:""}<a class="lnk" onclick="adminCopiar(${i},'oper')">link proveedor</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link productor</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a></div></div></div>`;
-    }).join("");
-  }catch(_){ l.innerHTML='<div class="mut">Error al cargar.</div>'; }
+    }).join(""):'<div class="mut">Ningún evento coincide con el filtro. <a class="lnk" id="segTodo2">Ver todo</a></div>');
+  const info=$("segInfo"); if(info) info.textContent = activos.length ? `${visibles.length} de ${adminEventos.length} eventos` : `${adminEventos.length} evento(s)`;
+  const bind=(id,k)=>{ const el=$(id); if(!el) return; el.addEventListener("change",()=>{ adminSeg[k]=el.value; if(k==="cl") adminSeg.ev=""; if(k==="mes"&&el.value){ adminSeg.desde=""; adminSeg.hasta=""; } if((k==="desde"||k==="hasta")&&el.value) adminSeg.mes=""; saveJSON(NS+"admin_seg",adminSeg); adminRenderDash(); }); };
+  SEG_KEYS.forEach(k=>bind("seg"+k.charAt(0).toUpperCase()+k.slice(1),k));
+  ["segTodo","segTodo2"].forEach(id=>{ if($(id)) $(id).addEventListener("click",()=>{ adminSeg={}; saveJSON(NS+"admin_seg",adminSeg); adminRenderDash(); }); });
 }
 /* ---- Capa 12 · ADMIN: estado por día de un evento (con su propio config, no el cfg del teléfono) ---- */
 var adminPorItemDia={}, adminMetricas=[];
@@ -1033,7 +1078,7 @@ function fmtFecha(iso){ try{ const d=new Date(iso); if(isNaN(d)) return iso||"";
 window.adminAbrir=async(i)=>{
   const ev=adminEventos[i]; if(!ev) return; adminEventoActual=i;
   $("adBack").classList.remove("hide"); $("adTitulo").textContent=`${ev.cl||""} — ${ev.ev||""}`;
-  const l=$("adLista"); l.innerHTML='<div class="mut">Cargando evidencias…</div>'; adminFotoURLs={}; adminEvidencias=[];
+  const l=$("adLista"); l.innerHTML='<div class="mut">Cargando evidencias…</div>'; adminColaReset(); adminEvidencias=[]; adminOrig=new Map();
   try{
     const r=await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid)+"&select=*&order=creado.asc",{headers:adminHeaders()});
     if(r.status===401){ adminSesExpirada(); return; }
@@ -1046,8 +1091,8 @@ window.adminAbrir=async(i)=>{
     // se indexa por la llave del requerimiento, no por el código: el mismo código vive en varios escenarios
     const reqs=[...new Map(arr.filter(e=>e.item).map(e=>[eviKey(e),(e.categoria?e.categoria+" · ":"")+e.item+(e.requerimiento?" · "+e.requerimiento.slice(0,26):"")])).entries()].sort((a,b)=>String(a[1]).localeCompare(String(b[1]),"es"));
     const cab=bloqueExtras(arr)
-      +`<div class="mut" style="margin-bottom:6px">${arr.length} evidencia(s) · toca una foto para verla grande</div>`
-      +`<div style="display:flex;gap:16px;margin-bottom:10px"><a class="lnk" onclick="adminManifiesto()">⬇ Manifiesto (CSV)</a><a class="lnk" onclick="adminFotosZIP()">⬇ Fotos (ZIP)</a></div>`
+      +`<div class="mut" style="margin-bottom:6px">${arr.length} evidencia(s) · toca una foto para verla grande · las vistas previas cargan a medida que bajas</div>`
+      +`<div style="display:flex;gap:16px;margin-bottom:10px"><a class="lnk" onclick="adminManifiesto()">⬇ Manifiesto (CSV)</a><a class="lnk" onclick="adminDescargarFotos()">⬇ Descargar fotos</a></div><div id="adDl" class="hide" style="border:1px solid var(--line);border-radius:10px;padding:8px;margin-bottom:10px;background:#f7f9fc"></div>`
       +`<div style="border-top:1px solid var(--line);padding-top:10px;margin-bottom:10px">`
         +`<div class="fld"><input id="adFltBuscar" type="text" autocomplete="off" placeholder="🔍 Buscar por requerimiento, proveedor, persona, archivo o radicado"></div>`
         +`<div class="row" style="margin-top:8px"><div><label>Proveedor</label><select id="adFltProv">${opt(provs,"Todos")}</select></div><div><label>Quién capturó</label><select id="adFltOper">${opt(opers,"Todos")}</select></div></div>`
@@ -1097,30 +1142,65 @@ window.adminExtrasCSV=()=>{
   x.forEach(e=>{ csv+=[e.item,e.req,e.cant,e.prov,e.nit,e.quien,e.nota,e.oper,e.fotos].map(csvCell).join(",")+"\n"; });
   bajar(new Blob([csv],{type:"text/csv"}), `extras_${slug(ev.cl||"")}_${slug(ev.ev||"")}.csv`);
 };
+/* ---- Capa 14 · VISOR LIVIANO: filas de a páginas, vista previa sólo de lo que está en pantalla (miniatura si existe,
+   original si la foto es anterior a las miniaturas), pocas descargas a la vez y la original sólo al abrirla o bajarla.
+   Antes se bajaban TODAS las originales al abrir el evento (2.835 fotos ≈ 300 MB en memoria). ---- */
+const THUMB_DESDE="2026-09-10";   // desde esta fecha la app sube una miniatura junto a cada foto (thumbs/<uid>/<archivo>)
+const AD_PAGINA=60, AD_CONC=4, AD_CACHE_MAX=400;
+let adminVis=[], adminMostrados=0, adminCola=[], adminEnCurso=0, adminGen=0, adminIO=null, adminCacheOrden=[], adminOrig=new Map();
+function thumbPath(e){ return e.storage_path ? e.storage_path.replace(/^evidencias\//,"evidencias/thumbs/") : ""; }
+function adminUrlObjeto(storagePath){ return SB_URL+"/storage/v1/object/authenticated/"+storagePath.split("/").map(encodeURIComponent).join("/"); }
+function adminColaReset(){ adminGen++; adminCola=[]; adminEnCurso=0; if(adminIO){ adminIO.disconnect(); adminIO=null; } Object.values(adminFotoURLs).forEach(f=>{ try{ URL.revokeObjectURL(f.url); }catch(_){} }); adminFotoURLs={}; adminCacheOrden=[]; }
 function renderAdminEvidencias(){
   const cont=$("adEviList"); if(!cont) return;
   const q=fnorm($("adFltBuscar")&&$("adFltBuscar").value), fp=($("adFltProv")&&$("adFltProv").value)||"", fo=($("adFltOper")&&$("adFltOper").value)||"", fc=($("adFltCat")&&$("adFltCat").value)||"", fr=($("adFltReq")&&$("adFltReq").value)||"";
-  let vis=0, html="";
+  adminVis=[];
   adminEvidencias.forEach((e,j)=>{
     if(fp && (e.proveedor||"").trim()!==fp) return;
     if(fo && (e.operador_nombre||"").trim()!==fo) return;
     if(fc && (e.categoria||"").trim()!==fc) return;
     if(fr && eviKey(e)!==fr) return;
     if(q && !fnorm([e.item,e.requerimiento,e.proveedor,e.proveedor_nit,e.operador_nombre,e.operador_cedula,e.archivo,e.radicado,e.categoria].join(" ")).includes(q)) return;
-    vis++;
-    html+=`<div class="ev"><div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})"><img id="adimg${j}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5"></div><div class="in">${e.categoria?`<span class="cchip">${escAttr(e.categoria)}</span> `:""}<b>${e.item||""}</b> · ${(e.requerimiento||"").slice(0,38)}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${e.operador_nombre||""}${e.operador_cedula?" · "+e.operador_cedula:""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+e.radicado:""}</div><div class="fn" style="margin-top:3px">${e.archivo||""}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${(e.lugar||"").slice(0,60)}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvidencia(${j})">borrar</a></div></div></div>`;
+    adminVis.push(j);
   });
-  cont.innerHTML = vis ? html : '<div class="mut" style="padding:8px 2px">Ninguna evidencia coincide con el filtro.</div>';
-  if($("adFltInfo")){ const f=q||fp||fo||fr; $("adFltInfo").textContent = f ? `Mostrando ${vis} de ${adminEvidencias.length}` : `${adminEvidencias.length} evidencia(s)`; }
-  adminEvidencias.forEach((e,j)=>{ const img=$("adimg"+j); if(!img) return; if(adminFotoURLs[j]) img.src=adminFotoURLs[j].url; else adminCargarFoto("adimg"+j, e.storage_path, j, e.archivo); });   // usa cache; carga solo lo visible aún no cargado
+  adminMostrados=0; adminCola=[]; cont.innerHTML="";
+  if(adminIO) adminIO.disconnect();
+  adminIO=new IntersectionObserver(ents=>{ ents.forEach(en=>{ if(en.isIntersecting){ adminIO.unobserve(en.target); adminEncolar(+en.target.dataset.j); } }); },{rootMargin:"400px"});
+  if(!adminVis.length) cont.innerHTML='<div class="mut" style="padding:8px 2px">Ninguna evidencia coincide con el filtro.</div>'; else adminMostrarMas();
+  if($("adFltInfo")){ const f=q||fp||fo||fc||fr; $("adFltInfo").textContent = f ? `Mostrando ${adminVis.length} de ${adminEvidencias.length}` : `${adminEvidencias.length} evidencia(s)`; }
 }
-async function adminCargarFoto(imgId, storagePath, j, nombre){
-  if(!storagePath){ return; } const img=$(imgId); if(!img) return;
-  try{ const url=SB_URL+"/storage/v1/object/authenticated/"+storagePath.split("/").map(encodeURIComponent).join("/");
-    const r=await fetch(url,{headers:adminHeaders()}); if(r.ok){ const b=await r.blob(); const u=URL.createObjectURL(b); img.src=u; if(j!=null) adminFotoURLs[j]={url:u, nombre:nombre||"", blob:b}; } }catch(_){}
+function adminFilaHTML(e,j){ return `<div class="ev"><div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})">${(e.tipo||"foto")==="video"?`<div style="width:66px;height:66px;border-radius:7px;background:#e9eef5;display:flex;align-items:center;justify-content:center;font-size:24px">🎬</div>`:`<img id="adimg${j}" data-j="${j}" alt="" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5">`}</div><div class="in">${e.categoria?`<span class="cchip">${escAttr(e.categoria)}</span> `:""}<b>${e.item||""}</b> · ${(e.requerimiento||"").slice(0,38)}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${e.operador_nombre||""}${e.operador_cedula?" · "+e.operador_cedula:""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+e.radicado:""}</div><div class="fn" style="margin-top:3px">${e.archivo||""}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${(e.lugar||"").slice(0,60)}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvidencia(${j})">borrar</a></div></div></div>`; }
+function adminMostrarMas(){
+  const cont=$("adEviList"); if(!cont) return; const btn=$("adMas"); if(btn) btn.remove();
+  const fin=Math.min(adminVis.length, adminMostrados+AD_PAGINA); let html="";
+  for(let k=adminMostrados;k<fin;k++){ const j=adminVis[k]; html+=adminFilaHTML(adminEvidencias[j],j); }
+  cont.insertAdjacentHTML("beforeend", html);
+  for(let k=adminMostrados;k<fin;k++){ const j=adminVis[k], img=$("adimg"+j); if(!img) continue; const f=adminFotoURLs[j]; if(f) img.src=f.url; else adminIO.observe(img); }
+  adminMostrados=fin;
+  if(adminMostrados<adminVis.length) cont.insertAdjacentHTML("beforeend", `<button class="btn sec" id="adMas" onclick="adminMostrarMas()">Mostrar ${Math.min(AD_PAGINA,adminVis.length-adminMostrados)} más (quedan ${adminVis.length-adminMostrados})</button>`);
 }
-window.adminVerFoto=(j)=>{ const f=adminFotoURLs[j]; if(!f) return; lbActual=j; $("lbImg").src=f.url; $("lbName").textContent=f.nombre||""; $("lightbox").classList.remove("hide"); };
-window.descargarFoto=(j)=>{ const f=adminFotoURLs[j]; if(!f){ toast("La foto aún se está cargando…"); return; } const a=document.createElement("a"); a.href=f.url; a.download=f.nombre||"evidencia.jpg"; a.click(); };
+window.adminMostrarMas=adminMostrarMas;
+function adminEncolar(j){ if(adminFotoURLs[j] || adminCola.includes(j)) return; adminCola.push(j); adminBombear(); }
+function adminBombear(){ while(adminEnCurso<AD_CONC && adminCola.length){ const j=adminCola.shift(); adminEnCurso++; const g=adminGen; adminCargarMiniatura(j).finally(()=>{ if(g===adminGen){ adminEnCurso--; adminBombear(); } }); } }
+async function adminCargarMiniatura(j){
+  const e=adminEvidencias[j]; const img=$("adimg"+j); if(!e||!img||!e.storage_path) return; const g=adminGen;
+  const intentos = (String(e.creado||"")>=THUMB_DESDE) ? [thumbPath(e), e.storage_path] : [e.storage_path];   // fotos viejas: no hay miniatura, va la original
+  for(const p of intentos){
+    try{ const r=await fetchTO(adminUrlObjeto(p),{headers:adminHeaders()},25000); if(g!==adminGen) return; if(r.status===401){ adminSesExpirada(); return; } if(!r.ok) continue;
+      const b=await r.blob(); if(g!==adminGen) return; const u=URL.createObjectURL(b); adminFotoURLs[j]={url:u,nombre:e.archivo||"",mini:p!==e.storage_path}; adminCacheOrden.push(j); img.src=u; adminPodarCache(); return;
+    }catch(_){ if(g!==adminGen) return; }
+  }
+  img.alt="sin vista previa";
+}
+function adminPodarCache(){ let guard=0; while(adminCacheOrden.length>AD_CACHE_MAX && guard++<50){ const j=adminCacheOrden.shift(); const f=adminFotoURLs[j]; if(!f) continue; const img=$("adimg"+j); const r=img&&img.getBoundingClientRect(); const visible=r && r.bottom>-800 && r.top<innerHeight+800; if(visible){ adminCacheOrden.push(j); break; } try{ URL.revokeObjectURL(f.url); }catch(_){} delete adminFotoURLs[j]; if(img){ img.removeAttribute("src"); if(adminIO) adminIO.observe(img); } } }
+/* La original sólo cuando se abre o se baja una foto; con reintento y un caché corto para pasar entre fotos sin volver a bajar. */
+async function adminOriginal(j){ const e=adminEvidencias[j]; if(!e||!e.storage_path) return null; if(adminOrig.has(j)) return adminOrig.get(j);
+  for(let k=0;k<3;k++){ try{ const r=await fetchTO(adminUrlObjeto(e.storage_path),{headers:adminHeaders()},60000); if(r.status===401){ adminSesExpirada(); return null; } if(r.ok){ const b=await r.blob(); if(b.size>0){ adminOrig.set(j,b); if(adminOrig.size>30) adminOrig.delete(adminOrig.keys().next().value); return b; } } }catch(_){} await new Promise(s=>setTimeout(s,800*(k+1))); }
+  return null; }
+window.adminVerFoto=async(j)=>{ const e=adminEvidencias[j]; if(!e) return; if((e.tipo||"foto")==="video"){ descargarFoto(j); return; }
+  lbActual=j; $("lbName").textContent=e.archivo||""; const f=adminFotoURLs[j]; $("lbImg").src=f?f.url:""; $("lightbox").classList.remove("hide");
+  const b=await adminOriginal(j); if(b && lbActual===j && !$("lightbox").classList.contains("hide")){ const u=URL.createObjectURL(b); $("lbImg").src=u; setTimeout(()=>URL.revokeObjectURL(u),60000); } };
+window.descargarFoto=async(j)=>{ const e=adminEvidencias[j]; if(!e) return; toast("Descargando…"); const b=await adminOriginal(j); if(!b){ toast("No se pudo descargar, reintenta"); return; } bajar(b, e.archivo||"evidencia.jpg"); };
 window.adminBorrarEvidencia=async(j)=>{
   const e=adminEvidencias[j]; if(!e) return;
   if(!confirm(`¿Borrar esta evidencia?\n\n${e.item||""} · ${(e.requerimiento||"").slice(0,40)}\n${e.archivo||""}\n\nElimina la foto y su registro. No se puede deshacer.`)) return;
@@ -1131,7 +1211,8 @@ window.adminBorrarEvidencia=async(j)=>{
     let borradas=[]; try{ borradas=await rr.json(); }catch(_){}
     if(!Array.isArray(borradas)||!borradas.length){ alert("La evidencia NO se borró (el servidor no eliminó ninguna fila).\n\nEsto pasa cuando el permiso de borrado no está activo: corre la Capa5 en Supabase (SQL Editor) y reintenta."); return; }   // 200 con 0 filas = RLS bloqueó
     if(e.storage_path){ try{ const p=e.storage_path.replace(/^evidencias\//,"").split("/").map(encodeURIComponent).join("/");
-      await fetch(SB_URL+"/storage/v1/object/evidencias/"+p, {method:"DELETE", headers:adminHeaders()}); }catch(_){} }
+      await fetch(SB_URL+"/storage/v1/object/evidencias/"+p, {method:"DELETE", headers:adminHeaders()});
+      await fetch(SB_URL+"/storage/v1/object/evidencias/thumbs/"+p, {method:"DELETE", headers:adminHeaders()}); }catch(_){} }   // Capa 14: miniatura
     toast("Evidencia borrada ✓");
     if(adminEventoActual!=null) adminAbrir(adminEventoActual);   // refresca la vista del evento
   }catch(_){ toast("Error al borrar"); }
@@ -1148,17 +1229,57 @@ window.adminManifiesto=()=>{
   bajar(new Blob([csv],{type:"text/csv"}), `manifiesto_${slug(arr[0].cliente||"")}_${slug(arr[0].evento||"")}.csv`);
 };
 /* ZIP con las fotos cargadas + manifiesto */
-window.adminFotosZIP=async()=>{
-  const arr=adminEvidencias; const idx=Object.keys(adminFotoURLs);
-  if(!idx.length){ toast("Las fotos aún se están cargando…"); return; }
-  toast("Generando ZIP…"); const zip=new JSZip();
-  idx.forEach(j=>{ const f=adminFotoURLs[j]; if(f&&f.blob) zip.file(f.nombre||("foto_"+j+".jpg"), f.blob); });
-  const cols=["radicado","cliente","evento","categoria","item","item_id","requerimiento","operador_nombre","archivo","fecha","hora","lugar","creado","fecha_origen","dia_evento","dias_evento"];
-  let csv=cols.join(",")+"\n"; arr.forEach(e=>{ csv+=cols.map(c=>csvCell(e[c]!=null?e[c]:"")).join(",")+"\n"; });
-  zip.file("manifiesto.csv", csv);
-  bajar(await zip.generateAsync({type:"blob"}), `fotos_${slug(arr[0].cliente||"")}_${slug(arr[0].evento||"")}.zip`);
-  toast("ZIP descargado");
+/* ---- Capa 14 · DESCARGA CONFIABLE: nunca depende de lo que haya en pantalla. En Chrome/Edge de escritorio se guarda foto a foto
+   en una carpeta (reanudable: al repetir en la misma carpeta sólo baja lo que falta); en el resto, ZIP por partes de 200.
+   Respeta el filtro activo del visor. Reintenta 4 veces cada foto y deja FALLIDAS.txt si alguna no bajó. ---- */
+let adminDlCancel=false;
+function nombreSeguro(n){ n=String(n||"foto.jpg").replace(/[\/\\:*?"<>|\x00-\x1f]/g,"_"); const ext=(n.match(/\.[A-Za-z0-9]{2,5}$/)||[""])[0]; let base=n.slice(0,n.length-ext.length); const enc=new TextEncoder(); while(base.length>1 && enc.encode(base+ext).length>200) base=base.slice(0,-1); return base+ext; }
+function adminManifiestoCSV(lista){ const cols=["radicado","cliente","evento","categoria","item","item_id","requerimiento","proveedor","proveedor_nit","operador_nombre","archivo","tipo","fecha","hora","lugar","creado","fecha_origen","dia_evento","dias_evento","adicional","cantidad","solicitado_por","justificacion"]; let csv=cols.join(",")+"\n"; lista.forEach(e=>{ csv+=cols.map(c=>csvCell(e[c]!=null?e[c]:"")).join(",")+"\n"; }); return csv; }
+function adminDlPanel(html){ const p=$("adDl"); if(!p) return; p.classList.remove("hide"); p.innerHTML=html; }
+function adminDlProgreso(t,hechas,total,fall){ adminDlPanel(`<div style="font-weight:700">${escAttr(t)}</div><div style="height:7px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0"><div style="height:100%;width:${total?Math.round(hechas/total*100):0}%;background:var(--azul)"></div></div><div class="mut" style="margin:0">${hechas}/${total}${fall?` · <span style="color:#b3261e">fallidas ${fall}</span>`:""} · <a class="lnk" onclick="adminDlCancelar()">cancelar</a></div>`); }
+window.adminDlCancelar=()=>{ adminDlCancel=true; };
+async function adminBajarBlob(e){ for(let k=0;k<4;k++){ if(adminDlCancel) return null; try{ const r=await fetchTO(adminUrlObjeto(e.storage_path),{headers:adminHeaders()},90000); if(r.status===401){ adminSesExpirada(); adminDlCancel=true; return null; } if(r.ok){ const b=await r.blob(); if(b.size>0) return b; } }catch(_){} await new Promise(s=>setTimeout(s,1000*(k+1))); } return null; }
+window.adminDescargarFotos=async()=>{
+  const idx=adminVis.length?adminVis:adminEvidencias.map((_,j)=>j); const lista=idx.map(j=>adminEvidencias[j]).filter(e=>e&&e.storage_path);
+  if(!lista.length){ toast("No hay fotos para descargar"); return; }
+  const filtrado = adminVis.length && adminVis.length!==adminEvidencias.length;
+  const ev=adminEventos[adminEventoActual]||{}; const nom=`fotos_${slug(ev.cl||lista[0].cliente||"")}_${slug(ev.ev||lista[0].evento||"")}`;
+  const carpeta=!!window.showDirectoryPicker;
+  if(!confirm(`Se descargarán ${lista.length} archivo(s)${filtrado?" (los que coinciden con el filtro actual)":""}.\n\n`+(carpeta?"Elige una carpeta: las fotos se guardan una a una y, si se corta, al repetir en la misma carpeta sigue donde iba.":"Se bajan en ZIP por partes de 200 fotos (el navegador puede pedir permiso para varias descargas)."))) return;
+  adminDlCancel=false;
+  if(carpeta) await adminDlCarpeta(lista,nom); else await adminDlZipPartes(lista,nom);
 };
+async function adminDlCarpeta(lista,nom){
+  let dir; try{ dir=await window.showDirectoryPicker({mode:"readwrite"}); }catch(_){ return; }
+  let sub; try{ sub=await dir.getDirectoryHandle(nom,{create:true}); }catch(_){ sub=dir; }
+  let hechas=0, saltadas=0, i=0; const fallidas=[]; const total=lista.length; const t="Guardando en la carpeta…";
+  adminDlProgreso(t,0,total,0);
+  const worker=async()=>{ while(i<lista.length && !adminDlCancel){ const e=lista[i++]; const nombre=nombreSeguro(e.archivo||("foto_"+i+".jpg"));
+    const ya=await sub.getFileHandle(nombre).then(h=>h.getFile()).catch(()=>null);
+    if(ya && ya.size>0){ saltadas++; hechas++; adminDlProgreso(t,hechas,total,fallidas.length); continue; }
+    const b=await adminBajarBlob(e); if(!b){ if(!adminDlCancel) fallidas.push(e); continue; }
+    try{ const h=await sub.getFileHandle(nombre,{create:true}); const w=await h.createWritable(); await w.write(b); await w.close(); hechas++; }catch(_){ fallidas.push(e); }
+    adminDlProgreso(t,hechas,total,fallidas.length); } };
+  await Promise.all(Array.from({length:3},worker));
+  const escribir=async(nombre,txt)=>{ try{ const h=await sub.getFileHandle(nombre,{create:true}); const w=await h.createWritable(); await w.write(txt); await w.close(); }catch(_){} };
+  await escribir("manifiesto.csv", adminManifiestoCSV(lista));
+  if(fallidas.length) await escribir("FALLIDAS.txt", fallidas.map(e=>e.archivo||e.storage_path).join("\n"));
+  adminDlPanel(`<div style="font-weight:700">${adminDlCancel?"Descarga cancelada":"Descarga terminada"}</div><div class="mut" style="margin:2px 0 0">Guardadas: <b>${hechas}</b> de ${total}${saltadas?` (${saltadas} ya estaban)`:""}${fallidas.length?` · <span style="color:#b3261e">fallidas: ${fallidas.length}</span> (lista en FALLIDAS.txt; repite la descarga en la misma carpeta y sólo bajará las que faltan)`:""} · carpeta <b>${escAttr(nom)}</b> con manifiesto.csv</div>`);
+}
+async function adminDlZipPartes(lista,nom){
+  const TAM=200; const partes=Math.ceil(lista.length/TAM); const fallidas=[]; let hechas=0;
+  for(let p=0;p<partes && !adminDlCancel;p++){
+    const zip=new JSZip(); const trozo=lista.slice(p*TAM,(p+1)*TAM); let i=0;
+    const worker=async()=>{ while(i<trozo.length && !adminDlCancel){ const e=trozo[i++]; const b=await adminBajarBlob(e); if(b){ zip.file(nombreSeguro(e.archivo||("foto_"+(p*TAM+i)+".jpg")),b); hechas++; } else if(!adminDlCancel) fallidas.push(e); adminDlProgreso(`Armando parte ${p+1} de ${partes}…`,hechas,lista.length,fallidas.length); } };
+    await Promise.all(Array.from({length:3},worker));
+    if(adminDlCancel) break;
+    if(p===0) zip.file("manifiesto.csv", adminManifiestoCSV(lista));
+    if(fallidas.length && p===partes-1) zip.file("FALLIDAS.txt", fallidas.map(e=>e.archivo||e.storage_path).join("\n"));
+    bajar(await zip.generateAsync({type:"blob"}), partes>1?`${nom}_parte${z(p+1)}de${z(partes)}.zip`:`${nom}.zip`);
+    await new Promise(s=>setTimeout(s,1500));
+  }
+  adminDlPanel(`<div style="font-weight:700">${adminDlCancel?"Descarga cancelada":"Descarga terminada"}</div><div class="mut" style="margin:2px 0 0">${hechas} de ${lista.length} fotos en ${partes} archivo(s) ZIP${fallidas.length?` · <span style="color:#b3261e">fallidas: ${fallidas.length}</span> (FALLIDAS.txt en la última parte)`:""}</div>`);
+}
 
 /* ---- OPERADOR: captura ---- */
 function poblarItemTop(){
@@ -1656,6 +1777,8 @@ async function compartirMedia(listas, csv, exito){
 /* fetch con timeout: si la señal es mala y no responde en `ms`, aborta (no deja el botón colgado). */
 async function fetchTO(url, opts, ms){ const c=new AbortController(); const t=setTimeout(()=>c.abort(), ms||30000);
   try{ return await fetch(url, Object.assign({}, opts, {signal:c.signal})); } finally { clearTimeout(t); } }
+/* Miniatura JPEG de lado máximo `lado` para el visor del admin (Capa 14). Si el navegador no puede, devuelve null y no pasa nada. */
+async function miniatura(blob, lado){ try{ const bmp=await createImageBitmap(blob); const esc=Math.min(1, lado/Math.max(bmp.width,bmp.height)); const c=document.createElement("canvas"); c.width=Math.max(1,Math.round(bmp.width*esc)); c.height=Math.max(1,Math.round(bmp.height*esc)); c.getContext("2d").drawImage(bmp,0,0,c.width,c.height); if(bmp.close) bmp.close(); return await new Promise(r=>c.toBlob(r,"image/jpeg",0.72)); }catch(_){ return null; } }
 /* Sube UNA evidencia: la foto al bucket + la fila de metadatos a la tabla. Devuelve true si ambas OK. */
 let ultimoErr="";
 async function subirEvidencia(e, radicado){
@@ -1667,6 +1790,8 @@ async function subirEvidencia(e, radicado){
       let dup=false; try{ const t=await up.json(); dup=!!(t&&(t.statusCode==="409"||t.error==="Duplicate"||t.code==="KeyAlreadyExists")); }catch(_){}
       if(!dup){ ultimoErr="subir foto: HTTP "+up.status; return false; }
     }
+    if((e.tipo||"foto")!=="video"){ try{ const mini=await miniatura(e.blob,220); if(mini) await fetchTO(SB_URL+"/storage/v1/object/evidencias/thumbs/"+encodeURI(path), {method:"POST",
+      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":"image/jpeg"}, body:mini}, 12000); }catch(_){} }   // Capa 14: miniatura (~6 KB) para el visor del admin; si falla, el visor usa la original
     const ad=itemAdic(e.itemCodigo)||{};
     const row={ radicado:radicado||"", evento_uid:cfg.uid||"", consec:cfg.consec||null, cliente:cfg.cl, evento:cfg.ev,
       categoria:itemCat(e.itemCodigo), item:itemCod(e.itemCodigo), item_id:claveDe(e.itemCodigo), requerimiento:itemReq(e.itemCodigo), proveedor:itemProv(e.itemCodigo), proveedor_nit:itemNit(e.itemCodigo),
