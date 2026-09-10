@@ -969,7 +969,7 @@ function adminRenderDash(){
   const fmtMes=m=>{ const d=new Date(m+"-01T12:00:00"); return isNaN(d)?m:d.toLocaleDateString("es-CO",{month:"short",year:"numeric"}); };
   const opt=(vals,ph,cur,fmt)=>`<option value="">${ph}</option>`+vals.map(v=>{ const val=Array.isArray(v)?v[0]:v, txt=Array.isArray(v)?v[1]:(fmt?fmt(v):v); return `<option value="${escAttr(String(val))}"${String(val)===String(cur||"")?" selected":""}>${escAttr(String(txt))}</option>`; }).join("");
   const sel=(id,inner,w)=>`<select id="${id}" style="flex:1;min-width:${w||120}px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;font:600 12px var(--font);background:#fff;color:var(--txt)">${inner}</select>`;
-  const inp=(id,val)=>`<input type="date" id="${id}" value="${escAttr(val||"")}" style="padding:5px 6px;border:1px solid var(--line);border-radius:8px;font:12px var(--font);background:#fff;color:var(--txt)">`;
+  const inp=(id,val)=>`<input type="date" id="${id}" value="${escAttr(val||"")}" style="flex:0 0 auto;width:auto;padding:5px 6px;border:1px solid var(--line);border-radius:8px;font:12px var(--font);background:#fff;color:var(--txt)">`;
   const activos=SEG_KEYS.filter(k=>s[k]);
   const seg=`<div id="adSeg" style="border:1px solid ${activos.length?"var(--azul)":"var(--line)"};border-radius:10px;padding:8px;margin-bottom:10px;background:#f7f9fc">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:12px;color:var(--azul)">🔎 Ver: ${activos.length?"filtrado":"todo"}</b>${activos.length?`<a class="lnk" id="segTodo">Todo (limpiar filtros)</a>`:""}</div>
@@ -990,9 +990,10 @@ function adminRenderDash(){
     if((x.tipo||"foto")!=="video" && x.fecha) adminPorItemDia[k+"@"+x.fecha]=(adminPorItemDia[k+"@"+x.fecha]||0)+1;   // Capa 12
     if(x.adicional){ (extrasPorEvento[x.evento_uid]=extrasPorEvento[x.evento_uid]||new Set()).add(k); } });
   let gReq=0,gComp=0,gEvi=0,gExtra=0,gReqTot=0; adminMetricas=[]; const visibles=[];
-  adminEventos.forEach((e,i)=>{ if(!segPasaEvento(e, evisPorEv[e.uid])) return; visibles.push(i);
-    const items=e._items.filter(segPasaItem); gReqTot+=e._items.length;
-    const reg=evisF[e.uid].length;
+  adminEventos.forEach((e,i)=>{ if(!segPasaEvento(e, evisPorEv[e.uid])) return;
+    const items=e._items.filter(segPasaItem); const reg=evisF[e.uid].length;
+    if((s.prov||s.cat) && !items.length && !reg) return;   // el evento no tiene nada de esa empresa/categoría: no estorba
+    visibles.push(i); gReqTot+=e._items.length;
     const conEvi=items.filter(it=>(porItem[e.uid+"|"+it.iid]||0)>=1).length;
     const pdm=adminPorDia(e, items);   // Capa 12: ítems por día se completan con foto en cada fecha
     const comp=items.filter(it=>pdm.mapa[it.iid]?pdm.mapa[it.iid].completo:(porItem[e.uid+"|"+it.iid]||0)>=3).length;
