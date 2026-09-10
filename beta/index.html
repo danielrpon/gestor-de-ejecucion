@@ -1239,6 +1239,8 @@ function adminManifiestoCSV(lista){ const cols=["radicado","cliente","evento","c
 function adminDlPanel(html){ const p=$("adDl"); if(!p) return; p.classList.remove("hide"); p.innerHTML=html; }
 function adminDlProgreso(t,hechas,total,fall){ adminDlPanel(`<div style="font-weight:700">${escAttr(t)}</div><div style="height:7px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0"><div style="height:100%;width:${total?Math.round(hechas/total*100):0}%;background:var(--azul)"></div></div><div class="mut" style="margin:0">${hechas}/${total}${fall?` · <span style="color:#b3261e">fallidas ${fall}</span>`:""} · <a class="lnk" onclick="adminDlCancelar()">cancelar</a></div>`); }
 window.adminDlCancelar=()=>{ adminDlCancel=true; };
+let adminDlUltima=null;   // {lista,nom} del último intento, para ofrecer el ZIP por partes si la carpeta falla
+window.adminDlZipDesdePanel=async()=>{ if(!adminDlUltima) return; adminDlCancel=false; await adminDlZipPartes(adminDlUltima.lista, adminDlUltima.nom); };
 async function adminBajarBlob(e){ for(let k=0;k<4;k++){ if(adminDlCancel) return null; try{ const r=await fetchTO(adminUrlObjeto(e.storage_path),{headers:adminHeaders()},90000); if(r.status===401){ adminSesExpirada(); adminDlCancel=true; return null; } if(r.ok){ const b=await r.blob(); if(b.size>0) return b; } }catch(_){} await new Promise(s=>setTimeout(s,1000*(k+1))); } return null; }
 window.adminDescargarFotos=async()=>{
   const idx=adminVis.length?adminVis:adminEvidencias.map((_,j)=>j); const lista=idx.map(j=>adminEvidencias[j]).filter(e=>e&&e.storage_path);
@@ -1246,12 +1248,14 @@ window.adminDescargarFotos=async()=>{
   const filtrado = adminVis.length && adminVis.length!==adminEvidencias.length;
   const ev=adminEventos[adminEventoActual]||{}; const nom=`fotos_${slug(ev.cl||lista[0].cliente||"")}_${slug(ev.ev||lista[0].evento||"")}`;
   const carpeta=!!window.showDirectoryPicker;
-  if(!confirm(`Se descargarán ${lista.length} archivo(s)${filtrado?" (los que coinciden con el filtro actual)":""}.\n\n`+(carpeta?"Elige una carpeta: las fotos se guardan una a una y, si se corta, al repetir en la misma carpeta sigue donde iba.":"Se bajan en ZIP por partes de 200 fotos (el navegador puede pedir permiso para varias descargas)."))) return;
-  adminDlCancel=false;
+  if(!confirm(`Se descargarán ${lista.length} archivo(s)${filtrado?" (los que coinciden con el filtro actual)":""}.\n\n`+(carpeta?"Elige una SUBCARPETA (o créala con «Nueva carpeta»), por ejemplo Documentos › Evidencias. Chrome no acepta Documentos, Escritorio ni Descargas directamente.\n\nLas fotos se guardan una a una y, si se corta, al repetir en la misma carpeta sigue donde iba.":"Se bajan en ZIP por partes de 200 fotos (el navegador puede pedir permiso para varias descargas)."))) return;
+  adminDlCancel=false; adminDlUltima={lista,nom};
   if(carpeta) await adminDlCarpeta(lista,nom); else await adminDlZipPartes(lista,nom);
 };
 async function adminDlCarpeta(lista,nom){
-  let dir; try{ dir=await window.showDirectoryPicker({mode:"readwrite"}); }catch(_){ return; }
+  let dir; try{ dir=await window.showDirectoryPicker({mode:"readwrite", id:"evidencias", startIn:"downloads"}); }
+  catch(err){ if(err && err.name==="AbortError"){ adminDlPanel(`<div class="mut" style="margin:0">Descarga cancelada. Si Chrome dijo «no puede abrir esta carpeta», elige o crea una <b>subcarpeta</b> (Documentos, Escritorio y Descargas no se aceptan directamente), o baja en <a class="lnk" onclick="adminDlZipDesdePanel()">ZIP por partes</a>.</div>`); return; }
+    adminDlPanel(`<div class="mut" style="margin:0">No se pudo abrir la carpeta (${escAttr((err&&err.message)||"error")}). Baja en <a class="lnk" onclick="adminDlZipDesdePanel()">ZIP por partes</a>.</div>`); return; }
   let sub; try{ sub=await dir.getDirectoryHandle(nom,{create:true}); }catch(_){ sub=dir; }
   let hechas=0, saltadas=0, i=0; const fallidas=[]; const total=lista.length; const t="Guardando en la carpeta…";
   adminDlProgreso(t,0,total,0);
