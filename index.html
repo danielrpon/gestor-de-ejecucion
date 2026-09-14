@@ -168,6 +168,7 @@
           <div><label>Tamaño</label><select id="emEsc"><option value="2.6">Pequeño</option><option value="3.4" selected>Medio</option><option value="4.4">Grande</option><option value="5.6">Muy grande</option></select></div>
         </div>
         <label class="tgl"><input id="emOn" type="checkbox" checked> Aplicar marca de agua (fecha · hora · dirección)</label>
+        <label class="tgl"><input id="emGal" type="checkbox" checked> Permitir subir fotos desde la Galería del celular (si lo apagas, el proveedor solo puede usar «Capturar foto»)</label>
       </div>
       <div style="height:14px"></div>
       <button class="btn" id="egen" disabled>Generar acceso para proveedores</button>
@@ -242,7 +243,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v33 · 10sep · evidencia por día + tablero con filtros</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v34 · 14sep · sin días futuros + aviso galería sin metadatos + galería opcional</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -576,7 +577,7 @@ $("miadd").addEventListener("click", ()=>{ const req=$("mireq").value.trim(), ca
 function nuevoExec(){
   $("ecliente").value=""; $("eevento").value=""; $("efecha").value=""; $("efechafin").value=""; $("epd").checked=false; $("eciudad").value="";
   execItems=[]; renderExecItems();
-  $("emPos").value="bl"; $("emEsc").value="3.4"; $("emOn").checked=true;
+  $("emPos").value="bl"; $("emEsc").value="3.4"; $("emOn").checked=true; $("emGal").checked=true;
   if($("acWrap")) $("acWrap").classList.add("hide");
   if($("ereqInfo")) $("ereqInfo").textContent="";
   if(typeof renderHistorial==="function") renderHistorial();
@@ -586,7 +587,7 @@ function nuevoExec(){
   window.scrollTo(0,0);
 }
 function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("efechafin").value=cfg.ff||""; $("epd").checked=!!cfg.pd; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null))})); renderExecItems();
-    const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; } if(typeof renderHistorial==="function") renderHistorial();
+    const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; $("emGal").checked=cfg.gal!==false; } if(typeof renderHistorial==="function") renderHistorial();
   editandoId=null; aplicarModoExec(); }   // por defecto: modo NUEVO (los que editan fijan editandoId DESPUÉS y llaman aplicarModoExec)
 /* Modo de la vista ejecutivo: EDITAR (editandoId fijado) muestra solo "Guardar cambios" + "Duplicar";
    NUEVO muestra solo "Generar acceso". Unifica ambas puertas de entrada (enlace y "Editar"). */
@@ -728,7 +729,8 @@ function lineasDe(it){ if(!esPorDia(it)) return [{value:it.iid,fecha:"",it}]; re
 function fechaEfectiva(e){ if(!e) return ""; if(e.fechaOrigen==="declarada") return e.fechaSel||e.fechaDecl||""; const f=(e.datos&&e.datos.fecha)||""; if(f) return f; return (e.cargada&&e.cargada.fecha)||""; }
 /* Conflicto: la foto tiene fecha real (cámara o metadatos) distinta a la línea elegida. No se inventa: se bloquea hasta moverla. */
 function conflictoFecha(e){ if(!e||e.status!=="listo"||!e.itemCodigo||!e.fechaSel) return false; if(e.fechaOrigen==="declarada"||e.fechaOrigen==="carga") return false; const f=(e.datos&&e.datos.fecha)||""; return !!f && f!==e.fechaSel; }
-function pendienteFecha(e){ if(conflictoFecha(e)) return true; return !!(e && e.status==="listo" && e.itemCodigo && e.fechaOrigen==="declarada" && !e.fechaSel && !e.fechaDecl && esPorDia(itemById(e.itemCodigo))); }
+function pendienteFecha(e){ if(conflictoFecha(e)) return true;
+  if(e && e.status==="listo" && e.itemCodigo){ const fx=fechaEfectiva(e); if(fx && fx>isoHoy()) return true; }   /* v34: nada con fecha futura sale */ return !!(e && e.status==="listo" && e.itemCodigo && e.fechaOrigen==="declarada" && !e.fechaSel && !e.fechaDecl && esPorDia(itemById(e.itemCodigo))); }
 function diaDeFoto(e){ const it=itemById(e&&e.itemCodigo); if(!esPorDia(it)) return null; const fs=fechasDeItem(it); const f=fechaEfectiva(e); return { n:fs.length, idx:f?fs.indexOf(f)+1:0, fechas:fs }; }   // idx 0 = fecha fuera de las programadas
 function etiquetaFecha(e){ const f=fechaEfectiva(e); if(!f) return ""; const hoy=isoHoy(); const rel=f===hoy?"Hoy":(f===sumarDias(hoy,-1)?"Ayer":"");
   const orig={captura:"",metadatos:" · fecha de la foto",declarada:" · declarada por el proveedor",carga:" · fecha de carga"}[e.fechaOrigen||""]||"";
@@ -828,7 +830,7 @@ function saveConfigDesdeExec(){
   const uid=cfg&&cfg.uid, consec=cfg&&cfg.consec;   // preservar identidad del evento si ya existe
   cfg = { cl:$("ecliente").value.trim(), ev:$("eevento").value.trim(), fe:$("efecha").value, ff:$("efechafin").value||"", pd:!!$("epd").checked, ci:$("eciudad").value.trim(),
           it:execItems.map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null))})),
-          marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked} };   // marca definida por el ejecutivo, igual para todos
+          marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked}, gal:$("emGal").checked };   // marca definida por el ejecutivo, igual para todos
   if(uid) cfg.uid=uid; if(consec) cfg.consec=consec;
   saveJSON(NS+"config", cfg);
 }
@@ -1301,6 +1303,7 @@ function poblarItemTop(){
   const opcionLinea=(L)=>{ const it=L.it, n=fotosDeItemDia(it.iid,L.fecha); const o=document.createElement("option"); o.value=L.value; valores.push(L.value);   // Capa 13: una línea por día
     const mark = n>=1?"✓ ":(L.fecha<hoy?"⚠ ":"○ "); const rel = L.fecha===hoy?" · HOY":(L.fecha===sumarDias(hoy,-1)?" · ayer":"");
     o.textContent=mark+(it.cat?`${it.cat} · `:"")+`${it.codigo} · ${it.req||""}`+`  · día ${L.k}/${fechasDeItem(it).length} · ${fmtDia(L.fecha)}${rel}`+(n?` (${n})`:"");
+    if(L.fecha>hoy){ o.disabled=true; o.textContent+="  · aún no llega"; }   // v34: a un día que no ha llegado no se le cargan fotos
     return o; };
   if(cfg&&cfg.pd && todos.some(esPorDia)){   // agrupado por lo que importa HOY
     const g={hoy:[],atras:[],hechos:[],resto:[]};
@@ -1316,6 +1319,7 @@ function poblarItemTop(){
 function irACaptura(){
   poblarItemTop();
   const mk=(cfg&&cfg.marca)||{}; $("pos").value=mk.pos||"bl"; $("esc").value=mk.esc||"3.4"; $("marca").checked=mk.on!==false;   // marca fijada por el ejecutivo
+  $("btnGal").classList.toggle("hide", !!cfg && cfg.gal===false);   // v34: el productor puede apagar la galería
   $("ctx").textContent = (cfg.cl||"—")+" · "+(cfg.ev||"—")+((operador&&operador.prov)?("  ·  "+operador.prov):"")+(cfg.pd?("  ·  hoy "+fmtDia(isoHoy())):"");
   batch=[]; renderLista(); show("cap"); window.scrollTo(0,0);
   if(IN_APP) $("inAppAviso").classList.remove("hide");
@@ -1503,8 +1507,8 @@ $("gpsRetry").addEventListener("click", ()=>{ if(gpsFresco()) return cerrarGpsMo
 /* Seguir sin ubicación es decisión del operador y dura 15 min: si el permiso llega antes, se retoma solo. */
 $("gpsSkip").addEventListener("click", ()=>{ sinGpsHasta=Date.now()+15*60000; actualizarEstadoGPS(); cerrarGpsModal(true); });
 $("gpsClose").addEventListener("click", ()=>cerrarGpsModal(false));
-$("btnCap").addEventListener("click", ()=>conUbicacion(abrirCamara));
-$("btnGal").addEventListener("click", ()=>conUbicacion(()=>$("gal").click()));
+$("btnCap").addEventListener("click", ()=>{ const f=selFecha(); if(f && f!==isoHoy()){ alert("Con «Capturar foto» solo puedes cargar fotos de HOY.\n\nElige la línea de hoy. Para un día pasado usa «Galería» con fotos tomadas ese día."); return; } conUbicacion(abrirCamara); });   /* v34 */
+$("btnGal").addEventListener("click", ()=>{ if(cfg&&cfg.gal===false) return; conUbicacion(()=>$("gal").click()); });
 /* NaN es typeof "number" y NaN != null es true: por eso un GPS corrupto en el EXIF se colaba
    por todos los filtros y terminaba estampado como "NaN, NaN". Se valida con Number.isFinite. */
 function esNum(v){ return typeof v==="number" ? isFinite(v) : (v!=null && v!=="" && isFinite(+v)); }
@@ -1538,13 +1542,20 @@ window.addEventListener("online", ()=>{ if(batch.some(e=>e.status==="listo"&&e.d
 /* ---- lote ---- */
 function agregar(fileList, meta, metaResp){
   const cod=selIid(), fSel=selFecha();
+  if(fSel && fSel>isoHoy()){ alert("Ese día todavía no llega.\n\nElige la línea de HOY para cargar la foto."); return; }   // v34
   const now=new Date(); const cargada={fecha:`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`, hora:`${z(now.getHours())}:${z(now.getMinutes())}`};
+  const ps=[], nuevos=[];
   [...fileList].forEach(file=>{
     const video=/^video\//.test(file.type)||/\.(mp4|mov|m4v|3gp|webm|avi|mkv)$/i.test(file.name);
     const ext=video?((file.name.split(".").pop()||"mp4").toLowerCase()):"jpg";
     const e={id:++seq,file,itemCodigo:cod,fechaSel:fSel||"",tipo:video?"video":"foto",ext,status:"procesando",blob:null,thumb:"",datos:{},filename:"",meta:meta||null,metaResp:metaResp||null,cargada};
-    batch.push(e); procesar(e); });
+    batch.push(e); nuevos.push(e); ps.push(procesar(e)); });
   renderLista();
+  Promise.all(ps).then(()=>{   /* v34: avisos del lote — fotos rechazadas por fecha y galería sin metadatos */
+    const rech=nuevos.filter(e=>e.rechazo), sm=meta?[]:nuevos.filter(e=>!e.rechazo && e.sinMeta); const msg=[];
+    if(rech.length) msg.push((rech.length===1?"Esta foto NO se cargó: ":"Estas "+rech.length+" fotos NO se cargaron:\n• ")+rech.map(e=>e.rechazo).join("\n• ")+".\n\nSolo se aceptan fotos tomadas el día de la línea que elegiste.");
+    if(sm.length) msg.push((sm.length===1?"Esta foto no trae":"Estas "+sm.length+" fotos no traen")+" la fecha ni la ubicación originales. Seguro pasaron por WhatsApp o por una app de marca de agua.\n\nQuedan marcadas «sin ubicación» y no sirven bien como prueba.\n\nSi puedes, quítalas y tómalas de nuevo con «Capturar foto».");
+    if(msg.length) alert(msg.join("\n\n— — —\n\n")); });
 }
 /* VOCABULARIO: en la interfaz el rol "operador" se llama PROVEEDOR y el "ejecutivo" se llama
    PRODUCTOR (nomenclatura del cliente). Dentro del código, en las columnas de Supabase
@@ -1584,6 +1595,16 @@ function fotoDelDia(fecha){ if(!fecha) return true;
   const p=String(fecha).split("-"); if(p.length!==3) return true;
   const t=new Date(+p[0],+p[1]-1,+p[2]).getTime();
   return isFinite(t) && (Date.now()-t) < 36*3600*1000; }
+/* v34: la fecha real de la foto (cámara o metadatos) tiene que ser la del día elegido; sin línea por día, dentro de las
+   fechas del evento. Devuelve el motivo del rechazo o "". Las declaradas/de carga no traen fecha real: no aplica. */
+function fechaNoCorresponde(e, f){ if(!f || e.fechaOrigen==="declarada" || e.fechaOrigen==="carga") return "";
+  const hoy=isoHoy();
+  if(f>hoy) return `tiene fecha ${fmtDia(f)}, que todavía no llega`;
+  if(e.fechaSel) return f!==e.fechaSel ? `la foto es del ${fmtDia(f)} y elegiste la línea del ${fmtDia(e.fechaSel)}` : "";
+  const fe=cfg&&cfg.fe, ff=(cfg&&cfg.ff)||fe;
+  if(fe && (f<fe || f>ff)) return `la foto es del ${fmtDia(f)}, fuera de las fechas del evento (${fmtDia(fe)} a ${fmtDia(ff)})`;
+  if(!fe && !fotoDelDia(f)) return `la foto es del ${fmtDia(f)}, no de hoy`;
+  return ""; }
 async function procesar(entry){
   try{
     if(entry.tipo==="video"){
@@ -1604,13 +1625,17 @@ async function procesar(entry){
       else if(esPorDia(itemById(entry.itemCodigo))){ entry.fechaOrigen="declarada"; if(entry.fechaSel){ entry.fechaDecl=entry.fechaSel; } if(entry.fechaDecl){ ex.fecha=entry.fechaDecl; } }
       else entry.fechaOrigen="carga";
       try{ const g=await exifr.gps(entry.file); if(g&&esNum(g.latitude)&&esNum(g.longitude)){ ex.lat=+g.latitude; ex.lon=+g.longitude; } }catch(_){}
+      /* v34: sin fecha NI ubicación originales = la foto pasó por WhatsApp, una app de marca de agua o un editor.
+         No se le pone la posición ni la hora de ahora (serían inventadas): se sella a la vista como tal y se avisa. */
+      entry.sinMeta = entry.fechaOrigen!=="metadatos" && ex.lat==null;
       // Sin GPS utilizable en el EXIF: se usa la posición del teléfono si la foto es del día.
       const r=entry.metaResp;
-      if(ex.lat==null && r && esNum(r.lat) && fotoDelDia(ex.fecha) && entry.fechaOrigen!=="declarada"){ ex.lat=+r.lat; ex.lon=+r.lon; if(!ex.fecha){ ex.fecha=r.fecha||""; ex.hora=r.hora||""; } }
+      if(ex.lat==null && r && esNum(r.lat) && fotoDelDia(ex.fecha) && entry.fechaOrigen!=="declarada" && !entry.sinMeta){ ex.lat=+r.lat; ex.lon=+r.lon; if(!ex.fecha){ ex.fecha=r.fecha||""; ex.hora=r.hora||""; } }
     }
+    { const mot=fechaNoCorresponde(entry, ex.fecha); if(mot){ entry.rechazo=mot; batch=batch.filter(x=>x!==entry); renderLista(); return; } }   /* v34: no se carga */
     ex.lat=num(ex.lat); ex.lon=num(ex.lon);
     let lugar="",lugLin=[]; if(ex.lat!=null&&ex.lon!=null){ const d=await geocodeThrottled(ex.lat,ex.lon); if(d){ lugar=d.txt; lugLin=d.lineas; } }
-    entry.datos={fecha:ex.fecha,hora:ex.hora,lugar,lugLin,lat:ex.lat,lon:ex.lon};
+    entry.datos={fecha:ex.fecha,hora:ex.hora,lugar,lugLin,lat:ex.lat,lon:ex.lon,sinMeta:!!entry.sinMeta,origen:entry.fechaOrigen||"",fcarga:(entry.cargada&&entry.cargada.fecha)||""};
     const texto=textoMarca(entry.datos);
     const out=await dibujar(bitmap,texto,$("marca").checked);
     entry.blob=out.blob; entry.thumb=out.thumb;
@@ -1635,7 +1660,7 @@ function renderLista(){
   else if($("sendInfo") && /sin resolver/.test($("sendInfo").textContent)) $("sendInfo").textContent="";
   batch.forEach(e=>{
     const curVal=e.itemCodigo?(e.fechaSel?e.itemCodigo+"@@"+e.fechaSel:e.itemCodigo):"";
-    const opts=`<option value="" ${!e.itemCodigo?"selected":""}>— Selecciona requerimiento —</option>`+itemsDelOperador().flatMap(it=>lineasDe(it).map(L=>`<option value="${escAttr(L.value)}" ${L.value===curVal?"selected":""}>${it.cat?it.cat+" · ":""}${it.codigo}${it.req?" · "+it.req.slice(0,22):""}${L.fecha?` · día ${L.k} · ${fmtDia(L.fecha)}`:""}</option>`)).join("");
+    const opts=`<option value="" ${!e.itemCodigo?"selected":""}>— Selecciona requerimiento —</option>`+itemsDelOperador().flatMap(it=>lineasDe(it).map(L=>`<option value="${escAttr(L.value)}" ${L.value===curVal?"selected":""} ${(L.fecha&&L.fecha>isoHoy())?"disabled":""}>${it.cat?it.cat+" · ":""}${it.codigo}${it.req?" · "+it.req.slice(0,22):""}${L.fecha?` · día ${L.k} · ${fmtDia(L.fecha)}`:""}</option>`)).join("");
     const d=document.createElement("div"); d.className="ev";
     const badge=e.tipo==="video"?`<span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-size:22px;text-shadow:0 1px 4px #000">▶</span>`:"";
     const thumbHtml=e.thumb?`<div style="position:relative;flex:none;width:66px;height:66px"><img src="${e.thumb}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#000">${badge}</div>`
@@ -1647,7 +1672,7 @@ function renderLista(){
       : (!e.itemCodigo ? '<span style="color:#b3261e">Asigna un requerimiento ↑</span>'
         : (confl ? `<span style="color:#b3261e">La foto es del <b>${fmtDia(e.datos.fecha)}</b> y la línea elegida es del <b>${fmtDia(e.fechaSel)}</b>: muévela a la línea correcta ↑ o quítala.</span>`
         : (pend?'<span style="color:#b3261e">Foto de galería sin fecha: indica de qué día es ↓</span>':e.filename)))) + sinUbi;
-    let selFecha=""; if(e.status==="listo" && e.itemCodigo && e.fechaOrigen==="declarada" && !e.fechaSel){ const d=diaDeFoto(e); const fs=(d&&d.fechas)||[]; const hoy=isoHoy(); const ops=[...fs]; if(!ops.includes(hoy)) ops.push(hoy);
+    let selFecha=""; if(e.status==="listo" && e.itemCodigo && e.fechaOrigen==="declarada" && !e.fechaSel){ const d=diaDeFoto(e); const fs=(d&&d.fechas)||[]; const hoy=isoHoy(); const ops=fs.filter(f=>f<=hoy); if(!ops.includes(hoy)) ops.push(hoy);
       selFecha=`<select onchange="declararFecha(${e.id},this.value)" style="margin-top:4px"><option value="">— ¿De qué día es esta foto? —</option>${ops.map(f=>`<option value="${f}" ${e.fechaDecl===f?"selected":""}>${f===hoy?"Hoy · ":(f===sumarDias(hoy,-1)?"Ayer · ":"")}${fmtDia(f)}${fs.includes(f)?` (día ${fs.indexOf(f)+1} de ${fs.length})`:" (no programado)"}</option>`).join("")}</select>`; }
     const etiqueta=(e.status==="listo"&&e.itemCodigo&&!pend)?etiquetaFecha(e):"";
     d.innerHTML=thumbHtml+
@@ -1659,7 +1684,8 @@ function renderLista(){
   if($("item") && document.activeElement!==$("item")) poblarItemTop();   // refresca ✓/◔/○ en el selector (y las líneas por día)
   guardarLote();   // respalda el lote en curso (IndexedDB) ante recargas
 }
-window.cambiarItem=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e) return; const antes=fechaEfectiva(e); e.itemCodigo=selIidDe(v); e.fechaSel=selFechaDe(v);
+window.cambiarItem=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e) return;
+  if(selFechaDe(v) && selFechaDe(v)>isoHoy()){ alert("Ese día todavía no llega.\n\nElige la línea de HOY."); renderLista(); return; }   /* v34 */ const antes=fechaEfectiva(e); e.itemCodigo=selIidDe(v); e.fechaSel=selFechaDe(v);
   if(e.fechaOrigen==="declarada"){ e.fechaDecl=e.fechaSel||e.fechaDecl||""; if(e.datos) e.datos.fecha=e.fechaDecl||""; }
   renderLista(); if(e.fechaOrigen==="declarada" && fechaEfectiva(e)!==antes && typeof redibujarTodas==="function") redibujarTodas(); };
 window.quitar=(id)=>{ batch=batch.filter(x=>x.id!==id); renderLista(); };
@@ -2117,12 +2143,15 @@ async function dibujar(src,texto,conMarca){
 function hora12(h){ if(!h) return ""; const p=String(h).split(":"); let H=parseInt(p[0],10); if(isNaN(H)) return h;
   const su=H<12?"a. m.":"p. m."; H=H%12||12; return `${H}:${p[1]||"00"} ${su}`; }
 function textoMarca(d){ if(!d) return "";
-  const L=[]; const f=String(d.fecha||"").split("-");
-  const fh=[(f.length===3?`${f[2]}/${f[1]}/${f[0]}`:(d.fecha||"")), hora12(d.hora)].filter(Boolean).join(", ");
+  const L=[]; const fISO=d.fecha||(d.sinMeta?(d.fcarga||""):""); const f=String(fISO).split("-");
+  let fh=[(f.length===3?`${f[2]}/${f[1]}/${f[0]}`:fISO), hora12(d.hora)].filter(Boolean).join(", ");
+  if(fh && d.sinMeta) fh+=(d.origen==="declarada"?" · fecha declarada":" · fecha de carga");   // v34: que quien revise lo vea en la foto
   if(fh) L.push(fh);
   const lin=(d.lugLin&&d.lugLin.length)?d.lugLin:(d.lugar?[d.lugar]:[]);
   lin.forEach(x=>L.push(x));
-  if(!lin.length && esNum(d.lat) && esNum(d.lon)) L.push(`${(+d.lat).toFixed(6)}, ${(+d.lon).toFixed(6)}`);
+  const hayCoord=esNum(d.lat) && esNum(d.lon);
+  if(!lin.length && hayCoord) L.push(`${(+d.lat).toFixed(6)}, ${(+d.lon).toFixed(6)}`);
+  if(!lin.length && !hayCoord) L.push("Sin ubicación");
   return L.join("\n"); }
 function geoKey(lat,lon){ return (+lat).toFixed(3)+","+(+lon).toFixed(3); }
 function metrosEntre(la1,lo1,la2,lo2){ const R=111320, dy=(la2-la1)*R, dx=(lo2-lo1)*R*Math.cos(la1*Math.PI/180); return Math.sqrt(dx*dx+dy*dy); }
