@@ -38,7 +38,7 @@ function bytesADataURL(bytes,mime){ let bin=""; const CH=0x8000; for(let i=0;i<b
 async function activo(nombre){ const r=await fetch(BASE+nombre); if(!r.ok) throw new Error("Falta "+nombre); const b=new Uint8Array(await r.arrayBuffer());
   const img=await createImageBitmap(new Blob([b])); const d={bytes:b,w:img.width,h:img.height,data:bytesADataURL(b,"image/png")}; img.close(); return d; }
 let ACTIVOS=null;
-async function activos(){ if(!ACTIVOS){ const [fondo,portada,contra,logo]=await Promise.all(["inf_fondo.png","inf_portada.png","inf_contra.png","inf_logo.png"].map(activo)); ACTIVOS={fondo,portada,contra,logo}; } return ACTIVOS; }
+async function activos(){ if(!ACTIVOS){ const [logo]=await Promise.all(["inf_logo.png"].map(activo)); ACTIVOS={logo}; } return ACTIVOS; }
 
 /* Reduce la foto en el navegador. La original se suelta apenas se dibuja (lección iOS: encoger el lienzo a 1x1). */
 async function prepararFoto(blob){
@@ -123,8 +123,11 @@ async function generarPPTX(m, lista, fotos, op, parte){
   const A=await activos();
   const pptx=new window.PptxGenJS(); pptx.layout="LAYOUT_WIDE"; const W=13.333, H=7.5;
   pptx.author=op.operador; pptx.company=op.operador; pptx.title=`Informe · ${m.ev.ev||""}`;
-  pptx.defineSlideMaster({title:"EST", background:{color:"FFFFFF"}, objects:[{image:{x:0,y:0,w:W,h:H,data:A.fondo.data}}],
-    slideNumber:{x:12.35,y:6.93,w:0.8,h:0.32,fontFace:F,fontSize:10,color:"FFFFFF",align:"right"}});
+  /* Diseño sin imágenes de fondo: sólo una barra azul y un filete dorado al pie (zona reservada y ≥ 7,14 in).
+     Todo el contenido de las láminas termina antes de y = 6,95 in, así nada se monta. */
+  pptx.defineSlideMaster({title:"EST", background:{color:"FFFFFF"},
+    objects:[{rect:{x:0,y:7.2,w:W,h:0.3,fill:{color:AZUL},line:{color:AZUL,width:0}}},{rect:{x:0,y:7.14,w:W,h:0.06,fill:{color:ORO},line:{color:ORO,width:0}}}],
+    slideNumber:{x:12.3,y:7.2,w:0.85,h:0.3,fontFace:F,fontSize:10,color:"FFFFFF",align:"right",valign:"middle"}});
   const logoW=0.95, logoH=logoW*A.logo.h/A.logo.w;
   const cabecera=(s,t,sub)=>{ s.addImage({data:A.logo.data,x:0.35,y:0.18,w:logoW,h:logoH});
     s.addShape(pptx.ShapeType.line,{x:1.5,y:0.28,w:0,h:0.8,line:{color:ORO,width:2.5}});
@@ -133,16 +136,17 @@ async function generarPPTX(m, lista, fotos, op, parte){
   const nombre=op.nombreEvento||m.ev.ev||"";
   const tituloParte=parte.total>1?` · Parte ${parte.n} de ${parte.total}`:"";
 
-  // 1 · Portada
-  let s=pptx.addSlide(); s.background={color:"FFFFFF"};
-  s.addImage({data:A.portada.data,x:0,y:0,w:W,h:H});
-  /* Franja libre medida sobre inf_portada.png: el logo termina en y=4,04 in, el chevrón empieza en 5,69 in y la diagonal derecha en x=7,77 in. */
-  s.addText([{text:"INFORME TÉCNICO DE EJECUCIÓN",options:{fontSize:24,bold:true,color:AZUL,breakLine:true}},
-             {text:recorta(nombre,48),options:{fontSize:18,bold:true,color:"222222",breakLine:true}},
-             {text:recorta((m.ev.cl||"")+(m.cfg.fe?" · "+cap(rango(m.cfg.fe,m.cfg.ff).replace(/^(el|del) /,"")):""),70),options:{fontSize:13,color:GRIS,breakLine:true}},
-             {text:`OPERACIÓN LOGÍSTICA · ${op.operador.toUpperCase()}${tituloParte}`,options:{fontSize:10,color:GRIS}}],
-    {x:0.65,y:4.25,w:6.9,h:1.35,fontFace:F,valign:"top",margin:0});
-  if(op.version==="interno") s.addText("CONTROL INTERNO · no enviar al cliente",{x:2.3,y:6.45,w:6.5,h:0.35,fontFace:F,fontSize:11,bold:true,color:ROJO,margin:0});
+  // 1 · Portada: logo arriba, bloque de texto debajo y franja azul a la derecha (el texto nunca pasa de x = 9,0 in)
+  let s=pptx.addSlide({masterName:"EST"});
+  s.addShape(pptx.ShapeType.rect,{x:9.75,y:0,w:W-9.75,h:7.14,fill:{color:AZUL},line:{color:AZUL,width:0}});
+  s.addShape(pptx.ShapeType.rect,{x:9.5,y:0,w:0.12,h:7.14,fill:{color:ORO},line:{color:ORO,width:0}});
+  const lw=2.1; s.addImage({data:A.logo.data,x:0.8,y:0.55,w:lw,h:lw*A.logo.h/A.logo.w});
+  s.addText([{text:"INFORME TÉCNICO DE EJECUCIÓN",options:{fontSize:28,bold:true,color:AZUL,breakLine:true,paraSpaceAfter:8}},
+             {text:recorta(nombre,60),options:{fontSize:22,bold:true,color:"222222",breakLine:true,paraSpaceAfter:4}},
+             {text:recorta((m.ev.cl||"")+(m.cfg.fe?" · "+cap(rango(m.cfg.fe,m.cfg.ff).replace(/^(el|del) /,"")):""),80),options:{fontSize:15,color:GRIS,breakLine:true,paraSpaceAfter:4}},
+             {text:`OPERACIÓN LOGÍSTICA · ${op.operador.toUpperCase()}${tituloParte}`,options:{fontSize:11,color:GRIS}}],
+    {x:0.8,y:3.3,w:8.3,h:2.9,fontFace:F,valign:"top",margin:0});
+  if(op.version==="interno") s.addText("CONTROL INTERNO · no enviar al cliente",{x:0.8,y:6.35,w:8.3,h:0.4,fontFace:F,fontSize:12,bold:true,color:ROJO,margin:0});
 
   // 2 · Ficha del evento
   if(parte.n===1){
@@ -151,25 +155,25 @@ async function generarPPTX(m, lista, fotos, op, parte){
     s.addTable(filas.map((f,k)=>[{text:`${k+1}. ${f[0]}`,options:{bold:true,color:AZUL}},{text:String(f[1])}]),
       {x:1.0,y:1.55,w:11.3,colW:[3.6,7.7],fontFace:F,fontSize:18,color:"222222",rowH:0.62,valign:"middle",border:{type:"solid",pt:0.5,color:"E3E8F0"}});
     // 3 · Resumen de cobertura (en tramos de 9 filas)
-    const R=lista; const tramo=8;
+    const R=lista; const tramo=10;
     for(let i=0;i<Math.max(1,R.length);i+=tramo){
       s=pptx.addSlide({masterName:"EST"});
       const conFoto=R.filter(r=>r.total>0).length;
       cabecera(s,"Resumen de cobertura"+(R.length>tramo?` (${Math.floor(i/tramo)+1}/${Math.ceil(R.length/tramo)})`:""),`${conFoto} de ${R.length} requerimiento(s) con evidencia · ${R.reduce((a,r)=>a+r.total,0)} foto(s) registradas`);
       const head=["Cód.","Requerimiento","Categoría","Cant.","Proveedor","Fotos","Estado"].map(t=>({text:t,options:{bold:true,color:"FFFFFF",fill:{color:AZUL}}}));
       const rows=R.slice(i,i+tramo).map(r=>[r.codigo,recorta(r.req,48),recorta(r.cat,18),`${r.cant}${r.um?" "+String(r.um).toLowerCase():""}`,recorta(r.prov,22),String(r.total),{text:r.estado,options:{bold:true,color:r.color}}]);
-      s.addTable([head].concat(rows),{x:0.45,y:1.35,w:12.45,colW:[0.7,4.1,1.7,1.25,2.35,0.75,1.6],fontFace:F,fontSize:11,color:"222222",rowH:0.44,valign:"middle",border:{type:"solid",pt:0.5,color:"D5DCE6"},fill:{color:"FFFFFF"}});
+      s.addTable([head].concat(rows),{x:0.45,y:1.35,w:12.45,colW:[0.7,4.1,1.7,1.25,2.35,0.75,1.6],fontFace:F,fontSize:11,color:"222222",rowH:0.46,valign:"middle",border:{type:"solid",pt:0.5,color:"D5DCE6"},fill:{color:"FFFFFF"}});
     }
     if(op.hojasPegar){
       [["Requerimiento "+(m.ev.cl||"del cliente"),"Pegue aquí la imagen del requerimiento del cliente"],["Cotización operador","Pegue aquí la imagen de la cotización"]].forEach(([t,h])=>{
         s=pptx.addSlide({masterName:"EST"}); cabecera(s,t,"");
-        s.addShape(pptx.ShapeType.rect,{x:1.2,y:1.4,w:10.9,h:4.25,fill:{color:"F7F9FC"},line:{color:"9FB0C8",width:1.25,dashType:"dash"}});
-        s.addText(h,{x:1.2,y:3.22,w:10.9,h:0.6,align:"center",fontFace:F,fontSize:16,color:"7A8BA3"}); });
+        s.addShape(pptx.ShapeType.rect,{x:1.2,y:1.4,w:10.9,h:5.4,fill:{color:"F7F9FC"},line:{color:"9FB0C8",width:1.25,dashType:"dash"}});
+        s.addText(h,{x:1.2,y:3.8,w:10.9,h:0.6,align:"center",fontFace:F,fontSize:16,color:"7A8BA3"}); });
     }
   }
 
   // 4 · Evidencias por requerimiento
-  const COLS=4, GAP=0.22, MX=0.5, Y0=1.3, ALTO=4.4, PIE=0.32;   /* todo termina en y≤5,70 in: el fondo empieza en 5,81 */
+  const COLS=4, GAP=0.22, MX=0.5, Y0=1.3, ALTO=5.55, PIE=0.32;   /* foto + pie terminan en y ≈ 6,85 in; la barra del pie empieza en 7,14 */
   const cw=(W-2*MX-(COLS-1)*GAP)/COLS;
   const hojaFotos=(r,bloque,grupo,k,nk)=>{
     const sl=pptx.addSlide({masterName:"EST"});
@@ -203,17 +207,17 @@ async function generarPPTX(m, lista, fotos, op, parte){
   if(parte.n===parte.total){
     s=pptx.addSlide({masterName:"EST"}); cabecera(s,"Informe de actividad",nombre);
     const P=textoActividad(m,op,m.visibles);
-    s.addText(P.map((t,k)=>({text:t,options:{breakLine:k<P.length-1,paraSpaceAfter:10}})),{x:1.0,y:1.45,w:11.3,h:4.2,fontFace:F,fontSize:16,color:"222222",valign:"top",margin:0,fit:"shrink"});
+    s.addText(P.map((t,k)=>({text:t,options:{breakLine:k<P.length-1,paraSpaceAfter:10}})),{x:1.0,y:1.45,w:11.3,h:5.3,fontFace:F,fontSize:16,color:"222222",valign:"top",margin:0,fit:"shrink"});
     const N=op.version==="interno"?novedades(m.visibles):[];
     if(N.length){ s=pptx.addSlide({masterName:"EST"}); cabecera(s,"Novedades de cobertura (control interno)",`${N.length} novedad(es)`);
-      s.addText(N.slice(0,12).map((t,k)=>({text:t,options:{bullet:true,breakLine:k<Math.min(N.length,12)-1}})),{x:0.9,y:1.4,w:11.6,h:3.85,fontFace:F,fontSize:13,color:"222222",valign:"top",margin:0});
-      if(N.length>12) s.addText(`… y ${N.length-12} más (ver el resumen de cobertura).`,{x:0.9,y:5.3,w:11,h:0.35,fontFace:F,fontSize:11,italic:true,color:GRIS,margin:0}); }
-    s=pptx.addSlide(); s.background={color:"FFFFFF"}; s.addImage({data:A.contra.data,x:0,y:0,w:W,h:H});
-    s.addImage({data:A.logo.data,x:1.3,y:0.9,w:2.6,h:2.6*A.logo.h/A.logo.w});
-    s.addShape(pptx.ShapeType.line,{x:5.0,y:1.0,w:0,h:2.6,line:{color:AZUL,width:1.5}});
+      s.addText(N.slice(0,16).map((t,k)=>({text:t,options:{bullet:true,breakLine:k<Math.min(N.length,16)-1}})),{x:0.9,y:1.4,w:11.6,h:4.95,fontFace:F,fontSize:13,color:"222222",valign:"top",margin:0});
+      if(N.length>16) s.addText(`… y ${N.length-16} más (ver el resumen de cobertura).`,{x:0.9,y:6.45,w:11,h:0.35,fontFace:F,fontSize:11,italic:true,color:GRIS,margin:0}); }
+    s=pptx.addSlide({masterName:"EST"});
+    s.addImage({data:A.logo.data,x:1.5,y:2.1,w:2.6,h:2.6*A.logo.h/A.logo.w});
+    s.addShape(pptx.ShapeType.line,{x:5.0,y:2.1,w:0,h:2.65,line:{color:ORO,width:2.5}});
     s.addText([{text:"Gracias",options:{fontSize:34,bold:true,color:AZUL,breakLine:true}},
                {text:op.contacto||op.operador,options:{fontSize:18,bold:true,color:AZUL,breakLine:true}},
-               {text:op.cargo||"",options:{fontSize:15,color:GRIS}}],{x:5.4,y:1.0,w:7,h:2.6,fontFace:F,valign:"middle",margin:0});
+               {text:op.cargo||"",options:{fontSize:15,color:GRIS}}],{x:5.4,y:2.1,w:7,h:2.65,fontFace:F,valign:"middle",margin:0});
   }
   return await pptx.write({outputType:"blob"});
 }
