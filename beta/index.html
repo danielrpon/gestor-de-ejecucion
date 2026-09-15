@@ -1095,7 +1095,7 @@ window.adminAbrir=async(i)=>{
     const reqs=[...new Map(arr.filter(e=>e.item).map(e=>[eviKey(e),(e.categoria?e.categoria+" · ":"")+e.item+(e.requerimiento?" · "+e.requerimiento.slice(0,26):"")])).entries()].sort((a,b)=>String(a[1]).localeCompare(String(b[1]),"es"));
     const cab=bloqueExtras(arr)
       +`<div class="mut" style="margin-bottom:6px">${arr.length} evidencia(s) · toca una foto para verla grande · las vistas previas cargan a medida que bajas</div>`
-      +`<div style="display:flex;gap:16px;margin-bottom:10px"><a class="lnk" onclick="adminManifiesto()">⬇ Manifiesto (CSV)</a><a class="lnk" onclick="adminDescargarFotos()">⬇ Fotos (ZIP)</a><a class="lnk" onclick="adminDescargarCarpeta()" title="Para miles de fotos: guarda una a una en una subcarpeta y se puede reanudar">Guardar en carpeta…</a></div><div id="adDl" class="hide" style="border:1px solid var(--line);border-radius:10px;padding:8px;margin-bottom:10px;background:#f7f9fc"></div>`
+      +`<div style="display:flex;gap:16px;margin-bottom:10px"><a class="lnk" onclick="adminManifiesto()">⬇ Manifiesto (CSV)</a><a class="lnk" onclick="adminDescargarFotos()">⬇ Fotos (ZIP)</a><a class="lnk" onclick="adminDescargarCarpeta()" title="Para miles de fotos: guarda una a una en una subcarpeta y se puede reanudar">Guardar en carpeta…</a><a class="lnk" style="font-weight:700" onclick="adminInforme()">🧾 Informe (Word / PPT)</a></div><div id="adDl" class="hide" style="border:1px solid var(--line);border-radius:10px;padding:8px;margin-bottom:10px;background:#f7f9fc"></div><div id="adInf" class="hide" style="border:1px solid var(--azul);border-radius:10px;padding:10px;margin-bottom:10px;background:#f7f9fc"></div>`
       +`<div style="border-top:1px solid var(--line);padding-top:10px;margin-bottom:10px">`
         +`<div class="fld"><input id="adFltBuscar" type="text" autocomplete="off" placeholder="🔍 Buscar por requerimiento, proveedor, persona, archivo o radicado"></div>`
         +`<div class="row" style="margin-top:8px"><div><label>Proveedor</label><select id="adFltProv">${opt(provs,"Todos")}</select></div><div><label>Quién capturó</label><select id="adFltOper">${opt(opers,"Todos")}</select></div></div>`
@@ -1110,6 +1110,15 @@ window.adminAbrir=async(i)=>{
   }catch(_){ l.innerHTML='<div class="mut">Error al cargar evidencias.</div>'; }
 };
 function eviKey(e){ return e.item_id || ((e.evento_uid||"")+"|"+iidDe(e.item,e.categoria,1)); }
+/* ---- Capa 15 · INFORME (Word / PPT) desde el panel: el motor vive en informe.js y se carga sólo al usarlo. ---- */
+function cargarJS(src){ return new Promise((ok,ko)=>{ if(document.querySelector('script[data-src="'+src+'"]')) return ok(); const s=document.createElement("script"); s.src=src; s.dataset.src=src; s.onload=()=>ok(); s.onerror=()=>ko(new Error("No se pudo cargar "+src)); document.head.appendChild(s); }); }
+window.adminInforme=async()=>{
+  const ev=adminEventos[adminEventoActual]; if(!ev||!adminEvidencias.length){ toast("Abre un evento con evidencias"); return; }
+  try{ if(!window.InformeEstrella) await cargarJS("informe.js?v=15a"); }catch(e){ toast("No cargó el generador de informes (revisa la conexión)"); return; }
+  adminDlCancel=false;
+  InformeEstrella.abrir({ev, evidencias:adminEvidencias, visibles:adminVis, contenedor:$("adInf"), bajarBlob:adminBajarBlob,
+    deps:{anotarIids, iidDe, fechasDeItem, candidatoPorDia, isoHoy, slug, bajar, loadJSON, saveJSON, NS}});
+};
 /* Los requerimientos ADICIONALES los crea el operador en sitio y viven en el localStorage de su
    celular: NO están en eventos.config, así que el tablero no los conocía. Aquí se reconstruyen
    desde las propias evidencias (que sí traen adicional/solicitado_por/justificacion/cantidad),
