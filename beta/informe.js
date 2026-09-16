@@ -1,7 +1,9 @@
 /* =====================================================================================================
-   GENERADOR DE INFORMES · Estrella (Capa 15)
-   Convierte las evidencias de UN evento en un informe genérico PowerPoint (.pptx) o Word (.docx) con la
-   piel de Estrella. Corre 100% en el navegador del administrador:
+   GENERADOR DE INFORMES (Capa 15)
+   Convierte las evidencias de UN evento en un informe PowerPoint (.pptx) o Word (.docx) de diagramación
+   NEUTRA: sin logos, sin colores de marca y sin nombrar a los proveedores, porque quien lo recibe es el
+   cliente final y el administrador le aplica después el patrón de lámina / plantilla que ese cliente pida.
+   Corre 100% en el navegador del administrador:
    - los datos ya están en el panel (config del evento + filas de evidencias con la sesión admin);
    - cada foto se baja, se reduce a ~1.200 px y se suelta la original antes de pasar a la siguiente;
    - si el evento es grande, el informe sale POR PARTES (cada archivo con un tope de fotos) para que el
@@ -12,7 +14,10 @@
 (function(){
 "use strict";
 const BASE=(document.currentScript&&document.currentScript.src)?document.currentScript.src.replace(/[^/]*$/,""):"";
-const AZUL="1B4073", ORO="F2B21A", GRIS="4A4A4A", VERDE_OK="1A9E56", ROJO="B3261E", AMBAR="B7791F", F="Arial";
+/* Paleta deliberadamente neutra: el informe NO lleva marca (ni logo ni azul/oro de Estrella) para que el
+   administrador le aplique el patrón del cliente final sin tener que borrar nada. Los únicos colores que
+   quedan son los tres de estado (verde/ámbar/rojo): son semáforo de cobertura, no identidad. */
+const TINTA="1F2937", LINEA="C9CFD6", GRIS="5A626B", VERDE_OK="1A9E56", ROJO="B3261E", AMBAR="B7791F", F="Arial";
 const TOPE_POR_ARCHIVO=350;          // fotos por archivo; por encima se parte (medido en el ensayo: ver LEEME)
 const LADO_PX=1200, CALIDAD=0.72;    // ~120-200 KB por foto: nítida a pantalla completa, liviana en el archivo
 const CONC=4;                        // descargas simultáneas
@@ -35,10 +40,6 @@ function muestrear(arr,n){ if(!n||arr.length<=n) return arr.slice(); if(n===1) r
 function cargarScript(src){ return new Promise((ok,ko)=>{ if(document.querySelector(`script[data-inf="${src}"]`)) return ok();
   const s=document.createElement("script"); s.src=BASE+src; s.dataset.inf=src; s.onload=()=>ok(); s.onerror=()=>ko(new Error("No se pudo cargar "+src)); document.head.appendChild(s); }); }
 function bytesADataURL(bytes,mime){ let bin=""; const CH=0x8000; for(let i=0;i<bytes.length;i+=CH) bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+CH)); return `data:${mime};base64,`+btoa(bin); }
-async function activo(nombre){ const r=await fetch(BASE+nombre); if(!r.ok) throw new Error("Falta "+nombre); const b=new Uint8Array(await r.arrayBuffer());
-  const img=await createImageBitmap(new Blob([b])); const d={bytes:b,w:img.width,h:img.height,data:bytesADataURL(b,"image/png")}; img.close(); return d; }
-let ACTIVOS=null;
-async function activos(){ if(!ACTIVOS){ const [logo]=await Promise.all(["inf_logo.png"].map(activo)); ACTIVOS={logo}; } return ACTIVOS; }
 
 /* Reduce la foto en el navegador. La original se suelta apenas se dibuja (lección iOS: encoger el lienzo a 1x1). */
 async function prepararFoto(blob){
@@ -78,6 +79,8 @@ function construirModelo(ctx, op){
     if(!lista.length){ estado="Sin evidencia"; color=ROJO; }
     else if(porDia && diasCub.length<fechas.length){ estado=`Parcial · ${diasCub.length}/${fechas.length} días`; color=AMBAR; }
     else { estado=porDia?`Completo · ${fechas.length}/${fechas.length} días`:"Con evidencia"; color=VERDE_OK; }
+    /* `prov` se queda en el modelo (lo usa quien depure desde la consola) pero NO se imprime en ningún
+       documento: el informe lo lee el cliente final y no tiene por qué conocer a los proveedores. */
     return {it, codigo:it.codigo||"", req:it.req||"", cat:it.cat||"", cant:it.cant||"", um:it.um||"", prov:it.prov||"", car:it.car||"",
       adicional, solicitado:it.solicitado||"", justificacion:it.justificacion||"", porDia, fechas, diasCub, diasFalta, total:lista.length, bloques, estado, color};
   };
@@ -120,55 +123,53 @@ function pie(e){ return `${fCorta(e.fecha)}${e.hora?" · "+String(e.hora).slice(
 /* ---------- POWERPOINT ---------- */
 async function generarPPTX(m, lista, fotos, op, parte){
   await cargarScript("pptxgen.bundle.js");
-  const A=await activos();
   const pptx=new window.PptxGenJS(); pptx.layout="LAYOUT_WIDE"; const W=13.333, H=7.5;
   pptx.author=op.operador; pptx.company=op.operador; pptx.title=`Informe · ${m.ev.ev||""}`;
-  /* Diseño sin imágenes de fondo: sólo una barra azul y un filete dorado al pie (zona reservada y ≥ 7,14 in).
-     Todo el contenido de las láminas termina antes de y = 6,95 in, así nada se monta. */
-  pptx.defineSlideMaster({title:"EST", background:{color:"FFFFFF"},
-    objects:[{rect:{x:0,y:7.2,w:W,h:0.3,fill:{color:AZUL},line:{color:AZUL,width:0}}},{rect:{x:0,y:7.14,w:W,h:0.06,fill:{color:ORO},line:{color:ORO,width:0}}}],
-    slideNumber:{x:12.3,y:7.2,w:0.85,h:0.3,fontFace:F,fontSize:10,color:"FFFFFF",align:"right",valign:"middle"}});
-  const logoW=0.95, logoH=logoW*A.logo.h/A.logo.w;
-  const cabecera=(s,t,sub)=>{ s.addImage({data:A.logo.data,x:0.35,y:0.18,w:logoW,h:logoH});
-    s.addShape(pptx.ShapeType.line,{x:1.5,y:0.28,w:0,h:0.8,line:{color:ORO,width:2.5}});
-    s.addText(recorta(t,80),{x:1.7,y:0.16,w:11.3,h:0.58,fontFace:F,fontSize:24,bold:true,color:AZUL,valign:"middle",margin:0});
-    if(sub) s.addText(recorta(sub,150),{x:1.7,y:0.72,w:11.3,h:0.4,fontFace:F,fontSize:13,color:GRIS,valign:"top",margin:0}); };
+  /* Diseño neutro: sin fondos, sin logo y sin colores de marca. Al pie, un filete gris separa el número de
+     lámina; todo el contenido termina antes de y = 6,95 in, así nada se monta si luego se aplica otro patrón. */
+  pptx.defineSlideMaster({title:"INF", background:{color:"FFFFFF"},
+    objects:[{rect:{x:0.5,y:7.06,w:W-1.0,h:0.014,fill:{color:LINEA},line:{color:LINEA,width:0}}}],
+    slideNumber:{x:11.9,y:7.1,w:0.95,h:0.3,fontFace:F,fontSize:10,color:GRIS,align:"right",valign:"middle"}});
+  /* El cuerpo del título encoge según su largo: un requerimiento largo ocupaba dos renglones a 24 pt y
+     se montaba sobre el subtítulo. Medido a 12,33 in de ancho: ~55 car. a 24 pt, ~72 a 20 pt, ~95 a 17 pt. */
+  const cabecera=(s,t,sub)=>{ const tt=recorta(t,90), fs=tt.length>72?17:tt.length>54?20:24;
+    s.addText(tt,{x:0.5,y:0.16,w:12.33,h:0.52,fontFace:F,fontSize:fs,bold:true,color:TINTA,valign:"middle",margin:0});
+    if(sub) s.addText(recorta(sub,150),{x:0.5,y:0.70,w:12.33,h:0.3,fontFace:F,fontSize:13,color:GRIS,valign:"top",margin:0});
+    s.addShape(pptx.ShapeType.line,{x:0.5,y:1.04,w:12.33,h:0,line:{color:LINEA,width:1}}); };
   const nombre=op.nombreEvento||m.ev.ev||"";
   const tituloParte=parte.total>1?` · Parte ${parte.n} de ${parte.total}`:"";
 
-  // 1 · Portada: logo arriba, bloque de texto debajo y franja azul a la derecha (el texto nunca pasa de x = 9,0 in)
-  let s=pptx.addSlide({masterName:"EST"});
-  s.addShape(pptx.ShapeType.rect,{x:9.75,y:0,w:W-9.75,h:7.14,fill:{color:AZUL},line:{color:AZUL,width:0}});
-  s.addShape(pptx.ShapeType.rect,{x:9.5,y:0,w:0.12,h:7.14,fill:{color:ORO},line:{color:ORO,width:0}});
-  const lw=2.1; s.addImage({data:A.logo.data,x:0.8,y:0.55,w:lw,h:lw*A.logo.h/A.logo.w});
-  s.addText([{text:"INFORME TÉCNICO DE EJECUCIÓN",options:{fontSize:28,bold:true,color:AZUL,breakLine:true,paraSpaceAfter:8}},
-             {text:recorta(nombre,60),options:{fontSize:22,bold:true,color:"222222",breakLine:true,paraSpaceAfter:4}},
-             {text:recorta((m.ev.cl||"")+(m.cfg.fe?" · "+cap(rango(m.cfg.fe,m.cfg.ff).replace(/^(el|del) /,"")):""),80),options:{fontSize:15,color:GRIS,breakLine:true,paraSpaceAfter:4}},
+  // 1 · Portada: sin logo ni franjas de color; sólo el bloque de datos sobre un filete gris
+  let s=pptx.addSlide({masterName:"INF"});
+  s.addShape(pptx.ShapeType.line,{x:0.9,y:2.55,w:3.6,h:0,line:{color:LINEA,width:2.25}});
+  s.addText([{text:"INFORME TÉCNICO DE EJECUCIÓN",options:{fontSize:30,bold:true,color:TINTA,breakLine:true,paraSpaceAfter:10}},
+             {text:recorta(nombre,60),options:{fontSize:22,bold:true,color:"222222",breakLine:true,paraSpaceAfter:6}},
+             {text:recorta((m.ev.cl||"")+(m.cfg.fe?" · "+cap(rango(m.cfg.fe,m.cfg.ff).replace(/^(el|del) /,"")):""),80),options:{fontSize:15,color:GRIS,breakLine:true,paraSpaceAfter:6}},
              {text:`OPERACIÓN LOGÍSTICA · ${op.operador.toUpperCase()}${tituloParte}`,options:{fontSize:11,color:GRIS}}],
-    {x:0.8,y:3.3,w:8.3,h:2.9,fontFace:F,valign:"top",margin:0});
-  if(op.version==="interno") s.addText("CONTROL INTERNO · no enviar al cliente",{x:0.8,y:6.35,w:8.3,h:0.4,fontFace:F,fontSize:12,bold:true,color:ROJO,margin:0});
+    {x:0.9,y:2.85,w:11.5,h:3.2,fontFace:F,valign:"top",margin:0});
+  if(op.version==="interno") s.addText("CONTROL INTERNO · no enviar al cliente",{x:0.9,y:6.35,w:8.3,h:0.4,fontFace:F,fontSize:12,bold:true,color:ROJO,margin:0});
 
   // 2 · Ficha del evento
   if(parte.n===1){
-    s=pptx.addSlide({masterName:"EST"}); cabecera(s,"Ficha del evento",m.ev.cl||"");
+    s=pptx.addSlide({masterName:"INF"}); cabecera(s,"Ficha del evento",m.ev.cl||"");
     const filas=[["Nombre del evento",nombre],["Lugar",op.lugar||"—"],["Fecha",cap(rango(m.cfg.fe,m.cfg.ff).replace(/^el /,""))||"—"],["Operador",op.operador],["Número de contrato",op.contrato||"—"],["Cliente",m.ev.cl||"—"]];
-    s.addTable(filas.map((f,k)=>[{text:`${k+1}. ${f[0]}`,options:{bold:true,color:AZUL}},{text:String(f[1])}]),
-      {x:1.0,y:1.55,w:11.3,colW:[3.6,7.7],fontFace:F,fontSize:18,color:"222222",rowH:0.62,valign:"middle",border:{type:"solid",pt:0.5,color:"E3E8F0"}});
+    s.addTable(filas.map((f,k)=>[{text:`${k+1}. ${f[0]}`,options:{bold:true,color:TINTA}},{text:String(f[1])}]),
+      {x:1.0,y:1.55,w:11.3,colW:[3.6,7.7],fontFace:F,fontSize:18,color:"222222",rowH:0.62,valign:"middle",border:{type:"solid",pt:0.5,color:LINEA}});
     // 3 · Resumen de cobertura (en tramos de 9 filas)
     const R=lista; const tramo=10;
     for(let i=0;i<Math.max(1,R.length);i+=tramo){
-      s=pptx.addSlide({masterName:"EST"});
+      s=pptx.addSlide({masterName:"INF"});
       const conFoto=R.filter(r=>r.total>0).length;
       cabecera(s,"Resumen de cobertura"+(R.length>tramo?` (${Math.floor(i/tramo)+1}/${Math.ceil(R.length/tramo)})`:""),`${conFoto} de ${R.length} requerimiento(s) con evidencia · ${R.reduce((a,r)=>a+r.total,0)} foto(s) registradas`);
-      const head=["Cód.","Requerimiento","Categoría","Cant.","Proveedor","Fotos","Estado"].map(t=>({text:t,options:{bold:true,color:"FFFFFF",fill:{color:AZUL}}}));
-      const rows=R.slice(i,i+tramo).map(r=>[r.codigo,recorta(r.req,48),recorta(r.cat,18),`${r.cant}${r.um?" "+String(r.um).toLowerCase():""}`,recorta(r.prov,22),String(r.total),{text:r.estado,options:{bold:true,color:r.color}}]);
-      s.addTable([head].concat(rows),{x:0.45,y:1.35,w:12.45,colW:[0.7,4.1,1.7,1.25,2.35,0.75,1.6],fontFace:F,fontSize:11,color:"222222",rowH:0.46,valign:"middle",border:{type:"solid",pt:0.5,color:"D5DCE6"},fill:{color:"FFFFFF"}});
+      const head=["Cód.","Requerimiento","Categoría","Cant.","Fotos","Estado"].map(t=>({text:t,options:{bold:true,color:"FFFFFF",fill:{color:TINTA}}}));
+      const rows=R.slice(i,i+tramo).map(r=>[r.codigo,recorta(r.req,62),recorta(r.cat,24),`${r.cant}${r.um?" "+String(r.um).toLowerCase():""}`,String(r.total),{text:r.estado,options:{bold:true,color:r.color}}]);
+      s.addTable([head].concat(rows),{x:0.45,y:1.35,w:12.45,colW:[0.7,5.3,2.2,1.4,0.85,2.0],fontFace:F,fontSize:11,color:"222222",rowH:0.46,valign:"middle",border:{type:"solid",pt:0.5,color:LINEA},fill:{color:"FFFFFF"}});
     }
     if(op.hojasPegar){
       [["Requerimiento "+(m.ev.cl||"del cliente"),"Pegue aquí la imagen del requerimiento del cliente"],["Cotización operador","Pegue aquí la imagen de la cotización"]].forEach(([t,h])=>{
-        s=pptx.addSlide({masterName:"EST"}); cabecera(s,t,"");
-        s.addShape(pptx.ShapeType.rect,{x:1.2,y:1.4,w:10.9,h:5.4,fill:{color:"F7F9FC"},line:{color:"9FB0C8",width:1.25,dashType:"dash"}});
-        s.addText(h,{x:1.2,y:3.8,w:10.9,h:0.6,align:"center",fontFace:F,fontSize:16,color:"7A8BA3"}); });
+        s=pptx.addSlide({masterName:"INF"}); cabecera(s,t,"");
+        s.addShape(pptx.ShapeType.rect,{x:1.2,y:1.4,w:10.9,h:5.4,fill:{color:"FAFAFB"},line:{color:LINEA,width:1.25,dashType:"dash"}});
+        s.addText(h,{x:1.2,y:3.8,w:10.9,h:0.6,align:"center",fontFace:F,fontSize:16,color:GRIS}); });
     }
   }
 
@@ -176,11 +177,11 @@ async function generarPPTX(m, lista, fotos, op, parte){
   const COLS=4, GAP=0.22, MX=0.5, Y0=1.3, ALTO=5.55, PIE=0.32;   /* foto + pie terminan en y ≈ 6,85 in; la barra del pie empieza en 7,14 */
   const cw=(W-2*MX-(COLS-1)*GAP)/COLS;
   const hojaFotos=(r,bloque,grupo,k,nk)=>{
-    const sl=pptx.addSlide({masterName:"EST"});
-    const meta=[r.adicional?"ADICIONAL EN SITIO":r.cat, r.cant?`Cantidad: ${r.cant}${r.um?" "+String(r.um).toLowerCase():""}`:"", r.prov?`Proveedor: ${r.prov}`:"", bloque.titulo, nk>1?`(${k}/${nk})`:""].filter(Boolean).join("  ·  ");
+    const sl=pptx.addSlide({masterName:"INF"});
+    const meta=[r.adicional?"ADICIONAL EN SITIO":r.cat, r.cant?`Cantidad: ${r.cant}${r.um?" "+String(r.um).toLowerCase():""}`:"", bloque.titulo, nk>1?`(${k}/${nk})`:""].filter(Boolean).join("  ·  ");
     cabecera(sl,`Evidencias · ${r.codigo?r.codigo+" ":""}${r.req}`,meta);
     const nota=r.adicional?[r.solicitado?`Solicitado por: ${r.solicitado}`:"",r.justificacion].filter(Boolean).join(" · "):r.car;
-    if(nota) sl.addText(recorta(nota,210),{x:1.7,y:1.08,w:11.3,h:0.34,fontFace:F,fontSize:11,italic:true,color:"6B6B6B",margin:0,valign:"top"});
+    if(nota) sl.addText(recorta(nota,210),{x:0.5,y:1.10,w:12.33,h:0.32,fontFace:F,fontSize:11,italic:true,color:"6B6B6B",margin:0,valign:"top"});
     const y0=Y0+0.2, boxH=ALTO-0.2-PIE-0.05;
     const off=(W-2*MX-(grupo.length*cw+(grupo.length-1)*GAP))/2;
     grupo.forEach((e,c)=>{ const x=MX+off+c*(cw+GAP); const f=fotos.get(e);
@@ -188,9 +189,9 @@ async function generarPPTX(m, lista, fotos, op, parte){
         sl.addText("Foto no disponible",{x,y:y0+boxH/2-0.2,w:cw,h:0.4,align:"center",fontFace:F,fontSize:11,color:"888888"}); }
       else { const esc2=Math.min(cw/f.w,boxH/f.h), w=f.w*esc2, h=f.h*esc2;
         sl.addImage({data:bytesADataURL(f.bytes,"image/jpeg"),x:x+(cw-w)/2,y:y0+boxH-h,w,h}); }
-      sl.addText(pie(e),{x,y:y0+boxH+0.04,w:cw,h:PIE,align:"center",fontFace:F,fontSize:10,color:AZUL,fill:{color:"FFFFFF"},margin:0}); });
+      sl.addText(pie(e),{x,y:y0+boxH+0.04,w:cw,h:PIE,align:"center",fontFace:F,fontSize:10,color:GRIS,fill:{color:"FFFFFF"},margin:0}); });
   };
-  const hojaVacia=(r,bloque)=>{ const sl=pptx.addSlide({masterName:"EST"});
+  const hojaVacia=(r,bloque)=>{ const sl=pptx.addSlide({masterName:"INF"});
     cabecera(sl,`Evidencias · ${r.codigo?r.codigo+" ":""}${r.req}`,[r.cat,bloque?bloque.titulo:""].filter(Boolean).join("  ·  "));
     sl.addShape(pptx.ShapeType.rect,{x:2.5,y:2.6,w:8.3,h:1.6,fill:{color:"FDECEA"},line:{color:ROJO,width:1}});
     sl.addText(bloque?"SIN EVIDENCIA ESTE DÍA":"SIN EVIDENCIA REGISTRADA",{x:2.5,y:2.6,w:8.3,h:1.6,align:"center",valign:"middle",fontFace:F,fontSize:22,bold:true,color:ROJO}); };
@@ -205,19 +206,18 @@ async function generarPPTX(m, lista, fotos, op, parte){
 
   // 5 · Informe de actividad + novedades · 6 · Contraportada (sólo en la última parte)
   if(parte.n===parte.total){
-    s=pptx.addSlide({masterName:"EST"}); cabecera(s,"Informe de actividad",nombre);
+    s=pptx.addSlide({masterName:"INF"}); cabecera(s,"Informe de actividad",nombre);
     const P=textoActividad(m,op,m.visibles);
     s.addText(P.map((t,k)=>({text:t,options:{breakLine:k<P.length-1,paraSpaceAfter:10}})),{x:1.0,y:1.45,w:11.3,h:5.3,fontFace:F,fontSize:16,color:"222222",valign:"top",margin:0,fit:"shrink"});
     const N=op.version==="interno"?novedades(m.visibles):[];
-    if(N.length){ s=pptx.addSlide({masterName:"EST"}); cabecera(s,"Novedades de cobertura (control interno)",`${N.length} novedad(es)`);
+    if(N.length){ s=pptx.addSlide({masterName:"INF"}); cabecera(s,"Novedades de cobertura (control interno)",`${N.length} novedad(es)`);
       s.addText(N.slice(0,16).map((t,k)=>({text:t,options:{bullet:true,breakLine:k<Math.min(N.length,16)-1}})),{x:0.9,y:1.4,w:11.6,h:4.95,fontFace:F,fontSize:13,color:"222222",valign:"top",margin:0});
       if(N.length>16) s.addText(`… y ${N.length-16} más (ver el resumen de cobertura).`,{x:0.9,y:6.45,w:11,h:0.35,fontFace:F,fontSize:11,italic:true,color:GRIS,margin:0}); }
-    s=pptx.addSlide({masterName:"EST"});
-    s.addImage({data:A.logo.data,x:1.5,y:2.1,w:2.6,h:2.6*A.logo.h/A.logo.w});
-    s.addShape(pptx.ShapeType.line,{x:5.0,y:2.1,w:0,h:2.65,line:{color:ORO,width:2.5}});
-    s.addText([{text:"Gracias",options:{fontSize:34,bold:true,color:AZUL,breakLine:true}},
-               {text:op.contacto||op.operador,options:{fontSize:18,bold:true,color:AZUL,breakLine:true}},
-               {text:op.cargo||"",options:{fontSize:15,color:GRIS}}],{x:5.4,y:2.1,w:7,h:2.65,fontFace:F,valign:"middle",margin:0});
+    s=pptx.addSlide({masterName:"INF"});
+    s.addShape(pptx.ShapeType.line,{x:4.92,y:3.05,w:3.5,h:0,line:{color:LINEA,width:2.25}});
+    s.addText([{text:"Gracias",options:{fontSize:34,bold:true,color:TINTA,breakLine:true,paraSpaceAfter:12}},
+               {text:op.contacto||op.operador,options:{fontSize:18,bold:true,color:TINTA,breakLine:true,paraSpaceAfter:4}},
+               {text:op.cargo||"",options:{fontSize:15,color:GRIS}}],{x:0.8,y:3.35,w:11.7,h:2.0,fontFace:F,align:"center",valign:"top",margin:0});
   }
   return await pptx.write({outputType:"blob"});
 }
@@ -225,24 +225,23 @@ async function generarPPTX(m, lista, fotos, op, parte){
 /* ---------- WORD ---------- */
 async function generarDOCX(m, lista, fotos, op, parte){
   await cargarScript("docx.umd.js");
-  const A=await activos(); const X=window.docx;
+  const X=window.docx;
   const {Document,Packer,Paragraph,TextRun,ImageRun,Table,TableRow,TableCell,WidthType,AlignmentType,HeadingLevel,BorderStyle,Header,Footer,PageNumber,ShadingType,VerticalAlign,PageBreak,TableLayoutType}=X;
   const nombre=op.nombreEvento||m.ev.ev||"";
   const T=(t,o)=>new TextRun(Object.assign({text:String(t==null?"":t),font:F},o||{}));
   const P=(t,o,po)=>new Paragraph(Object.assign({children:[T(t,o)]},po||{}));
-  const H1=t=>new Paragraph({heading:HeadingLevel.HEADING_1,spacing:{before:240,after:120},children:[T(t,{bold:true,color:AZUL,size:30})]});
-  const H2=t=>new Paragraph({heading:HeadingLevel.HEADING_2,spacing:{before:200,after:60},keepNext:true,children:[T(t,{bold:true,color:AZUL,size:24})]});
+  const H1=t=>new Paragraph({heading:HeadingLevel.HEADING_1,spacing:{before:240,after:120},children:[T(t,{bold:true,color:TINTA,size:30})]});
+  const H2=t=>new Paragraph({heading:HeadingLevel.HEADING_2,spacing:{before:200,after:60},keepNext:true,children:[T(t,{bold:true,color:TINTA,size:24})]});
   const H3=t=>new Paragraph({spacing:{before:120,after:60},keepNext:true,children:[T(t,{bold:true,color:"333333",size:20})]});
   const sinBorde={top:{style:BorderStyle.NONE,size:0,color:"FFFFFF"},bottom:{style:BorderStyle.NONE,size:0,color:"FFFFFF"},left:{style:BorderStyle.NONE,size:0,color:"FFFFFF"},right:{style:BorderStyle.NONE,size:0,color:"FFFFFF"}};
-  const borde={top:{style:BorderStyle.SINGLE,size:4,color:"D5DCE6"},bottom:{style:BorderStyle.SINGLE,size:4,color:"D5DCE6"},left:{style:BorderStyle.SINGLE,size:4,color:"D5DCE6"},right:{style:BorderStyle.SINGLE,size:4,color:"D5DCE6"}};
+  const borde={top:{style:BorderStyle.SINGLE,size:4,color:LINEA},bottom:{style:BorderStyle.SINGLE,size:4,color:LINEA},left:{style:BorderStyle.SINGLE,size:4,color:LINEA},right:{style:BorderStyle.SINGLE,size:4,color:LINEA}};
   const celda=(hijos,o)=>new TableCell(Object.assign({children:Array.isArray(hijos)?hijos:[hijos],margins:{top:60,bottom:60,left:90,right:90},verticalAlign:VerticalAlign.CENTER,borders:borde},o||{}));
   const ANCHO_UTIL=9360; // twips: carta con márgenes de 1,9 cm ≈ 16,5 cm
   const tabla=(filas,anchos)=>new Table({width:{size:ANCHO_UTIL,type:WidthType.DXA},columnWidths:anchos,layout:TableLayoutType.FIXED,rows:filas});
-  const img=(d,wpx,hpx,tipo)=>new ImageRun({type:tipo||"jpg",data:d.bytes,transformation:{width:Math.round(wpx),height:Math.round(hpx)}});
+  const img=(d,wpx,hpx)=>new ImageRun({type:"jpg",data:d.bytes,transformation:{width:Math.round(wpx),height:Math.round(hpx)}});
   const hijos=[];
-  // Portada
-  hijos.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:1400,after:400},children:[img(A.logo,180,180*A.logo.h/A.logo.w,"png")]}));
-  hijos.push(P("INFORME TÉCNICO DE EJECUCIÓN",{bold:true,size:44,color:AZUL},{alignment:AlignmentType.CENTER,spacing:{after:200}}));
+  // Portada (sin logo ni colores de marca: el administrador aplica después la plantilla del cliente final)
+  hijos.push(P("INFORME TÉCNICO DE EJECUCIÓN",{bold:true,size:44,color:TINTA},{alignment:AlignmentType.CENTER,spacing:{before:2600,after:200}}));
   hijos.push(P(nombre,{bold:true,size:32,color:"222222"},{alignment:AlignmentType.CENTER,spacing:{after:120}}));
   hijos.push(P(m.ev.cl||"",{size:26,color:GRIS},{alignment:AlignmentType.CENTER,spacing:{after:80}}));
   if(m.cfg.fe) hijos.push(P(cap(rango(m.cfg.fe,m.cfg.ff).replace(/^(el|del) /,"")),{size:24,color:GRIS},{alignment:AlignmentType.CENTER,spacing:{after:600}}));
@@ -253,12 +252,12 @@ async function generarDOCX(m, lista, fotos, op, parte){
   if(parte.n===1){
     hijos.push(H1(`${sec++}. Ficha del evento`));
     const ficha=[["Nombre del evento",nombre],["Lugar",op.lugar||"—"],["Fecha",cap(rango(m.cfg.fe,m.cfg.ff).replace(/^el /,""))||"—"],["Operador",op.operador],["Número de contrato",op.contrato||"—"],["Cliente",m.ev.cl||"—"]];
-    hijos.push(tabla(ficha.map(f=>new TableRow({children:[celda(P(f[0],{bold:true,color:AZUL,size:20}),{shading:{type:ShadingType.CLEAR,fill:"F2F5FA",color:"auto"},width:{size:3000,type:WidthType.DXA}}),celda(P(f[1],{size:20}),{width:{size:6360,type:WidthType.DXA}})]})),[3000,6360]));
+    hijos.push(tabla(ficha.map(f=>new TableRow({children:[celda(P(f[0],{bold:true,color:TINTA,size:20}),{shading:{type:ShadingType.CLEAR,fill:"F3F4F6",color:"auto"},width:{size:3000,type:WidthType.DXA}}),celda(P(f[1],{size:20}),{width:{size:6360,type:WidthType.DXA}})]})),[3000,6360]));
     hijos.push(H1(`${sec++}. Resumen de cobertura`));
     hijos.push(P(`${lista.filter(r=>r.total>0).length} de ${lista.length} requerimiento(s) con evidencia · ${lista.reduce((a,r)=>a+r.total,0)} foto(s) registradas.`,{size:20,color:GRIS},{spacing:{after:120}}));
-    const anch=[600,2700,1300,1000,1600,660,1500];
-    const cab=new TableRow({tableHeader:true,children:["Cód.","Requerimiento","Categoría","Cant.","Proveedor","Fotos","Estado"].map((t,k)=>celda(P(t,{bold:true,color:"FFFFFF",size:17}),{shading:{type:ShadingType.CLEAR,fill:AZUL,color:"auto"},width:{size:anch[k],type:WidthType.DXA}}))});
-    hijos.push(tabla([cab].concat(lista.map(r=>new TableRow({cantSplit:true,children:[r.codigo,r.req,r.cat,`${r.cant}${r.um?" "+String(r.um).toLowerCase():""}`,r.prov,String(r.total),r.estado].map((t,k)=>celda(P(t,k===6?{bold:true,color:r.color,size:16}:{size:17}),{width:{size:anch[k],type:WidthType.DXA}}))}))),anch));
+    const anch=[600,3400,1700,1100,660,1900];
+    const cab=new TableRow({tableHeader:true,children:["Cód.","Requerimiento","Categoría","Cant.","Fotos","Estado"].map((t,k)=>celda(P(t,{bold:true,color:"FFFFFF",size:17}),{shading:{type:ShadingType.CLEAR,fill:TINTA,color:"auto"},width:{size:anch[k],type:WidthType.DXA}}))});
+    hijos.push(tabla([cab].concat(lista.map(r=>new TableRow({cantSplit:true,children:[r.codigo,r.req,r.cat,`${r.cant}${r.um?" "+String(r.um).toLowerCase():""}`,String(r.total),r.estado].map((t,k)=>celda(P(t,k===5?{bold:true,color:r.color,size:16}:{size:17}),{width:{size:anch[k],type:WidthType.DXA}}))}))),anch));
   }
   hijos.push(H1(`${sec++}. Evidencias por requerimiento`));
   const COLS=3, ANCHO_FOTO=196, ALTO_MAX=250; // px a 96 dpi ≈ 5,2 × 6,6 cm
@@ -267,7 +266,7 @@ async function generarDOCX(m, lista, fotos, op, parte){
       const celdas=fila.map(e=>{ const f=fotos.get(e); const h=[];
         if(!f||f.falla) h.push(P("Foto no disponible",{size:16,color:"888888"},{alignment:AlignmentType.CENTER}));
         else { const k=Math.min(ANCHO_FOTO/f.w,ALTO_MAX/f.h); h.push(new Paragraph({alignment:AlignmentType.CENTER,children:[img(f,f.w*k,f.h*k)]})); }
-        h.push(P(pie(e),{size:15,color:AZUL},{alignment:AlignmentType.CENTER}));
+        h.push(P(pie(e),{size:15,color:GRIS},{alignment:AlignmentType.CENTER}));
         return celda(h,{borders:sinBorde,width:{size:3120,type:WidthType.DXA},verticalAlign:VerticalAlign.BOTTOM}); });
       while(celdas.length<COLS) celdas.push(celda(P(""),{borders:sinBorde,width:{size:3120,type:WidthType.DXA}}));
       filas.push(new TableRow({cantSplit:true,children:celdas})); }
@@ -275,7 +274,7 @@ async function generarDOCX(m, lista, fotos, op, parte){
   lista.forEach(r=>{
     if(!r.total && op.version!=="interno") return;
     hijos.push(H2(`${r.codigo?r.codigo+" · ":""}${r.req}`));
-    hijos.push(P([r.adicional?"Adicional en sitio":r.cat, r.cant?`Cantidad: ${r.cant}${r.um?" "+String(r.um).toLowerCase():""}`:"", r.prov?`Proveedor: ${r.prov}`:"", `Estado: ${r.estado}`].filter(Boolean).join("  ·  "),{size:18,color:GRIS},{keepNext:true}));
+    hijos.push(P([r.adicional?"Adicional en sitio":r.cat, r.cant?`Cantidad: ${r.cant}${r.um?" "+String(r.um).toLowerCase():""}`:"", `Estado: ${r.estado}`].filter(Boolean).join("  ·  "),{size:18,color:GRIS},{keepNext:true}));
     const nota=r.adicional?[r.solicitado?`Solicitado por: ${r.solicitado}`:"",r.justificacion].filter(Boolean).join(" · "):r.car;
     if(nota) hijos.push(P(recorta(nota,400),{size:17,italics:true,color:"6B6B6B"},{keepNext:true,spacing:{after:80}}));
     if(!r.total){ hijos.push(P("SIN EVIDENCIA REGISTRADA",{bold:true,color:ROJO,size:20})); return; }
@@ -293,11 +292,11 @@ async function generarDOCX(m, lista, fotos, op, parte){
     if(N.length){ hijos.push(H2("Novedades de cobertura (control interno)")); N.forEach(t=>hijos.push(new Paragraph({bullet:{level:0},children:[T(t,{size:19})]}))); }
     hijos.push(H1(`${sec++}. Firmas`));
     const fir=["Elaboró","Revisó","Aprobó"];
-    hijos.push(tabla([new TableRow({children:fir.map(t=>celda([P(" ",{size:20},{spacing:{before:700}}),P("______________________________",{size:18},{alignment:AlignmentType.CENTER}),P(t,{bold:true,color:AZUL,size:19},{alignment:AlignmentType.CENTER})],{borders:sinBorde,width:{size:3120,type:WidthType.DXA}}))})],[3120,3120,3120]));
+    hijos.push(tabla([new TableRow({children:fir.map(t=>celda([P(" ",{size:20},{spacing:{before:700}}),P("______________________________",{size:18},{alignment:AlignmentType.CENTER}),P(t,{bold:true,color:TINTA,size:19},{alignment:AlignmentType.CENTER})],{borders:sinBorde,width:{size:3120,type:WidthType.DXA}}))})],[3120,3120,3120]));
   }
   const doc=new Document({creator:op.operador,title:`Informe · ${nombre}`,styles:{default:{document:{run:{font:F,size:20}}}},
     sections:[{properties:{page:{size:{width:12240,height:15840},margin:{top:1080,bottom:1000,left:1440,right:1440}}},
-      headers:{default:new Header({children:[new Paragraph({children:[img(A.logo,34,34*A.logo.h/A.logo.w,"png"),T("   Informe técnico de ejecución · "+recorta(nombre,60),{size:16,color:GRIS})]})]})},
+      headers:{default:new Header({children:[new Paragraph({children:[T("Informe técnico de ejecución · "+recorta(nombre,60),{size:16,color:GRIS})]})]})},
       footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[T("Página ",{size:16,color:GRIS}),new TextRun({children:[PageNumber.CURRENT],font:F,size:16,color:GRIS})]})]})},
       children:hijos}]});
   return await Packer.toBlob(doc);
