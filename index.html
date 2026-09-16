@@ -243,7 +243,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v35 · 15sep · informe Word/PPT desde el panel admin</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v36 · 15sep · informe sin marca ni proveedores</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -1111,7 +1111,7 @@ function eviKey(e){ return e.item_id || ((e.evento_uid||"")+"|"+iidDe(e.item,e.c
 function cargarJS(src){ return new Promise((ok,ko)=>{ if(document.querySelector('script[data-src="'+src+'"]')) return ok(); const s=document.createElement("script"); s.src=src; s.dataset.src=src; s.onload=()=>ok(); s.onerror=()=>ko(new Error("No se pudo cargar "+src)); document.head.appendChild(s); }); }
 window.adminInforme=async()=>{
   const ev=adminEventos[adminEventoActual]; if(!ev||!adminEvidencias.length){ toast("Abre un evento con evidencias"); return; }
-  try{ if(!window.InformeEstrella) await cargarJS("informe.js?v=15c"); }catch(e){ toast("No cargó el generador de informes (revisa la conexión)"); return; }
+  try{ if(!window.InformeEstrella) await cargarJS("informe.js?v=16"); }catch(e){ toast("No cargó el generador de informes (revisa la conexión)"); return; }
   adminDlCancel=false;
   InformeEstrella.abrir({ev, evidencias:adminEvidencias, visibles:adminVis, contenedor:$("adInf"), bajarBlob:adminBajarBlob,
     deps:{anotarIids, iidDe, fechasDeItem, candidatoPorDia, isoHoy, slug, bajar, loadJSON, saveJSON, NS}});
