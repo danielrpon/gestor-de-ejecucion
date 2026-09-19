@@ -907,10 +907,13 @@ let adminSes = loadJSON(NS+"admin_ses", null);
 let adminEventos = [];
 function adminValido(){ return !!(adminSes && adminSes.token && Date.now() < (adminSes.exp||0)); }
 function adminHeaders(){ return {apikey:SB_KEY, Authorization:"Bearer "+(adminSes&&adminSes.token)}; }
-function adminSesExpirada(){ adminSes=null; localStorage.removeItem(NS+"admin_ses"); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent="Tu sesión expiró. Ingresa de nuevo."; }
-$("goAdmin").addEventListener("click", ()=>{ show("admin"); if(adminValido()){ adminMostrarPanel(); } else { $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent=""; } });
+/* El filtro del tablero (Capa 14) vive con la sesión: al salir o al vencer se olvida,
+   para no volver a entrar viendo un recorte viejo sin darse cuenta. */
+function adminOlvidarFiltros(){ adminSeg={}; try{ localStorage.removeItem(NS+"admin_seg"); }catch(_){} }
+function adminSesExpirada(){ adminSes=null; localStorage.removeItem(NS+"admin_ses"); adminOlvidarFiltros(); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent="Tu sesión expiró. Ingresa de nuevo."; }
+$("goAdmin").addEventListener("click", ()=>{ show("admin"); if(adminValido()){ adminMostrarPanel(); } else { adminOlvidarFiltros(); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent=""; } });
 $("adVolver").addEventListener("click", ()=>show("home"));
-$("adSalir").addEventListener("click", ()=>{ adminSes=null; localStorage.removeItem(NS+"admin_ses"); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); });
+$("adSalir").addEventListener("click", ()=>{ adminSes=null; localStorage.removeItem(NS+"admin_ses"); adminOlvidarFiltros(); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); });
 $("adBackLink").addEventListener("click", ()=>adminMostrarPanel());
 $("adEntrar").addEventListener("click", adminLogin);
 async function adminLogin(){
