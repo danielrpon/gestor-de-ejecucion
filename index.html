@@ -169,6 +169,7 @@
         </div>
         <label class="tgl"><input id="emOn" type="checkbox" checked> Aplicar marca de agua (fecha · hora · dirección)</label>
         <label class="tgl"><input id="emGal" type="checkbox" checked> Permitir subir fotos desde la Galería del celular (si lo apagas, el proveedor solo puede usar «Capturar foto»)</label>
+        <label class="tgl"><input id="emVf" type="checkbox" checked> Exigir que las fotos sean de las fechas del evento (si lo apagas, se aceptan fotos de cualquier fecha; las de fecha futura siguen bloqueadas)</label>
       </div>
       <div style="height:14px"></div>
       <button class="btn" id="egen" disabled>Generar acceso para proveedores</button>
@@ -243,7 +244,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v36 · 15sep · informe sin marca ni proveedores</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v38 · 22sep · adicionales sin días por defecto + fechas opcionales</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -289,6 +290,8 @@
   <div class="fld" style="margin-top:8px"><label>Cantidad (opcional)</label><input id="adCant" type="number" min="1" placeholder="1"></div>
   <div class="fld" style="margin-top:8px"><label>¿Quién lo solicitó?</label><input id="adQuien" type="text" autocomplete="off" placeholder="Ej.: coordinador del evento / cliente"></div>
   <div class="fld" style="margin-top:8px"><label>Justificación / nota</label><input id="adNota" type="text" autocomplete="off" placeholder="Por qué se agregó en sitio"></div>
+  <div class="fld hide" id="adPdWrap" style="margin-top:8px"><label>¿Requiere evidencia por día?</label><select id="adPd"><option value="no" selected>No: 3 fotos en total</option><option value="si">Sí: una foto por cada día</option></select></div>
+  <div class="fld hide" id="adDiasWrap" style="margin-top:8px"><label>¿Cuántos días, contando hoy?</label><input id="adDias" type="number" min="1" value="1"></div>
   <div class="mut">Queda marcado como ADICIONAL y viaja en el manifiesto con la justificación y quién lo pidió.</div>
   <div style="height:12px"></div>
   <div class="btn2"><button class="btn sec" id="adClose">Cerrar</button><button class="btn" id="adSave">Agregar</button></div>
@@ -575,9 +578,10 @@ $("miadd").addEventListener("click", ()=>{ const req=$("mireq").value.trim(), ca
    ítems del "Evento de prueba"), y de ahí que el desplegable del proveedor mostrara empresas
    que no eran de su evento. Para partir de una copia está "Duplicar como evento nuevo". */
 function nuevoExec(){
+  epdAuto=false;   /* v38: el auto-encendido de «por día» es solo para eventos nuevos */
   $("ecliente").value=""; $("eevento").value=""; $("efecha").value=""; $("efechafin").value=""; $("epd").checked=false; $("eciudad").value="";
   execItems=[]; renderExecItems();
-  $("emPos").value="bl"; $("emEsc").value="3.4"; $("emOn").checked=true; $("emGal").checked=true;
+  $("emPos").value="bl"; $("emEsc").value="3.4"; $("emOn").checked=true; $("emGal").checked=true; $("emVf").checked=true;
   if($("acWrap")) $("acWrap").classList.add("hide");
   if($("ereqInfo")) $("ereqInfo").textContent="";
   if(typeof renderHistorial==="function") renderHistorial();
@@ -586,8 +590,8 @@ function nuevoExec(){
   if($("execNuevo")) $("execNuevo").classList.remove("hide");
   window.scrollTo(0,0);
 }
-function prefillExec(){ if(cfg){ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("efechafin").value=cfg.ff||""; $("epd").checked=!!cfg.pd; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null))})); renderExecItems();
-    const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; $("emGal").checked=cfg.gal!==false; } if(typeof renderHistorial==="function") renderHistorial();
+function prefillExec(){ if(cfg){ epdAuto=true;   /* v38: evento existente = se respeta su cfg.pd guardado; antes se prendía solo al abrir el enlace del productor */ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("efechafin").value=cfg.ff||""; $("epd").checked=!!cfg.pd; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null))})); renderExecItems();
+    const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; $("emGal").checked=cfg.gal!==false; $("emVf").checked=cfg.vf!==false; } if(typeof renderHistorial==="function") renderHistorial();
   editandoId=null; aplicarModoExec(); }   // por defecto: modo NUEVO (los que editan fijan editandoId DESPUÉS y llaman aplicarModoExec)
 /* Modo de la vista ejecutivo: EDITAR (editandoId fijado) muestra solo "Guardar cambios" + "Duplicar";
    NUEVO muestra solo "Generar acceso". Unifica ambas puertas de entrada (enlace y "Editar"). */
@@ -706,7 +710,8 @@ function fechasDeItem(it, ini){ if(!it) return []; const i0=(ini!==undefined)?in
   const n=diasNum(it); if(n>1) return fechasConsecutivas(i0, n);
   if(it.pd===true && i0) return [i0]; return []; }
 /* Candidato a "por día" = trae más de un día, o fechas, o viene marcado. Se excluye si el productor lo apagó (pd=false). */
-function candidatoPorDia(it){ return !!it && !it.adicional && (it.pd===true || diasNum(it)>1 || parseFechas(it.fechas||[]).length>0); }
+function candidatoPorDia(it){ if(!it) return false; if(it.adicional) return it.pd===true && parseFechas(it.fechas||[]).length>0;   /* v38: adicional por día solo si se eligió «Sí» al crearlo */
+  return it.pd===true || diasNum(it)>1 || parseFechas(it.fechas||[]).length>0; }
 function esPorDia(it){ return !!(cfg&&cfg.pd) && candidatoPorDia(it) && it.pd!==false && fechasDeItem(it).length>0; }
 function fmtDia(iso){ const d=new Date(iso+"T12:00:00"); if(isNaN(d)) return iso||""; return d.toLocaleDateString("es-CO",{weekday:"short",day:"numeric",month:"short"}).replace(/\./g,""); }
 function enLoteDeItemDia(iid,f){ return iid? batch.filter(e=>e.itemCodigo===iid && e.tipo!=="video" && fechaEfectiva(e)===f).length : 0; }
@@ -830,7 +835,7 @@ function saveConfigDesdeExec(){
   const uid=cfg&&cfg.uid, consec=cfg&&cfg.consec;   // preservar identidad del evento si ya existe
   cfg = { cl:$("ecliente").value.trim(), ev:$("eevento").value.trim(), fe:$("efecha").value, ff:$("efechafin").value||"", pd:!!$("epd").checked, ci:$("eciudad").value.trim(),
           it:execItems.map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null))})),
-          marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked}, gal:$("emGal").checked };   // marca definida por el ejecutivo, igual para todos
+          marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked}, gal:$("emGal").checked, vf:$("emVf").checked };   /* v38: vf=false → no se exige que la foto sea de las fechas del evento */   // marca definida por el ejecutivo, igual para todos
   if(uid) cfg.uid=uid; if(consec) cfg.consec=consec;
   saveJSON(NS+"config", cfg);
 }
@@ -1497,7 +1502,10 @@ $("item").addEventListener("change", ()=>{
 });
 if($("syncProg")) $("syncProg").addEventListener("click", ()=>sincronizarProgreso(false));
 /* Requerimiento adicional (agregado por el operador en sitio) */
-$("addAdic").addEventListener("click", ()=>{ ["adReq","adCant","adQuien","adNota"].forEach(id=>$(id).value=""); $("adicm").classList.remove("hide"); });
+$("addAdic").addEventListener("click", ()=>{ ["adReq","adCant","adQuien","adNota"].forEach(id=>$(id).value="");
+  $("adPd").value="no"; $("adDias").value="1"; $("adPdWrap").classList.toggle("hide", !(cfg&&cfg.pd)); $("adDiasWrap").classList.add("hide");   /* v38 */
+  $("adicm").classList.remove("hide"); });
+$("adPd").addEventListener("change", ()=>$("adDiasWrap").classList.toggle("hide", $("adPd").value!=="si"));
 $("adClose").addEventListener("click", ()=>$("adicm").classList.add("hide"));
 $("adSave").addEventListener("click", ()=>{
   const req=$("adReq").value.trim(); if(!req){ alert("Escribe el requerimiento adicional."); return; }
@@ -1508,7 +1516,10 @@ $("adSave").addEventListener("click", ()=>{
   let mx=0; a.forEach(it=>{ const n=parseInt(String(it.codigo).split("-").pop(),10); if(!isNaN(n)&&n>mx)mx=n; });
   const cod="A-"+marca+"-"+String(mx+1).padStart(2,"0");
   const prov=(operador&&operador.prov)||"";
-  a.push({codigo:cod, req, cant:$("adCant").value.trim(), prov, nit:nitDeProveedor(prov), cat:"Adicionales", adicional:true, solicitadoPor:quien, justificacion:$("adNota").value.trim()});
+  const porDia = !!(cfg&&cfg.pd) && $("adPd").value==="si";   /* v38: por defecto NO */
+  const nd = Math.max(1, parseInt($("adDias").value,10)||1);
+  a.push({codigo:cod, req, cant:$("adCant").value.trim(), prov, nit:nitDeProveedor(prov), cat:"Adicionales", adicional:true, solicitadoPor:quien, justificacion:$("adNota").value.trim(),
+          pd:porDia, fechas:porDia?fechasConsecutivas(isoHoy(), nd):[]});
   guardarAdicionales(a); $("adicm").classList.add("hide");
   const iid=iidDe(cod,"Adicionales",1);
   poblarItemTop(); $("item").value=iid; itemAnterior=iid; actualizarGuia(); renderLista();
@@ -1613,6 +1624,7 @@ function fechaNoCorresponde(e, f){ if(!f || e.fechaOrigen==="declarada" || e.fec
   const hoy=isoHoy();
   if(f>hoy) return `tiene fecha ${fmtDia(f)}, que todavía no llega`;
   if(e.fechaSel) return f!==e.fechaSel ? `la foto es del ${fmtDia(f)} y elegiste la línea del ${fmtDia(e.fechaSel)}` : "";
+  if(cfg && cfg.vf===false) return "";   /* v38: el productor apagó «Exigir fechas del evento» (eventos viejos sin vf = se exige) */
   const fe=cfg&&cfg.fe, ff=(cfg&&cfg.ff)||fe;
   if(fe && (f<fe || f>ff)) return `la foto es del ${fmtDia(f)}, fuera de las fechas del evento (${fmtDia(fe)} a ${fmtDia(ff)})`;
   if(!fe && !fotoDelDia(f)) return `la foto es del ${fmtDia(f)}, no de hoy`;
