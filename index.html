@@ -137,6 +137,7 @@
       <div class="mut" id="efichaInfo">Rellena la ficha que ve el proveedor (cantidad · unidad · días · características) SIN agregar ni quitar requerimientos, y guarda solo. Úsalo en eventos ya publicados.</div>
       <div class="h" style="margin-top:14px">Agregar evidencia manualmente</div>
       <div class="fld"><label>Proveedor</label><input id="miprov" type="text" autocomplete="off" placeholder="Ej.: Sonido Pro S.A.S." list="provList"><datalist id="provList"></datalist></div>
+      <div class="fld" style="margin-top:8px"><label>Categoría</label><input id="micat" type="text" autocomplete="off" placeholder="Ej.: Cultura de fútbol" list="catList"><datalist id="catList"></datalist></div>
       <div class="fld" style="margin-top:8px"><label>Requerimiento</label><input id="mireq" type="text" autocomplete="off" placeholder="Ej.: Sistema de sonido"></div>
       <div class="fld" style="margin-top:8px"><label>Cantidad</label><input id="micant" type="number" min="1" placeholder="1"></div>
       <div class="mut" id="miCodHint">La app asigna el código automáticamente (siguiente consecutivo).</div>
@@ -240,11 +241,23 @@
       <div class="h" style="justify-content:space-between;align-items:center">Progreso del evento <a class="lnk" id="syncProg" style="font-size:13px;font-weight:600" title="Trae a este teléfono las fotos que ya subieron los demás proveedores">↻ Traer avance de otros equipos</a></div>
       <div id="prog" class="prog"><div class="bar"><span></span></div><div class="lbl"></div></div>
       <div class="cnt" id="cnt">Aún no agregas fotos.</div>
+      <div id="admCarga" class="xbox hide" style="margin-top:8px">
+        <div class="xt" style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">🔐 Carga de administrador <a class="lnk" onclick="admSalir()" style="font-size:12px;font-weight:600">salir del modo</a></div>
+        <div class="mut" style="margin:0 0 8px;font-size:12px">Fotos que llegaron por otros medios. El proveedor nunca ve este recuadro. La hora nunca se declara.</div>
+        <label class="tgl" style="margin:0 0 8px"><input id="admSinHora" type="checkbox"> Sello sin hora (deja fecha y ubicación)</label>
+        <div class="fld"><label>Lugar para las fotos sin ubicación</label><input id="admLugar" type="text" autocomplete="off" list="admLugares" placeholder="Dirección, barrio, ciudad"><datalist id="admLugares"></datalist></div>
+        <div class="fld" style="margin-top:8px"><label>Fecha para las fotos sin fecha</label><select id="admFecha"></select></div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn sec" id="admCompletar" style="margin:0;flex:1 1 100%">Completar ubicación y fecha de las fotos sin datos</button>
+          <button class="btn sec" id="admSinSello" style="margin:0;flex:1 1 100%">No aplicar marca configurada (ya la traen)</button>
+        </div>
+        <div class="mut" id="admMsg" style="margin:6px 0 0;font-size:12px"></div>
+      </div>
       <div class="list" id="list"></div>
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v38 · 22sep · adicionales sin días por defecto + fechas opcionales</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v40 · 25sep · carga de administrador aparte + sello sin hora + orden de la cotización</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -286,6 +299,7 @@
 <!-- REQUERIMIENTO ADICIONAL -->
 <div id="adicm" class="modal hide"><div class="sheet">
   <div class="h">Requerimiento adicional</div>
+  <div class="fld" style="margin-bottom:8px"><label>¿A qué categoría pertenece?</label><select id="adGrupo"></select></div>
   <div class="fld"><label>Requerimiento / ítem adicional</label><input id="adReq" type="text" autocomplete="off" placeholder="Ej.: Punto de hidratación extra"></div>
   <div class="fld" style="margin-top:8px"><label>Cantidad (opcional)</label><input id="adCant" type="number" min="1" placeholder="1"></div>
   <div class="fld" style="margin-top:8px"><label>¿Quién lo solicitó?</label><input id="adQuien" type="text" autocomplete="off" placeholder="Ej.: coordinador del evento / cliente"></div>
@@ -569,9 +583,12 @@ window.editarEventoId=(uid)=>{ editarEvento(uid); };
 $("goExec").addEventListener("click", ()=>{ nuevoExec(); show("exec"); });
 $("goOper").addEventListener("click", ()=>{ if(cfg) irALogin(); else $("homeHint").textContent="Aún no hay una operación configurada en este dispositivo. Pide el enlace o QR de acceso a tu productor."; });
 function nextCodigo(){ let mx=0; execItems.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx) mx=n; }); return String(mx+1).padStart(2,"0"); }
-$("miadd").addEventListener("click", ()=>{ const req=$("mireq").value.trim(), cant=$("micant").value.trim(), prov=$("miprov").value.trim();
+$("miadd").addEventListener("click", ()=>{ const req=$("mireq").value.trim(), cant=$("micant").value.trim(), prov=$("miprov").value.trim(), cat=$("micat").value.trim();
   if(!req){ alert("Escribe el requerimiento."); return; }
-  execItems.push({codigo:nextCodigo(),req,cant,prov}); $("mireq").value=""; $("micant").value=""; renderExecItems(); $("mireq").focus(); });   // se conserva el proveedor para agregar varios del mismo
+  execItems.push({codigo:nextCodigo(),req,cant,prov,cat}); $("mireq").value=""; $("micant").value=""; renderExecItems(); $("mireq").focus(); });   // v39: se conserva también la categoría
+/* v39: a un ítem YA publicado sin categoría no se le puede poner `cat` (cambia su llave y sus fotos quedan huérfanas):
+   se le pone `grupo`, que solo sirve para ordenarlo dentro de esa categoría. */
+window.grupoExec=(idx,v)=>{ const it=execItems[idx]; if(!it) return; it.grupo=String(v||"").trim(); renderExecItems(); };   // se conserva el proveedor para agregar varios del mismo
 /* Abrir el panel para CREAR. Antes se llamaba a prefillExec(), que precarga cliente, evento
    e ítems del último evento del dispositivo y luego se declara "modo nuevo": el evento nuevo
    nacía con los requerimientos del anterior pegados (le pasó a PINIC, que se quedó con los 3
@@ -590,7 +607,7 @@ function nuevoExec(){
   if($("execNuevo")) $("execNuevo").classList.remove("hide");
   window.scrollTo(0,0);
 }
-function prefillExec(){ if(cfg){ epdAuto=true;   /* v38: evento existente = se respeta su cfg.pd guardado; antes se prendía solo al abrir el enlace del productor */ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("efechafin").value=cfg.ff||""; $("epd").checked=!!cfg.pd; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null))})); renderExecItems();
+function prefillExec(){ if(cfg){ epdAuto=true;   /* v38: evento existente = se respeta su cfg.pd guardado; antes se prendía solo al abrir el enlace del productor */ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("efechafin").value=cfg.ff||""; $("epd").checked=!!cfg.pd; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",grupo:i.grupo||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null))})); renderExecItems();
     const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; $("emGal").checked=cfg.gal!==false; $("emVf").checked=cfg.vf!==false; } if(typeof renderHistorial==="function") renderHistorial();
   editandoId=null; aplicarModoExec(); }   // por defecto: modo NUEVO (los que editan fijan editandoId DESPUÉS y llaman aplicarModoExec)
 /* Modo de la vista ejecutivo: EDITAR (editandoId fijado) muestra solo "Guardar cambios" + "Duplicar";
@@ -605,19 +622,20 @@ function llenarSelectFiltro(sel, valores){ if(!sel) return; const prev=sel.value
 function renderExecItems(){
   const c=$("execList"); c.innerHTML="";
   // poblar filtros (categorías y proveedores presentes en la lista)
-  const cats=[...new Set(execItems.map(i=>(i.cat||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
+  const cats=[...new Set(execItems.map(i=>(i.cat||i.grupo||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
   const provs=[...new Set(execItems.map(i=>(i.prov||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
   llenarSelectFiltro($("fltCat"), cats); llenarSelectFiltro($("fltProv"), provs);
   if($("execFiltros")) $("execFiltros").classList.toggle("hide", execItems.length<6);   // filtros solo si vale la pena
   const q=fnorm($("fltBuscar")&&$("fltBuscar").value), fc=($("fltCat")&&$("fltCat").value)||"", fp=($("fltProv")&&$("fltProv").value)||"";
   let mostrados=0;
-  execItems.forEach((it,idx)=>{
-    if(fc && (it.cat||"").trim()!==fc) return;
+  const dlc=$("catList"); if(dlc){ dlc.innerHTML=""; cats.forEach(c=>{ const o=document.createElement("option"); o.value=c; dlc.appendChild(o); }); }
+  execItems.map((it,idx)=>({it,idx})).sort((x,y)=>ordenReq(x.it,y.it)||x.idx-y.idx).forEach(({it,idx})=>{   /* v39: se muestra ordenada; idx sigue siendo la posición real */
+    if(fc && (it.cat||it.grupo||"").trim()!==fc) return;
     if(fp && (it.prov||"").trim()!==fp) return;
     if(q && !fnorm([it.codigo,it.req,it.prov,it.nit,it.cat].join(" ")).includes(q)) return;
     mostrados++;
     const d=document.createElement("div"); d.className="ev";
-    d.innerHTML=`<div class="in"><b style="color:var(--azul)">${it.codigo}</b> · ${it.req||"(sin descripción)"}${it.cant?` &nbsp;<span class="mut" style="margin:0">x${it.cant}</span>`:""}${it.cat?` <span class="mut" style="margin:0">· ${it.cat}</span>`:""}${it.prov||it.nit?`<div class="mut" style="margin:2px 0 0">${it.prov||""}${it.nit?`${it.prov?" · ":""}NIT ${it.nit}`:""}</div>`:""}<div class="ac"><a class="lnk" onclick="quitarExec(${idx})">quitar</a></div></div>`;
+    d.innerHTML=`<div class="in"><b style="color:var(--azul)">${it.codigo}</b> · ${it.req||"(sin descripción)"}${it.cant?` &nbsp;<span class="mut" style="margin:0">x${it.cant}</span>`:""}${it.cat?` <span class="mut" style="margin:0">· ${it.cat}</span>`:(editandoId?` <span class="mut" style="margin:0">· <input list="catList" value="${escAttr(it.grupo||"")}" placeholder="categoría (orden)" onchange="grupoExec(${idx},this.value)" style="display:inline-block;width:150px;padding:2px 6px;font-size:12px"></span>`:"")}${it.prov||it.nit?`<div class="mut" style="margin:2px 0 0">${it.prov||""}${it.nit?`${it.prov?" · ":""}NIT ${it.nit}`:""}</div>`:""}<div class="ac"><a class="lnk" onclick="quitarExec(${idx})">quitar</a></div></div>`;
     c.appendChild(d); });
   const n=execItems.length;
   if(n) $("ereqInfo").textContent = n+(n===1?" evidencia en la lista.":" evidencias en la lista.");
@@ -735,6 +753,7 @@ function fechaEfectiva(e){ if(!e) return ""; if(e.fechaOrigen==="declarada") ret
 /* Conflicto: la foto tiene fecha real (cámara o metadatos) distinta a la línea elegida. No se inventa: se bloquea hasta moverla. */
 function conflictoFecha(e){ if(!e||e.status!=="listo"||!e.itemCodigo||!e.fechaSel) return false; if(e.fechaOrigen==="declarada"||e.fechaOrigen==="carga") return false; const f=(e.datos&&e.datos.fecha)||""; return !!f && f!==e.fechaSel; }
 function pendienteFecha(e){ if(conflictoFecha(e)) return true;
+  if(admFalta(e)) return true;   /* v39: foto en modo administrador sin fecha (o sin lugar al completar) */
   if(e && e.status==="listo" && e.itemCodigo){ const fx=fechaEfectiva(e); if(fx && fx>isoHoy()) return true; }   /* v34: nada con fecha futura sale */ return !!(e && e.status==="listo" && e.itemCodigo && e.fechaOrigen==="declarada" && !e.fechaSel && !e.fechaDecl && esPorDia(itemById(e.itemCodigo))); }
 function diaDeFoto(e){ const it=itemById(e&&e.itemCodigo); if(!esPorDia(it)) return null; const fs=fechasDeItem(it); const f=fechaEfectiva(e); return { n:fs.length, idx:f?fs.indexOf(f)+1:0, fechas:fs }; }   // idx 0 = fecha fuera de las programadas
 function etiquetaFecha(e){ const f=fechaEfectiva(e); if(!f) return ""; const hoy=isoHoy(); const rel=f===hoy?"Hoy":(f===sumarDias(hoy,-1)?"Ayer":"");
@@ -754,10 +773,34 @@ function nitBase(s){ return String(s||"").replace(/[^0-9]/g,""); }
 function nitCoincide(entered, stored){ const a=nitBase(entered), b=nitBase(stored); if(!a||!b) return false; if(a===b) return true; if(b.length===a.length+1 && b.startsWith(a)) return true; if(a.length===b.length+1 && a.startsWith(b)) return true; return false; }  // acepta con o sin dígito de verificación
 function hayProv(){ return provDeItems().length>0; }
 function opcionesProv(){ const l=provDeItems(); if(itemsCfg().some(it=>!((it.prov||"").trim())) && l.length) l.push("Sin proveedor"); return l; }
+/* v39/v40 · ORDEN de requerimientos (pedido de Kevin, 25-sep): categoría en el orden de la plantilla (sin categoría al final); dentro de cada
+   categoría el orden de la plantilla (lo agregado después por el productor queda al final) y AL FINAL sus adicionales.
+   No se ordena por código: en EV-002 conviven "489" y "TE 0217" y los numéricos quedarían primero.
+   `grupo` = categoría para ORDENAR que no entra en la llave (iid = categoria|codigo|ordinal): sirve para ubicar
+   ítems viejos sin categoría y adicionales del proveedor (cat fija "Adicionales") sin dejar fotos huérfanas. */
+function catOrden(it){ if(!it) return ""; const b=String((it.adicional ? (it.grupo||"") : (it.cat||it.grupo||""))||"").trim(); return b || catPorPrefijo(it.req); }
+/* v39.1: ítems agregados sin categoría pero con ella escrita al inicio del nombre ("Festival Clubes - Alquiler Trimalla…",
+   "Toma salvavidas - Camerinos…", así quedaron los 520–536 de EV-002) se ubican en esa categoría si existe en el evento
+   (sin tildes ni mayúsculas). Solo ORDENA: no toca cat ni la llave. Memo por identidad del arreglo de ítems. */
+let _catMemo=null, _catMemoSrc=null;
+function catPorPrefijo(req){ const m=String(req||"").match(/^\s*([^\-–—:]{3,60}?)\s*[-–—:]\s+\S/); if(!m) return "";
+  const src=itemsCfg(); if(_catMemoSrc!==src){ _catMemo=new Map(); categoriasDelEvento().forEach(c=>_catMemo.set(fnorm(c).replace(/\s+/g," ").trim(),c)); _catMemoSrc=src; }
+  return _catMemo.get(fnorm(m[1]).replace(/\s+/g," ").trim())||""; }
+/* v40: las categorías van en el orden en que aparecen por primera vez en la plantilla (= orden de la cotización).
+   Kevin, 25-sep: en A→Z el informe ya no coincide con la cotización y el cliente lo ve desordenado. */
+let _rankMemo=null, _rankSrc=null;
+function rankCat(c){ const src=itemsCfg(); if(_rankSrc!==src){ _rankMemo=new Map(); src.forEach(it=>{ const k=fnorm(String(it.cat||it.grupo||"").trim()); if(k && k!=="adicionales" && !_rankMemo.has(k)) _rankMemo.set(k,_rankMemo.size); }); _rankSrc=src; }
+  const k=fnorm(c); return _rankMemo.has(k)?_rankMemo.get(k):1e6; }
+function ordenReq(a,b){ const ca=catOrden(a), cb=catOrden(b);
+  if(!ca!==!cb) return ca?-1:1;
+  const ra=rankCat(ca), rb=rankCat(cb); if(ra!==rb) return ra-rb;
+  const c=ca.localeCompare(cb,"es",{sensitivity:"base"}); if(c) return c;
+  return (a.adicional?1:0)-(b.adicional?1:0); }   /* empate = 0: sort estable conserva el orden de la plantilla (lo agregado después queda al final) */
+function categoriasDelEvento(){ const s=new Set(); itemsCfg().forEach(it=>{ const c=String(it.cat||it.grupo||"").trim(); if(c && !it.adicional && c!=="Adicionales") s.add(c); }); return [...s].sort((a,b)=>a.localeCompare(b,"es")); }
 function itemsDelOperador(){ let base;
-  if(!hayProv()) base=itemsCfg();
+  if(!hayProv() || admCargaActiva()) base=itemsCfg();   /* v40: el administrador ve todo el evento */
   else{ const p=(operador&&operador.prov)||""; if(!p) base=itemsCfg(); else if(p==="Sin proveedor") base=itemsCfg().filter(it=>!((it.prov||"").trim())); else base=itemsCfg().filter(it=>(it.prov||"").trim()===p); }
-  return base.concat(adicionalesDelEvento()); }   // los adicionales del operador siempre aparecen
+  return base.concat(adicionalesDelEvento()).sort(ordenReq); }   // los adicionales del operador siempre aparecen · v39: ordenados por categoría
 function llenarSelectProv(sel, valor){ sel.innerHTML=""; const o0=document.createElement("option"); o0.value=""; o0.textContent="— Selecciona proveedor —"; sel.appendChild(o0); opcionesProv().forEach(p=>{ const o=document.createElement("option"); o.value=p; o.textContent=p; sel.appendChild(o); }); sel.value=valor||""; }
 function opTag(){ if(!operador) return "";
   const ini=slug(operador.nombre||"").split("-").filter(Boolean).map(w=>w[0]).join("").slice(0,3).toUpperCase();
@@ -834,7 +877,7 @@ function chequearGen(){ $("egen").disabled = !(execItems.length && $("ecliente")
 function saveConfigDesdeExec(){
   const uid=cfg&&cfg.uid, consec=cfg&&cfg.consec;   // preservar identidad del evento si ya existe
   cfg = { cl:$("ecliente").value.trim(), ev:$("eevento").value.trim(), fe:$("efecha").value, ff:$("efechafin").value||"", pd:!!$("epd").checked, ci:$("eciudad").value.trim(),
-          it:execItems.map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null))})),
+          it:execItems.map(i=>Object.assign({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null))}, i.grupo?{grupo:i.grupo}:{})),
           marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked}, gal:$("emGal").checked, vf:$("emVf").checked };   /* v38: vf=false → no se exige que la foto sea de las fechas del evento */   // marca definida por el ejecutivo, igual para todos
   if(uid) cfg.uid=uid; if(consec) cfg.consec=consec;
   saveJSON(NS+"config", cfg);
@@ -905,7 +948,7 @@ $("lentrar").addEventListener("click", ()=>{
   operador=o; saveJSON(NS+"operador",o); pintarWho(); irACaptura();
 });
 $("reconfig").addEventListener("click", ()=>{ nuevoExec(); show("exec"); });
-$("salir").addEventListener("click", ()=>{ detenerWatch(); if(operador){ $("lnom").value=operador.nombre; $("lced").value=operador.cedula; $("lcel").value=operador.celular; } show("login"); });
+$("salir").addEventListener("click", ()=>{ detenerWatch(); admSalirModo(); if(operador){ $("lnom").value=operador.nombre; $("lced").value=operador.cedula; $("lcel").value=operador.celular; } show("login"); });
 
 /* ---- ADMINISTRADOR: visualizador (login + eventos + evidencias con fotos) ---- */
 let adminSes = loadJSON(NS+"admin_ses", null);
@@ -1021,7 +1064,7 @@ function adminRenderDash(){
         +bar(m.av)
         +`<div class="mut" style="margin:2px 0 0">Requerimientos: <b>${m.n}</b>${m.n!==m.tot?` <span class="mut" style="margin:0">(de ${m.tot})</span>`:""} · Con evidencia: <b>${m.conEvi}</b> · Completos: <b>${m.comp}</b> · Pendientes: <b>${m.pend}</b> · Evidencias: <b>${m.reg}</b> · Avance: <b>${m.av}%</b>${m.extras?` · <span style="color:var(--oro-d)">Extras en sitio: <b>${m.extras}</b></span>`:""}</div>`
         +(m.pd.n?`<div class="mut" style="margin:3px 0 0">📅 Por día: <b>${m.pd.n}</b> req · días cubiertos <b>${m.pd.diasCub}/${m.pd.diasReq}</b> · hoy <b>${m.pd.hoyOk}/${m.pd.hoyTotal}</b>${m.pd.atras?` · <span style="color:#b3261e">⚠ ${m.pd.atras} con días atrasados</span>`:""}</div><div id="adHoy${i}" class="hide"></div>`:"")
-        +`<div class="ac">${m.pd.n?`<a class="lnk" style="font-weight:700" onclick="adminHoy(${i})">hoy por proveedor</a>`:""}<a class="lnk" onclick="adminCopiar(${i},'oper')">link proveedor</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link productor</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a></div></div></div>`;
+        +`<div class="ac">${m.pd.n?`<a class="lnk" style="font-weight:700" onclick="adminHoy(${i})">hoy por proveedor</a>`:""}<a class="lnk" onclick="adminCopiar(${i},'oper')">link proveedor</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link productor</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a><a class="lnk" onclick="adminCargar(${i})">📤 carga de administrador</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a></div></div></div>`;
     }).join(""):'<div class="mut">Ningún evento coincide con el filtro. <a class="lnk" id="segTodo2">Ver todo</a></div>');
   const info=$("segInfo"); if(info) info.textContent = activos.length ? `${visibles.length} de ${adminEventos.length} eventos` : `${adminEventos.length} evento(s)`;
   const bind=(id,k)=>{ const el=$(id); if(!el) return; el.addEventListener("change",()=>{ adminSeg[k]=el.value; if(k==="cl") adminSeg.ev=""; if(k==="mes"&&el.value){ adminSeg.desde=""; adminSeg.hasta=""; } if((k==="desde"||k==="hasta")&&el.value) adminSeg.mes=""; saveJSON(NS+"admin_seg",adminSeg); adminRenderDash(); }); };
@@ -1119,7 +1162,7 @@ function eviKey(e){ return e.item_id || ((e.evento_uid||"")+"|"+iidDe(e.item,e.c
 function cargarJS(src){ return new Promise((ok,ko)=>{ if(document.querySelector('script[data-src="'+src+'"]')) return ok(); const s=document.createElement("script"); s.src=src; s.dataset.src=src; s.onload=()=>ok(); s.onerror=()=>ko(new Error("No se pudo cargar "+src)); document.head.appendChild(s); }); }
 window.adminInforme=async()=>{
   const ev=adminEventos[adminEventoActual]; if(!ev||!adminEvidencias.length){ toast("Abre un evento con evidencias"); return; }
-  try{ if(!window.InformeEstrella) await cargarJS("informe.js?v=16"); }catch(e){ toast("No cargó el generador de informes (revisa la conexión)"); return; }
+  try{ if(!window.InformeEstrella) await cargarJS("informe.js?v=19"); }catch(e){ toast("No cargó el generador de informes (revisa la conexión)"); return; }
   adminDlCancel=false;
   InformeEstrella.abrir({ev, evidencias:adminEvidencias, visibles:adminVis, contenedor:$("adInf"), bajarBlob:adminBajarBlob,
     deps:{anotarIids, iidDe, fechasDeItem, candidatoPorDia, isoHoy, slug, bajar, loadJSON, saveJSON, NS}});
@@ -1251,7 +1294,7 @@ window.adminManifiesto=()=>{
    Respeta el filtro activo del visor. Reintenta 4 veces cada foto y deja FALLIDAS.txt si alguna no bajó. ---- */
 let adminDlCancel=false; const AD_ZIP_TAM=500;
 function nombreSeguro(n){ n=String(n||"foto.jpg").replace(/[\/\\:*?"<>|\x00-\x1f]/g,"_"); const ext=(n.match(/\.[A-Za-z0-9]{2,5}$/)||[""])[0]; let base=n.slice(0,n.length-ext.length); const enc=new TextEncoder(); while(base.length>1 && enc.encode(base+ext).length>200) base=base.slice(0,-1); return base+ext; }
-function adminManifiestoCSV(lista){ const cols=["radicado","cliente","evento","categoria","item","item_id","requerimiento","proveedor","proveedor_nit","operador_nombre","archivo","tipo","fecha","hora","lugar","creado","fecha_origen","dia_evento","dias_evento","adicional","cantidad","solicitado_por","justificacion"]; let csv=cols.join(",")+"\n"; lista.forEach(e=>{ csv+=cols.map(c=>csvCell(e[c]!=null?e[c]:"")).join(",")+"\n"; }); return csv; }
+function adminManifiestoCSV(lista){ const cols=["radicado","cliente","evento","categoria","item","item_id","requerimiento","proveedor","proveedor_nit","operador_nombre","archivo","tipo","fecha","hora","lugar","creado","fecha_origen","dia_evento","dias_evento","adicional","cantidad","solicitado_por","justificacion","grupo","declarado_por"]; let csv=cols.join(",")+"\n"; lista.forEach(e=>{ csv+=cols.map(c=>csvCell(e[c]!=null?e[c]:"")).join(",")+"\n"; }); return csv; }
 function adminDlPanel(html){ const p=$("adDl"); if(!p) return; p.classList.remove("hide"); p.innerHTML=html; }
 function adminDlProgreso(t,hechas,total,fall){ adminDlPanel(`<div style="font-weight:700">${escAttr(t)}</div><div style="height:7px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0"><div style="height:100%;width:${total?Math.round(hechas/total*100):0}%;background:var(--azul)"></div></div><div class="mut" style="margin:0">${hechas}/${total}${fall?` · <span style="color:#b3261e">fallidas ${fall}</span>`:""} · <a class="lnk" onclick="adminDlCancelar()">cancelar</a></div>`); }
 window.adminDlCancelar=()=>{ adminDlCancel=true; };
@@ -1338,6 +1381,7 @@ function irACaptura(){
   const mk=(cfg&&cfg.marca)||{}; $("pos").value=mk.pos||"bl"; $("esc").value=mk.esc||"3.4"; $("marca").checked=mk.on!==false;   // marca fijada por el ejecutivo
   $("btnGal").classList.toggle("hide", !!cfg && cfg.gal===false);   // v34: el productor puede apagar la galería
   $("ctx").textContent = (cfg.cl||"—")+" · "+(cfg.ev||"—")+((operador&&operador.prov)?("  ·  "+operador.prov):"")+(cfg.pd?("  ·  hoy "+fmtDia(isoHoy())):"");
+  admPintarPanel();   /* v39 */
   batch=[]; renderLista(); show("cap"); window.scrollTo(0,0);
   if(IN_APP) $("inAppAviso").classList.remove("hide");
   sinGpsHasta=0; pedirUbicacion(); vigilarPermisoGPS(); actualizarGuia();
@@ -1503,7 +1547,7 @@ $("item").addEventListener("change", ()=>{
 if($("syncProg")) $("syncProg").addEventListener("click", ()=>sincronizarProgreso(false));
 /* Requerimiento adicional (agregado por el operador en sitio) */
 $("addAdic").addEventListener("click", ()=>{ ["adReq","adCant","adQuien","adNota"].forEach(id=>$(id).value="");
-  $("adPd").value="no"; $("adDias").value="1"; $("adPdWrap").classList.toggle("hide", !(cfg&&cfg.pd)); $("adDiasWrap").classList.add("hide");   /* v38 */
+  $("adPd").value="no"; $("adDias").value="1"; $("adPdWrap").classList.toggle("hide", !(cfg&&cfg.pd)); { const g=$("adGrupo"); if(g){ g.innerHTML='<option value="">— Sin categoría —</option>'+categoriasDelEvento().map(c=>`<option value="${escAttr(c)}">${escAttr(c)}</option>`).join(""); const ci=itemById($("item")&&selIidDe($("item").value)); const cc=ci&&!ci.adicional?String(ci.cat||ci.grupo||""):""; if(cc) g.value=cc; } }   /* v39 */ $("adDiasWrap").classList.add("hide");   /* v38 */
   $("adicm").classList.remove("hide"); });
 $("adPd").addEventListener("change", ()=>$("adDiasWrap").classList.toggle("hide", $("adPd").value!=="si"));
 $("adClose").addEventListener("click", ()=>$("adicm").classList.add("hide"));
@@ -1518,7 +1562,7 @@ $("adSave").addEventListener("click", ()=>{
   const prov=(operador&&operador.prov)||"";
   const porDia = !!(cfg&&cfg.pd) && $("adPd").value==="si";   /* v38: por defecto NO */
   const nd = Math.max(1, parseInt($("adDias").value,10)||1);
-  a.push({codigo:cod, req, cant:$("adCant").value.trim(), prov, nit:nitDeProveedor(prov), cat:"Adicionales", adicional:true, solicitadoPor:quien, justificacion:$("adNota").value.trim(),
+  a.push({codigo:cod, req, cant:$("adCant").value.trim(), prov, nit:nitDeProveedor(prov), cat:"Adicionales", grupo:($("adGrupo")&&$("adGrupo").value)||"", adicional:true, solicitadoPor:quien, justificacion:$("adNota").value.trim(),
           pd:porDia, fechas:porDia?fechasConsecutivas(isoHoy(), nd):[]});
   guardarAdicionales(a); $("adicm").classList.add("hide");
   const iid=iidDe(cod,"Adicionales",1);
@@ -1572,12 +1616,14 @@ function agregar(fileList, meta, metaResp){
     const video=/^video\//.test(file.type)||/\.(mp4|mov|m4v|3gp|webm|avi|mkv)$/i.test(file.name);
     const ext=video?((file.name.split(".").pop()||"mp4").toLowerCase()):"jpg";
     const e={id:++seq,file,itemCodigo:cod,fechaSel:fSel||"",tipo:video?"video":"foto",ext,status:"procesando",blob:null,thumb:"",datos:{},filename:"",meta:meta||null,metaResp:metaResp||null,cargada};
+    if(admCargaActiva() && $("admSinHora") && $("admSinHora").checked){ e.sinHora=true; e.declPor=admCorreo()||"admin"; }   /* v40 */
     batch.push(e); nuevos.push(e); ps.push(procesar(e)); });
   renderLista();
   Promise.all(ps).then(()=>{   /* v34: avisos del lote — fotos rechazadas por fecha y galería sin metadatos */
     const rech=nuevos.filter(e=>e.rechazo), sm=meta?[]:nuevos.filter(e=>!e.rechazo && e.sinMeta); const msg=[];
     if(rech.length) msg.push((rech.length===1?"Esta foto NO se cargó: ":"Estas "+rech.length+" fotos NO se cargaron:\n• ")+rech.map(e=>e.rechazo).join("\n• ")+".\n\nSolo se aceptan fotos tomadas el día de la línea que elegiste.");
-    if(sm.length) msg.push((sm.length===1?"Esta foto no trae":"Estas "+sm.length+" fotos no traen")+" la fecha ni la ubicación originales. Seguro pasaron por WhatsApp o por una app de marca de agua.\n\nQuedan marcadas «sin ubicación» y no sirven bien como prueba.\n\nSi puedes, quítalas y tómalas de nuevo con «Capturar foto».");
+    if(sm.length && admCargaActiva()) msg.push((sm.length===1?"Esta foto no trae":"Estas "+sm.length+" fotos no traen")+" la fecha ni la ubicación originales.\n\nComo administrador: si ya traen marca de agua, usa «No aplicar marca configurada»; si no, «Completar ubicación y fecha de las fotos sin datos» (sin hora).");   /* v39 */
+    else if(sm.length) msg.push((sm.length===1?"Esta foto no trae":"Estas "+sm.length+" fotos no traen")+" la fecha ni la ubicación originales. Seguro pasaron por WhatsApp o por una app de marca de agua.\n\nQuedan marcadas «sin ubicación» y no sirven bien como prueba.\n\nSi puedes, quítalas y tómalas de nuevo con «Capturar foto».");
     if(msg.length) alert(msg.join("\n\n— — —\n\n")); });
 }
 /* VOCABULARIO: en la interfaz el rol "operador" se llama PROVEEDOR y el "ejecutivo" se llama
@@ -1660,8 +1706,8 @@ async function procesar(entry){
     ex.lat=num(ex.lat); ex.lon=num(ex.lon);
     let lugar="",lugLin=[]; if(ex.lat!=null&&ex.lon!=null){ const d=await geocodeThrottled(ex.lat,ex.lon); if(d){ lugar=d.txt; lugLin=d.lineas; } }
     entry.datos={fecha:ex.fecha,hora:ex.hora,lugar,lugLin,lat:ex.lat,lon:ex.lon,sinMeta:!!entry.sinMeta,origen:entry.fechaOrigen||"",fcarga:(entry.cargada&&entry.cargada.fecha)||""};
-    const texto=textoMarca(entry.datos);
-    const out=await dibujar(bitmap,texto,$("marca").checked);
+    const sl=selloDe(entry);
+    const out=await dibujar(bitmap,sl.texto,sl.con);
     entry.blob=out.blob; entry.thumb=out.thumb;
     entry.status = out.vacio ? "⚠ salió en negro — vuelve a tomarla" : "listo";
     if(!lugar && ex.lat!=null) programarCompletado();   // se resella sola en cuanto haya dirección
@@ -1670,7 +1716,7 @@ async function procesar(entry){
 }
 function claveDe(iid){ return `${(cfg&&cfg.uid)||"SIN-UID"}|${iid}`; }   // = item_id de la base: llave global e inmutable
 function calcularNombres(){ const u={}; batch.forEach(e=>{ if(!e.itemCodigo){ e.filename=""; return; } const base=counters[claveDe(e.itemCodigo)]||0; u[e.itemCodigo]=(u[e.itemCodigo]||0)+1; e.consec=base+u[e.itemCodigo]; const desc=slug(itemReq(e.itemCodigo)); const cat=itemCat(e.itemCodigo); const ot=opTag();
-  const fch=fechaEfectiva(e); const hr=(e.datos.hora||(e.cargada?e.cargada.hora:"")).replace(/:/g,""); const fh=fch?("_"+fch+(hr?"_"+hr:"")):"";   // fecha/hora de captura (EXIF/dispositivo), declarada, o de carga
+  const fch=fechaEfectiva(e); const hr=e.sinHora?"":(e.datos.hora||((e.cargada&&!admDeclara(e))?e.cargada.hora:"")).replace(/:/g,""); const fh=fch?("_"+fch+(hr?"_"+hr:"")):"";   // fecha/hora de captura (EXIF/dispositivo), declarada, o de carga
   const dd=diaDeFoto(e); const tokDia=dd?`_D${dd.idx}de${dd.n}`:"";   // Capa 13: D2de5 = día 2 de 5 del evento · D0de5 = fecha fuera de las programadas
   e.filename=`${slug(cfg.cl)}_${slug(cfg.ev)}_${cat?slug(cat)+"_":""}${itemCod(e.itemCodigo)}${desc&&desc!=="NA"?"_"+desc:""}${ot?"_"+ot:""}${tokDia}${fh}_${String(e.consec).padStart(3,"0")}.${e.ext||"jpg"}`; }); }
 function renderLista(){
@@ -1689,28 +1735,30 @@ function renderLista(){
     const badge=e.tipo==="video"?`<span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-size:22px;text-shadow:0 1px 4px #000">▶</span>`:"";
     const thumbHtml=e.thumb?`<div style="position:relative;flex:none;width:66px;height:66px"><img src="${e.thumb}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#000">${badge}</div>`
       :`<div style="width:66px;height:66px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px;background:#f0f0f0;border-radius:7px">${e.tipo==="video"?"▶":"…"}</div>`;
-    const sinUbi = (e.status==="listo" && e.datos && !esNum(e.datos.lat)) ? ' <span style="color:#b3261e" title="Sin coordenadas: el sello no lleva dirección">⚠ sin ubicación</span>'
+    const sinUbi = (e.status==="listo" && e.datos && !esNum(e.datos.lat) && !(admDeclara(e) && e.datos.lugar)) ? ' <span style="color:#b3261e" title="Sin coordenadas: el sello no lleva dirección">⚠ sin ubicación</span>'
       : ((e.status==="listo" && e.datos && !e.datos.lugar) ? ' <span style="color:#7a4a12" title="Hay GPS pero ningún geocoder respondió; el sello quedó con coordenadas. Se reintenta al recuperar señal.">⚠ sin dirección</span>' : '');
     const pend=pendienteFecha(e), confl=conflictoFecha(e);
     const fnHtml = (e.status!=="listo" ? '<span style="color:var(--muted)">'+e.status+'</span>'
       : (!e.itemCodigo ? '<span style="color:#b3261e">Asigna un requerimiento ↑</span>'
         : (confl ? `<span style="color:#b3261e">La foto es del <b>${fmtDia(e.datos.fecha)}</b> y la línea elegida es del <b>${fmtDia(e.fechaSel)}</b>: muévela a la línea correcta ↑ o quítala.</span>`
-        : (pend?'<span style="color:#b3261e">Foto de galería sin fecha: indica de qué día es ↓</span>':e.filename)))) + sinUbi;
+        : (admFalta(e)?'<span style="color:#b3261e">'+admFalta(e)+'</span>'
+        : (pend?'<span style="color:#b3261e">Foto de galería sin fecha: indica de qué día es ↓</span>':e.filename))))) + sinUbi;
     let selFecha=""; if(e.status==="listo" && e.itemCodigo && e.fechaOrigen==="declarada" && !e.fechaSel){ const d=diaDeFoto(e); const fs=(d&&d.fechas)||[]; const hoy=isoHoy(); const ops=fs.filter(f=>f<=hoy); if(!ops.includes(hoy)) ops.push(hoy);
       selFecha=`<select onchange="declararFecha(${e.id},this.value)" style="margin-top:4px"><option value="">— ¿De qué día es esta foto? —</option>${ops.map(f=>`<option value="${f}" ${e.fechaDecl===f?"selected":""}>${f===hoy?"Hoy · ":(f===sumarDias(hoy,-1)?"Ayer · ":"")}${fmtDia(f)}${fs.includes(f)?` (día ${fs.indexOf(f)+1} de ${fs.length})`:" (no programado)"}</option>`).join("")}</select>`; }
     const etiqueta=(e.status==="listo"&&e.itemCodigo&&!pend)?etiquetaFecha(e):"";
     d.innerHTML=thumbHtml+
-      `<div class="in"><select onchange="cambiarItem(${e.id},this.value)">${opts}</select>${selFecha}${etiqueta}<div class="fn">${fnHtml}</div>
+      `<div class="in"><select onchange="cambiarItem(${e.id},this.value)">${opts}</select>${selFecha}${admFila(e)}${etiqueta}<div class="fn">${fnHtml}</div>
        <div class="ac">${e.status==="listo"&&e.itemCodigo?`<a class="lnk" onclick="descargarUno(${e.id})">descargar</a>`:""}<a class="lnk" onclick="quitar(${e.id})">quitar</a></div></div>`;
     c.appendChild(d);
   });
-  pintarProgreso();
+  pintarProgreso(); admPanelVisible();
   if($("item") && document.activeElement!==$("item")) poblarItemTop();   // refresca ✓/◔/○ en el selector (y las líneas por día)
   guardarLote();   // respalda el lote en curso (IndexedDB) ante recargas
 }
 window.cambiarItem=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e) return;
   if(selFechaDe(v) && selFechaDe(v)>isoHoy()){ alert("Ese día todavía no llega.\n\nElige la línea de HOY."); renderLista(); return; }   /* v34 */ const antes=fechaEfectiva(e); e.itemCodigo=selIidDe(v); e.fechaSel=selFechaDe(v);
   if(e.fechaOrigen==="declarada"){ e.fechaDecl=e.fechaSel||e.fechaDecl||""; if(e.datos) e.datos.fecha=e.fechaDecl||""; }
+  if(admDeclara(e)){ admAplicar(e); resellar(e).then(renderLista); }   /* v39 */
   renderLista(); if(e.fechaOrigen==="declarada" && fechaEfectiva(e)!==antes && typeof redibujarTodas==="function") redibujarTodas(); };
 window.quitar=(id)=>{ batch=batch.filter(x=>x.id!==id); renderLista(); };
 window.descargarUno=(id)=>{ const e=batch.find(x=>x.id===id); if(e&&e.blob) bajar(e.blob,e.filename); };
@@ -1721,9 +1769,9 @@ async function redibujarTodas(){
   if(redibujando) return; redibujando=true;
   try{ for(const e of batch){ if(e.tipo==="video"||e.status!=="listo"||!e.datos) continue;
     try{
-      if(esNum(e.datos.lat) && !e.datos.lugar){ const d=await geocodeThrottled(e.datos.lat,e.datos.lon); if(d){ e.datos.lugar=d.txt; e.datos.lugLin=d.lineas; } }
-      const bmp=await decodificar(e.file); const texto=textoMarca(e.datos);
-      const out=await dibujar(bmp,texto,$("marca").checked); e.blob=out.blob; e.thumb=out.thumb;
+      if(esNum(e.datos.lat) && !e.datos.lugar){ const d=await geocodeThrottled(e.datos.lat,e.datos.lon); if(d){ e.datos.lugar=d.txt; e.datos.lugLin=d.lineas; if(e.orig&&e.orig.datos){ e.orig.datos.lugar=d.txt; e.orig.datos.lugLin=d.lineas; } } }
+      const bmp=await decodificar(e.file); const sl=selloDe(e);
+      const out=await dibujar(bmp,sl.texto,sl.con); e.blob=out.blob; e.thumb=out.thumb;
     }catch(_){} } }
   finally{ redibujando=false; renderLista(); }
 }
@@ -1731,7 +1779,7 @@ async function redibujarTodas(){
 /* Re-sella UNA evidencia con los datos que ya tiene (no vuelve a pedir nada a la red). */
 async function resellar(e){
   try{ const bmp=await decodificar(e.file);
-    const out=await dibujar(bmp, textoMarca(e.datos), $("marca").checked);
+    const sl=selloDe(e); const out=await dibujar(bmp, sl.texto, sl.con);
     e.blob=out.blob; e.thumb=out.thumb; return true; }catch(_){ return false; }
 }
 /* Completa las direcciones que faltaron y vuelve a sellar sólo esas fotos. Barato: si la
@@ -1857,9 +1905,13 @@ async function subirEvidencia(e, radicado){
       cantidad:String(itemCant(e.itemCodigo)||""), adicional:!!itemAdic(e.itemCodigo), solicitado_por:ad.solicitadoPor||"", justificacion:ad.justificacion||"",
       operador_nombre:operador.nombre, operador_cedula:operador.cedula, operador_celular:operador.celular,
       tipo:e.tipo||"foto", archivo:e.filename, storage_path:"evidencias/"+path,
-      fecha:fechaEfectiva(e)||"", hora:e.datos.hora||"", lugar:e.datos.lugar||"", lat:e.datos.lat, lon:e.datos.lon };
+      fecha:fechaEfectiva(e)||"", hora:e.sinHora?"":(e.datos.hora||""), lugar:e.datos.lugar||"", lat:e.datos.lat, lon:e.datos.lon };
     const dd=diaDeFoto(e); row.fecha_origen=e.fechaOrigen||""; row.dia_evento=dd?dd.idx:null; row.dias_evento=dd?dd.n:null;   // Capa 13
+    if(e.declPor) row.declarado_por=e.declPor; if(ad.grupo) row.grupo=ad.grupo;   /* v39 (Capa 15) */
     let ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row)}, 15000);
+    if(!ins.ok && (row.declarado_por!==undefined || row.grupo!==undefined)){   /* Capa 15 sin correr: soltar SOLO sus columnas */
+      delete row.declarado_por; delete row.grupo;
+      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row)}, 15000); }
     if(!ins.ok){   // Capa 13 sin correr: soltar SOLO sus columnas, sin perder item_id
       const row0=Object.assign({},row); delete row0.fecha_origen; delete row0.dia_evento; delete row0.dias_evento;
       ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row0)}, 15000); }
@@ -2177,6 +2229,108 @@ function textoMarca(d){ if(!d) return "";
   if(!lin.length && hayCoord) L.push(`${(+d.lat).toFixed(6)}, ${(+d.lon).toFixed(6)}`);
   if(!lin.length && !hayCoord) L.push("Sin ubicación");
   return L.join("\n"); }
+/* ===== v39 · CARGA DEL ADMINISTRADOR: sello por foto (reunión con Kevin, 25-sep-2026) =====
+   A) la foto ya trae marca de otra app → «Ya trae marca»: se sube SIN el sello de la app.
+   C) llegó sin metadatos (WhatsApp) → «Completar lugar y fecha»: el admin declara lugar y fecha, NUNCA la hora.
+   El sello de C lleva un "_" pegado a la fecha (convención interna, no se explica en la foto). En la base:
+   fecha_origen = admin | admin-sin-sello y declarado_por = correo de la sesión. Solo con sesión de admin vigente
+   en este navegador; el proveedor no ve nada de esto. Los datos originales quedan en e.orig para poder deshacer. */
+/* v40: la carga del administrador es un MÓDULO aparte (reunión con Kevin, 25-sep 4:12 p. m.): sus herramientas solo existen
+   si se entró por «Carga de administrador» desde el panel admin (bandera por pestaña en sessionStorage, atada al evento) y la
+   sesión sigue vigente. El enlace del proveedor abre otra pestaña sin bandera → pantalla del proveedor tal cual (v38). */
+function admBandera(){ try{ return sessionStorage.getItem(NS+"adm_carga")||""; }catch(_){ return ""; } }
+function admSalirModo(){ try{ sessionStorage.removeItem(NS+"adm_carga"); }catch(_){} }
+function admCargaActiva(){ try{ return typeof adminValido==="function" && adminValido() && !!cfg && !!cfg.uid && admBandera()===cfg.uid; }catch(_){ return false; } }
+window.adminCargar=(i)=>{ const e=adminEventos[i]; if(!e) return; if(!adminValido()){ adminSesExpirada(); return; }
+  try{ sessionStorage.setItem(NS+"adm_carga", e.uid); }catch(_){}
+  location.href="?ev="+encodeURIComponent(e.uid); };   /* relativo: se queda en /beta/ */
+window.admSalir=()=>{ admSalirModo(); renderLista(); };
+function admCorreo(){ try{ const p=String((adminSes&&adminSes.token)||"").split(".")[1]; if(!p) return "";
+  const b=atob(p.replace(/-/g,"+").replace(/_/g,"/")); const j=JSON.parse(decodeURIComponent(b.split("").map(c=>"%"+("00"+c.charCodeAt(0).toString(16)).slice(-2)).join("")));
+  return String(j.email||""); }catch(_){ return ""; } }
+function admModoDe(e){ return (e&&e.adm&&e.adm.modo)||""; }
+function admDeclara(e){ const m=admModoDe(e); return m==="sin"||m==="comp"; }
+function admSinGps(e){ const d=(e&&e.orig&&e.orig.datos)||(e&&e.datos)||{}; return !esNum(d.lat); }
+function admFechaReal(e){ const o=(e&&e.orig)||{datos:e&&e.datos,fechaOrigen:e&&e.fechaOrigen};
+  return (o.fechaOrigen==="captura"||o.fechaOrigen==="metadatos") ? ((o.datos&&o.datos.fecha)||"") : ""; }
+/* Recalcula datos y origen de la foto según su modo. No dibuja. */
+function admAplicar(e){ if(!e||!e.datos||e.tipo==="video") return;
+  if(!e.orig) e.orig={datos:Object.assign({},e.datos), fechaOrigen:e.fechaOrigen||""};
+  const o=e.orig, m=admModoDe(e);
+  e.datos=Object.assign({},o.datos); e.fechaOrigen=o.fechaOrigen; e.declPor=e.sinHora?(admCorreo()||"admin"):"";
+  if(!admDeclara(e)) return;
+  const real=admFechaReal(e), it=itemById(e.itemCodigo);
+  const f = real || ((esPorDia(it)&&e.fechaSel) ? e.fechaSel : ((e.adm&&e.adm.fecha)||""));
+  e.datos.fecha=f; if(!real) e.datos.hora="";      // la hora solo si es la real de la foto
+  e.datos.sinMeta=false;
+  if(m==="comp" && admSinGps(e)){ const lug=String((e.adm&&e.adm.lugar)||"").trim();
+    e.datos.lugar=lug; e.datos.lugLin=lug?lug.split(",").map(x=>x.trim()).filter(Boolean):[]; e.datos.lat=null; e.datos.lon=null; }
+  e.fechaOrigen = m==="sin" ? "admin-sin-sello" : "admin";
+  e.declPor = admCorreo() || "admin";
+}
+/* Qué se estampa: {texto, con}. Sin modo admin = como siempre (lo decide el evento). */
+function selloDe(e){ const m=admModoDe(e);
+  if(m==="sin") return {texto:"", con:false};
+  let t=textoMarca(e&&e.sinHora ? Object.assign({},e.datos,{hora:""}) : (e&&e.datos));   /* v40: sello sin hora */
+  if(m==="comp" && e.datos && e.datos.fecha){ const L=t.split("\n"); L[0]=L[0]+"_"; t=L.join("\n"); }
+  return {texto:t, con: (m || e&&e.sinHora) ? true : $("marca").checked}; }
+/* Motivo por el que una foto en modo admin todavía no puede salir ("" = lista). */
+function admFalta(e){ if(!e||e.status!=="listo"||!e.itemCodigo) return "";
+  if(!admDeclara(e)){ return (admCargaActiva() && e.tipo!=="video" && e.sinMeta && !admModoDe(e))
+      ? "Foto sin fecha ni ubicación: elige arriba «Completar ubicación y fecha…» o «No aplicar marca configurada»" : ""; }
+  if(!(e.datos&&e.datos.fecha)) return "Falta la fecha: elígela en el panel de administrador ↑";
+  if(admModoDe(e)==="comp" && admSinGps(e) && !(e.datos&&e.datos.lugar)) return "Falta el lugar: escríbelo en el panel de administrador ↑";
+  return ""; }
+function admFila(e){ if(!admCargaActiva() || !e || e.status!=="listo" || e.tipo==="video") return "";
+  const m=admModoDe(e), ev=$("marca").checked?"con sello":"sin sello";
+  const op=(v,t)=>`<option value="${v}" ${m===v?"selected":""}>${t}</option>`;
+  let h=`<select onchange="admModo(${e.id},this.value)" style="margin-top:4px">${op("","Sello: como el evento ("+ev+")")}${op("app","Sello de la app")}${op("sin","No aplicar marca configurada (ya la trae)")}${admSinGps(e)?op("comp","Completar ubicación y fecha (sin hora)"):""}</select>`;
+  h+=`<label class="mut" style="display:flex;gap:6px;align-items:center;margin:4px 0 0;font-size:12px"><input type="checkbox" style="width:auto;margin:0" ${e.sinHora?"checked":""} onchange="admHora(${e.id},this.checked)"> sin hora</label>`;
+  if(admDeclara(e)){ const f=e.datos&&e.datos.fecha;
+    h+=`<div class="mut" style="margin:2px 0 0;font-size:12px">🔐 ${m==="sin"?"Sin sello de la app":"Lugar y fecha declarados"}${m==="comp"&&admSinGps(e)?" · 📍 "+escAttr((e.datos&&e.datos.lugar)||"sin lugar"):""}</div>`; }   /* la fecha ya la muestra etiquetaFecha */
+  return h; }
+function admLugaresKey(){ return NS+"adm_lugares_"+((cfg&&cfg.uid)||"x"); }
+function admRecordarLugar(l){ l=String(l||"").trim(); if(!l) return; try{ const a=(loadJSON(admLugaresKey(),[])||[]).filter(x=>x!==l); a.unshift(l); saveJSON(admLugaresKey(),a.slice(0,8)); }catch(_){} }
+function admFechasPosibles(){ const hoy=isoHoy(), fe=cfg&&cfg.fe, ff=(cfg&&cfg.ff)||fe; const out=[];
+  if(fe){ let f=fe; let n=0; while(f<=ff && f<=hoy && n<400){ out.push(f); f=sumarDias(f,1); n++; } }
+  else { for(let k=0;k<15;k++) out.push(sumarDias(hoy,-k)); }
+  return out; }
+function admPintarPanel(){ const box=$("admCarga"); if(!box) return;
+  const sel=$("admFecha"), fs=admFechasPosibles(), cur=sel.value;
+  sel.innerHTML=`<option value="">— Elige la fecha —</option>`+fs.map(f=>`<option value="${f}">${fmtDia(f)}${f===isoHoy()?" · hoy":""}</option>`).join("");
+  if(cur && fs.includes(cur)) sel.value=cur;
+  const rec=loadJSON(admLugaresKey(),[])||[]; const dl=$("admLugares"); dl.innerHTML=""; rec.forEach(l=>{ const o=document.createElement("option"); o.value=l; dl.appendChild(o); });
+  if(!$("admLugar").value){ let inf={}; try{ inf=loadJSON(NS+"informe_"+((cfg&&cfg.uid)||""),{})||{}; }catch(_){}
+    $("admLugar").value = rec[0] || inf.lugar || (cfg&&cfg.ci) || ""; }
+  try{ $("admSinHora").checked = sessionStorage.getItem(NS+"adm_sinhora")==="1"; }catch(_){}
+  $("admMsg").textContent=""; admPanelVisible(); }
+function admPanelVisible(){ const box=$("admCarga"); if(box) box.classList.toggle("hide", !admCargaActiva()); }
+async function admResellarVarias(lista){ for(const e of lista){ admAplicar(e); await resellar(e); } renderLista(); }
+window.admModo=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e) return;
+  e.adm = v ? {modo:v, fecha:$("admFecha").value, lugar:$("admLugar").value.trim()} : null;
+  if(v==="comp") admRecordarLugar(e.adm.lugar);
+  admResellarVarias([e]); };
+window.admHora=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e) return; e.sinHora=!!v; if(v && !e.declPor) e.declPor=admCorreo()||"admin"; resellar(e).then(renderLista); };
+function admListas(){ return batch.filter(e=>e.status==="listo" && e.tipo!=="video" && e.datos); }
+$("admCompletar").addEventListener("click", ()=>{ const lug=$("admLugar").value.trim(), f=$("admFecha").value;
+  const l=admListas().filter(admSinGps);
+  if(!l.length){ $("admMsg").textContent="No hay fotos sin ubicación en el lote."; return; }
+  if(!lug){ $("admMsg").textContent="Escribe el lugar primero."; return; }
+  l.forEach(e=>{ e.adm={modo:"comp", fecha:f, lugar:lug}; }); admRecordarLugar(lug);
+  $("admMsg").textContent=`${l.length} foto${l.length===1?"":"s"} con lugar y fecha declarados${f?"":" · falta elegir la fecha"}.`;
+  admResellarVarias(l); });
+$("admSinSello").addEventListener("click", ()=>{ const l=admListas(); if(!l.length){ $("admMsg").textContent="Aún no hay fotos en el lote."; return; }
+  const f=$("admFecha").value; l.forEach(e=>{ e.adm={modo:"sin", fecha:f, lugar:""}; });
+  $("admMsg").textContent=`${l.length} foto${l.length===1?"":"s"} sin sello de la app.`; admResellarVarias(l); });
+$("admSinHora").addEventListener("change", ()=>{ const v=$("admSinHora").checked; const l=admListas(); try{ sessionStorage.setItem(NS+"adm_sinhora", v?"1":""); }catch(_){}
+  l.forEach(e=>{ e.sinHora=v; if(v && !e.declPor) e.declPor=admCorreo()||"admin"; });
+  $("admMsg").textContent = l.length ? `${l.length} foto${l.length===1?"":"s"} ${v?"sin":"con"} hora en el sello.` : (v?"Las fotos que cargues saldrán sin hora.":"");
+  (async()=>{ for(const e of l) await resellar(e); renderLista(); })(); });
+/* Cambiar fecha o lugar del panel actualiza las fotos que ya están en modo administrador. */
+["admFecha","admLugar"].forEach(id=>$(id).addEventListener("change", ()=>{ const f=$("admFecha").value, lug=$("admLugar").value.trim();
+  const l=batch.filter(e=>admDeclara(e)); if(!l.length) return;
+  l.forEach(e=>{ e.adm.fecha=f; if(e.adm.modo==="comp") e.adm.lugar=lug; }); if(lug) admRecordarLugar(lug);
+  $("admMsg").textContent=`${l.length} foto${l.length===1?"":"s"} actualizada${l.length===1?"":"s"}${f?"":" · falta elegir la fecha"}.`; admResellarVarias(l); }));
 function geoKey(lat,lon){ return (+lat).toFixed(3)+","+(+lon).toFixed(3); }
 function metrosEntre(la1,lo1,la2,lo2){ const R=111320, dy=(la2-la1)*R, dx=(lo2-lo1)*R*Math.cos(la1*Math.PI/180); return Math.sqrt(dx*dx+dy*dy); }
 function geoCercano(lat,lon){ for(const k in geoCache){ const v=geoCache[k];

@@ -64,6 +64,10 @@ function construirModelo(ctx, op){
   const orden=(a,b)=>String((a.fecha||"")+(a.hora||"")+(a.creado||"")).localeCompare(String((b.fecha||"")+(b.hora||"")+(b.creado||"")));
   const hoy=D.isoHoy();
   const reqs=[];
+  /* v39.1: categoría por el prefijo del nombre ("Festival Clubes - …") para ítems/adicionales sin categoría */
+  const nz=x=>String(x||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").trim();
+  const catsEv=new Map(); items.forEach(it=>{ const c=String(it.cat||it.grupo||"").trim(); if(c && c!=="Adicionales") catsEv.set(nz(c),c); });
+  const porPrefijo=req=>{ const m=String(req||"").match(/^\s*([^\-–—:]{3,60}?)\s*[-–—:]\s+\S/); return m?(catsEv.get(nz(m[1]))||""):""; };
   const armar=(it,lista,adicional)=>{
     lista=(lista||[]).slice().sort(orden);
     const porDia=!adicional && !!cfg.pd && D.candidatoPorDia(it) && it.pd!==false && D.fechasDeItem(it,cfg.fe||"").length>0;
@@ -81,18 +85,27 @@ function construirModelo(ctx, op){
     else { estado=porDia?`Completo · ${fechas.length}/${fechas.length} días`:"Con evidencia"; color=VERDE_OK; }
     /* `prov` se queda en el modelo (lo usa quien depure desde la consola) pero NO se imprime en ningún
        documento: el informe lo lee el cliente final y no tiene por qué conocer a los proveedores. */
-    return {it, codigo:it.codigo||"", req:it.req||"", cat:it.cat||"", cant:it.cant||"", um:it.um||"", prov:it.prov||"", car:it.car||"",
+    return {it, codigo:it.codigo||"", req:it.req||"", cat:it.cat||it.grupo||porPrefijo(it.req), grupo:(adicional?(it.grupo||""):(it.cat||it.grupo||""))||porPrefijo(it.req), cant:it.cant||"", um:it.um||"", prov:it.prov||"", car:it.car||"",
       adicional, solicitado:it.solicitado||"", justificacion:it.justificacion||"", porDia, fechas, diasCub, diasFalta, total:lista.length, bloques, estado, color};
   };
   items.forEach(it=>{ const lista=grupos.get(it.iid)||[]; if(filtrado && !lista.length) return; reqs.push(armar(it,lista,false)); });
   const extras=[];
   if(op.adicionales){ grupos.forEach((lista,k)=>{ if(porIid.has(k)) return; const e0=lista[0]||{};
-    extras.push(armar({codigo:e0.item,req:e0.requerimiento,cat:e0.categoria,cant:e0.cantidad,prov:e0.proveedor,solicitado:e0.solicitado_por,justificacion:e0.justificacion},lista,true)); }); }
+    extras.push(armar({codigo:e0.item,req:e0.requerimiento,cat:e0.categoria,grupo:e0.grupo||"",cant:e0.cantidad,prov:e0.proveedor,solicitado:e0.solicitado_por,justificacion:e0.justificacion},lista,true)); }); }
   const conEv=reqs.filter(r=>r.total>0);
+  /* v40: orden de categorías = primera aparición en la plantilla (orden de la cotización) */
+  const rankM=new Map(); items.forEach(it=>{ const k=nz(it.cat||it.grupo||""); if(k && k!=="adicionales" && !rankM.has(k)) rankM.set(k,rankM.size); });
+  const rankInf=c=>{ const k=nz(c); return rankM.has(k)?rankM.get(k):1e6; };
   return { ev, cfg, filtrado, reqs, extras, conEv,
-    visibles: op.version==="cliente" ? conEv.concat(extras.filter(r=>r.total)) : reqs.concat(extras),
+    /* v39: cada adicional va al final de SU categoría (grupo), no todos juntos al final del informe */
+    visibles: (op.version==="cliente" ? conEv.concat(extras.filter(r=>r.total)) : reqs.concat(extras)).map((r,i)=>({r,i})).sort((x,y)=>ordenInf(x.r,y.r,rankInf)||x.i-y.i).map(x=>x.r),
     totalFotos: fotos.length };
 }
+function ordenInf(a,b,rank){ const ca=String(a.grupo||"").trim(), cb=String(b.grupo||"").trim();
+  if(!ca!==!cb) return ca?-1:1;
+  if(rank){ const ra=rank(ca), rb=rank(cb); if(ra!==rb) return ra-rb; }
+  const c=ca.localeCompare(cb,"es",{sensitivity:"base"}); if(c) return c;
+  return (a.adicional?1:0)-(b.adicional?1:0); }   /* empate: se desempata por el orden de la plantilla */
 /* Parte el informe por categorías, respetando el tope de fotos por archivo. Un requerimiento nunca se corta. */
 function partir(lista){
   const partes=[]; let actual=[], n=0;
@@ -178,7 +191,7 @@ async function generarPPTX(m, lista, fotos, op, parte){
   const cw=(W-2*MX-(COLS-1)*GAP)/COLS;
   const hojaFotos=(r,bloque,grupo,k,nk)=>{
     const sl=pptx.addSlide({masterName:"INF"});
-    const meta=[r.adicional?"ADICIONAL EN SITIO":r.cat, r.cant?`Cantidad: ${r.cant}${r.um?" "+String(r.um).toLowerCase():""}`:"", bloque.titulo, nk>1?`(${k}/${nk})`:""].filter(Boolean).join("  ·  ");
+    const meta=[r.adicional?("ADICIONAL EN SITIO"+(r.grupo?" · "+r.grupo:"")):r.cat, r.cant?`Cantidad: ${r.cant}${r.um?" "+String(r.um).toLowerCase():""}`:"", bloque.titulo, nk>1?`(${k}/${nk})`:""].filter(Boolean).join("  ·  ");
     cabecera(sl,`Evidencias · ${r.codigo?r.codigo+" ":""}${r.req}`,meta);
     const nota=r.adicional?[r.solicitado?`Solicitado por: ${r.solicitado}`:"",r.justificacion].filter(Boolean).join(" · "):r.car;
     if(nota) sl.addText(recorta(nota,210),{x:0.5,y:1.10,w:12.33,h:0.32,fontFace:F,fontSize:11,italic:true,color:"6B6B6B",margin:0,valign:"top"});
@@ -274,7 +287,7 @@ async function generarDOCX(m, lista, fotos, op, parte){
   lista.forEach(r=>{
     if(!r.total && op.version!=="interno") return;
     hijos.push(H2(`${r.codigo?r.codigo+" · ":""}${r.req}`));
-    hijos.push(P([r.adicional?"Adicional en sitio":r.cat, r.cant?`Cantidad: ${r.cant}${r.um?" "+String(r.um).toLowerCase():""}`:"", `Estado: ${r.estado}`].filter(Boolean).join("  ·  "),{size:18,color:GRIS},{keepNext:true}));
+    hijos.push(P([r.adicional?("Adicional en sitio"+(r.grupo?" · "+r.grupo:"")):r.cat, r.cant?`Cantidad: ${r.cant}${r.um?" "+String(r.um).toLowerCase():""}`:"", `Estado: ${r.estado}`].filter(Boolean).join("  ·  "),{size:18,color:GRIS},{keepNext:true}));
     const nota=r.adicional?[r.solicitado?`Solicitado por: ${r.solicitado}`:"",r.justificacion].filter(Boolean).join(" · "):r.car;
     if(nota) hijos.push(P(recorta(nota,400),{size:17,italics:true,color:"6B6B6B"},{keepNext:true,spacing:{after:80}}));
     if(!r.total){ hijos.push(P("SIN EVIDENCIA REGISTRADA",{bold:true,color:ROJO,size:20})); return; }
