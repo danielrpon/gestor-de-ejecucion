@@ -64,6 +64,10 @@ function construirModelo(ctx, op){
   const orden=(a,b)=>String((a.fecha||"")+(a.hora||"")+(a.creado||"")).localeCompare(String((b.fecha||"")+(b.hora||"")+(b.creado||"")));
   const hoy=D.isoHoy();
   const reqs=[];
+  /* v39.1: categoría por el prefijo del nombre ("Festival Clubes - …") para ítems/adicionales sin categoría */
+  const nz=x=>String(x||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").trim();
+  const catsEv=new Map(); items.forEach(it=>{ const c=String(it.cat||it.grupo||"").trim(); if(c && c!=="Adicionales") catsEv.set(nz(c),c); });
+  const porPrefijo=req=>{ const m=String(req||"").match(/^\s*([^\-–—:]{3,60}?)\s*[-–—:]\s+\S/); return m?(catsEv.get(nz(m[1]))||""):""; };
   const armar=(it,lista,adicional)=>{
     lista=(lista||[]).slice().sort(orden);
     const porDia=!adicional && !!cfg.pd && D.candidatoPorDia(it) && it.pd!==false && D.fechasDeItem(it,cfg.fe||"").length>0;
@@ -81,7 +85,7 @@ function construirModelo(ctx, op){
     else { estado=porDia?`Completo · ${fechas.length}/${fechas.length} días`:"Con evidencia"; color=VERDE_OK; }
     /* `prov` se queda en el modelo (lo usa quien depure desde la consola) pero NO se imprime en ningún
        documento: el informe lo lee el cliente final y no tiene por qué conocer a los proveedores. */
-    return {it, codigo:it.codigo||"", req:it.req||"", cat:it.cat||it.grupo||"", grupo:adicional?(it.grupo||""):(it.cat||it.grupo||""), cant:it.cant||"", um:it.um||"", prov:it.prov||"", car:it.car||"",
+    return {it, codigo:it.codigo||"", req:it.req||"", cat:it.cat||it.grupo||porPrefijo(it.req), grupo:(adicional?(it.grupo||""):(it.cat||it.grupo||""))||porPrefijo(it.req), cant:it.cant||"", um:it.um||"", prov:it.prov||"", car:it.car||"",
       adicional, solicitado:it.solicitado||"", justificacion:it.justificacion||"", porDia, fechas, diasCub, diasFalta, total:lista.length, bloques, estado, color};
   };
   items.forEach(it=>{ const lista=grupos.get(it.iid)||[]; if(filtrado && !lista.length) return; reqs.push(armar(it,lista,false)); });

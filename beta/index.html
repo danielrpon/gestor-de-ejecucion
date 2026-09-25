@@ -257,7 +257,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v39 · 25sep · sello por foto (admin) + orden por categoría</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v39.1 · 28sep · sello por foto (admin) + orden por categoría (reconoce "Categoría - ítem")</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -780,12 +780,19 @@ function opcionesProv(){ const l=provDeItems(); if(itemsCfg().some(it=>!((it.pro
    No se ordena por código: en EV-002 conviven "489" y "TE 0217" y los numéricos quedarían primero.
    `grupo` = categoría para ORDENAR que no entra en la llave (iid = categoria|codigo|ordinal): sirve para ubicar
    ítems viejos sin categoría y adicionales del proveedor (cat fija "Adicionales") sin dejar fotos huérfanas. */
-function catOrden(it){ if(!it) return ""; return String((it.adicional ? (it.grupo||"") : (it.cat||it.grupo||""))||"").trim(); }
+function catOrden(it){ if(!it) return ""; const b=String((it.adicional ? (it.grupo||"") : (it.cat||it.grupo||""))||"").trim(); return b || catPorPrefijo(it.req); }
+/* v39.1: ítems agregados sin categoría pero con ella escrita al inicio del nombre ("Festival Clubes - Alquiler Trimalla…",
+   "Toma salvavidas - Camerinos…", así quedaron los 520–536 de EV-002) se ubican en esa categoría si existe en el evento
+   (sin tildes ni mayúsculas). Solo ORDENA: no toca cat ni la llave. Memo por identidad del arreglo de ítems. */
+let _catMemo=null, _catMemoSrc=null;
+function catPorPrefijo(req){ const m=String(req||"").match(/^\s*([^\-–—:]{3,60}?)\s*[-–—:]\s+\S/); if(!m) return "";
+  const src=itemsCfg(); if(_catMemoSrc!==src){ _catMemo=new Map(); categoriasDelEvento().forEach(c=>_catMemo.set(fnorm(c).replace(/\s+/g," ").trim(),c)); _catMemoSrc=src; }
+  return _catMemo.get(fnorm(m[1]).replace(/\s+/g," ").trim())||""; }
 function ordenReq(a,b){ const ca=catOrden(a), cb=catOrden(b);
   if(!ca!==!cb) return ca?-1:1;
   const c=ca.localeCompare(cb,"es",{sensitivity:"base"}); if(c) return c;
   return (a.adicional?1:0)-(b.adicional?1:0); }   /* empate = 0: sort estable conserva el orden de la plantilla (lo agregado después queda al final) */
-function categoriasDelEvento(){ const s=new Set(); itemsCfg().forEach(it=>{ const c=String(it.cat||it.grupo||"").trim(); if(c && !it.adicional) s.add(c); }); return [...s].sort((a,b)=>a.localeCompare(b,"es")); }
+function categoriasDelEvento(){ const s=new Set(); itemsCfg().forEach(it=>{ const c=String(it.cat||it.grupo||"").trim(); if(c && !it.adicional && c!=="Adicionales") s.add(c); }); return [...s].sort((a,b)=>a.localeCompare(b,"es")); }
 function itemsDelOperador(){ let base;
   if(!hayProv()) base=itemsCfg();
   else{ const p=(operador&&operador.prov)||""; if(!p) base=itemsCfg(); else if(p==="Sin proveedor") base=itemsCfg().filter(it=>!((it.prov||"").trim())); else base=itemsCfg().filter(it=>(it.prov||"").trim()===p); }
@@ -1151,7 +1158,7 @@ function eviKey(e){ return e.item_id || ((e.evento_uid||"")+"|"+iidDe(e.item,e.c
 function cargarJS(src){ return new Promise((ok,ko)=>{ if(document.querySelector('script[data-src="'+src+'"]')) return ok(); const s=document.createElement("script"); s.src=src; s.dataset.src=src; s.onload=()=>ok(); s.onerror=()=>ko(new Error("No se pudo cargar "+src)); document.head.appendChild(s); }); }
 window.adminInforme=async()=>{
   const ev=adminEventos[adminEventoActual]; if(!ev||!adminEvidencias.length){ toast("Abre un evento con evidencias"); return; }
-  try{ if(!window.InformeEstrella) await cargarJS("informe.js?v=17"); }catch(e){ toast("No cargó el generador de informes (revisa la conexión)"); return; }
+  try{ if(!window.InformeEstrella) await cargarJS("informe.js?v=18"); }catch(e){ toast("No cargó el generador de informes (revisa la conexión)"); return; }
   adminDlCancel=false;
   InformeEstrella.abrir({ev, evidencias:adminEvidencias, visibles:adminVis, contenedor:$("adInf"), bajarBlob:adminBajarBlob,
     deps:{anotarIids, iidDe, fechasDeItem, candidatoPorDia, isoHoy, slug, bajar, loadJSON, saveJSON, NS}});
