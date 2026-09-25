@@ -243,13 +243,14 @@
       <div id="prog" class="prog"><div class="bar"><span></span></div><div class="lbl"></div></div>
       <div class="cnt" id="cnt">Aún no agregas fotos.</div>
       <div id="admCarga" class="xbox hide" style="margin-top:8px">
-        <div class="xt">🔐 Administrador · fotos que llegaron por otros medios</div>
-        <div class="mut" style="margin:0 0 8px;font-size:12px">Solo lo ves con sesión de administrador. En cada foto eliges el sello; la hora nunca se declara.</div>
+        <div class="xt" style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">🔐 Carga de administrador <a class="lnk" onclick="admSalir()" style="font-size:12px;font-weight:600">salir del modo</a></div>
+        <div class="mut" style="margin:0 0 8px;font-size:12px">Fotos que llegaron por otros medios. El proveedor nunca ve este recuadro. La hora nunca se declara.</div>
+        <label class="tgl" style="margin:0 0 8px"><input id="admSinHora" type="checkbox"> Sello sin hora (deja fecha y ubicación)</label>
         <div class="fld"><label>Lugar para las fotos sin ubicación</label><input id="admLugar" type="text" autocomplete="off" list="admLugares" placeholder="Dirección, barrio, ciudad"><datalist id="admLugares"></datalist></div>
         <div class="fld" style="margin-top:8px"><label>Fecha para las fotos sin fecha</label><select id="admFecha"></select></div>
         <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-          <button class="btn sec" id="admCompletar" style="margin:0;flex:1;min-width:140px">Completar las sin ubicación</button>
-          <button class="btn sec" id="admSinSello" style="margin:0;flex:1;min-width:140px">Todas: ya traen marca</button>
+          <button class="btn sec" id="admCompletar" style="margin:0;flex:1 1 100%">Completar ubicación y fecha de las fotos sin datos</button>
+          <button class="btn sec" id="admSinSello" style="margin:0;flex:1 1 100%">No aplicar marca configurada (ya la traen)</button>
         </div>
         <div class="mut" id="admMsg" style="margin:6px 0 0;font-size:12px"></div>
       </div>
@@ -257,7 +258,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v39.1 · 28sep · sello por foto (admin) + orden por categoría (reconoce "Categoría - ítem")</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v40 · 25sep · carga de administrador aparte + sello sin hora + orden de la cotización</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -775,7 +776,7 @@ function nitBase(s){ return String(s||"").replace(/[^0-9]/g,""); }
 function nitCoincide(entered, stored){ const a=nitBase(entered), b=nitBase(stored); if(!a||!b) return false; if(a===b) return true; if(b.length===a.length+1 && b.startsWith(a)) return true; if(a.length===b.length+1 && a.startsWith(b)) return true; return false; }  // acepta con o sin dígito de verificación
 function hayProv(){ return provDeItems().length>0; }
 function opcionesProv(){ const l=provDeItems(); if(itemsCfg().some(it=>!((it.prov||"").trim())) && l.length) l.push("Sin proveedor"); return l; }
-/* v39 · ORDEN de requerimientos (pedido de Kevin, 25-sep): categoría A→Z (sin categoría al final); dentro de cada
+/* v39/v40 · ORDEN de requerimientos (pedido de Kevin, 25-sep): categoría en el orden de la plantilla (sin categoría al final); dentro de cada
    categoría el orden de la plantilla (lo agregado después por el productor queda al final) y AL FINAL sus adicionales.
    No se ordena por código: en EV-002 conviven "489" y "TE 0217" y los numéricos quedarían primero.
    `grupo` = categoría para ORDENAR que no entra en la llave (iid = categoria|codigo|ordinal): sirve para ubicar
@@ -788,13 +789,19 @@ let _catMemo=null, _catMemoSrc=null;
 function catPorPrefijo(req){ const m=String(req||"").match(/^\s*([^\-–—:]{3,60}?)\s*[-–—:]\s+\S/); if(!m) return "";
   const src=itemsCfg(); if(_catMemoSrc!==src){ _catMemo=new Map(); categoriasDelEvento().forEach(c=>_catMemo.set(fnorm(c).replace(/\s+/g," ").trim(),c)); _catMemoSrc=src; }
   return _catMemo.get(fnorm(m[1]).replace(/\s+/g," ").trim())||""; }
+/* v40: las categorías van en el orden en que aparecen por primera vez en la plantilla (= orden de la cotización).
+   Kevin, 25-sep: en A→Z el informe ya no coincide con la cotización y el cliente lo ve desordenado. */
+let _rankMemo=null, _rankSrc=null;
+function rankCat(c){ const src=itemsCfg(); if(_rankSrc!==src){ _rankMemo=new Map(); src.forEach(it=>{ const k=fnorm(String(it.cat||it.grupo||"").trim()); if(k && k!=="adicionales" && !_rankMemo.has(k)) _rankMemo.set(k,_rankMemo.size); }); _rankSrc=src; }
+  const k=fnorm(c); return _rankMemo.has(k)?_rankMemo.get(k):1e6; }
 function ordenReq(a,b){ const ca=catOrden(a), cb=catOrden(b);
   if(!ca!==!cb) return ca?-1:1;
+  const ra=rankCat(ca), rb=rankCat(cb); if(ra!==rb) return ra-rb;
   const c=ca.localeCompare(cb,"es",{sensitivity:"base"}); if(c) return c;
   return (a.adicional?1:0)-(b.adicional?1:0); }   /* empate = 0: sort estable conserva el orden de la plantilla (lo agregado después queda al final) */
 function categoriasDelEvento(){ const s=new Set(); itemsCfg().forEach(it=>{ const c=String(it.cat||it.grupo||"").trim(); if(c && !it.adicional && c!=="Adicionales") s.add(c); }); return [...s].sort((a,b)=>a.localeCompare(b,"es")); }
 function itemsDelOperador(){ let base;
-  if(!hayProv()) base=itemsCfg();
+  if(!hayProv() || admCargaActiva()) base=itemsCfg();   /* v40: el administrador ve todo el evento */
   else{ const p=(operador&&operador.prov)||""; if(!p) base=itemsCfg(); else if(p==="Sin proveedor") base=itemsCfg().filter(it=>!((it.prov||"").trim())); else base=itemsCfg().filter(it=>(it.prov||"").trim()===p); }
   return base.concat(adicionalesDelEvento()).sort(ordenReq); }   // los adicionales del operador siempre aparecen · v39: ordenados por categoría
 function llenarSelectProv(sel, valor){ sel.innerHTML=""; const o0=document.createElement("option"); o0.value=""; o0.textContent="— Selecciona proveedor —"; sel.appendChild(o0); opcionesProv().forEach(p=>{ const o=document.createElement("option"); o.value=p; o.textContent=p; sel.appendChild(o); }); sel.value=valor||""; }
@@ -944,7 +951,7 @@ $("lentrar").addEventListener("click", ()=>{
   operador=o; saveJSON(NS+"operador",o); pintarWho(); irACaptura();
 });
 $("reconfig").addEventListener("click", ()=>{ nuevoExec(); show("exec"); });
-$("salir").addEventListener("click", ()=>{ detenerWatch(); if(operador){ $("lnom").value=operador.nombre; $("lced").value=operador.cedula; $("lcel").value=operador.celular; } show("login"); });
+$("salir").addEventListener("click", ()=>{ detenerWatch(); admSalirModo(); if(operador){ $("lnom").value=operador.nombre; $("lced").value=operador.cedula; $("lcel").value=operador.celular; } show("login"); });
 
 /* ---- ADMINISTRADOR: visualizador (login + eventos + evidencias con fotos) ---- */
 let adminSes = loadJSON(NS+"admin_ses", null);
@@ -1060,7 +1067,7 @@ function adminRenderDash(){
         +bar(m.av)
         +`<div class="mut" style="margin:2px 0 0">Requerimientos: <b>${m.n}</b>${m.n!==m.tot?` <span class="mut" style="margin:0">(de ${m.tot})</span>`:""} · Con evidencia: <b>${m.conEvi}</b> · Completos: <b>${m.comp}</b> · Pendientes: <b>${m.pend}</b> · Evidencias: <b>${m.reg}</b> · Avance: <b>${m.av}%</b>${m.extras?` · <span style="color:var(--oro-d)">Extras en sitio: <b>${m.extras}</b></span>`:""}</div>`
         +(m.pd.n?`<div class="mut" style="margin:3px 0 0">📅 Por día: <b>${m.pd.n}</b> req · días cubiertos <b>${m.pd.diasCub}/${m.pd.diasReq}</b> · hoy <b>${m.pd.hoyOk}/${m.pd.hoyTotal}</b>${m.pd.atras?` · <span style="color:#b3261e">⚠ ${m.pd.atras} con días atrasados</span>`:""}</div><div id="adHoy${i}" class="hide"></div>`:"")
-        +`<div class="ac">${m.pd.n?`<a class="lnk" style="font-weight:700" onclick="adminHoy(${i})">hoy por proveedor</a>`:""}<a class="lnk" onclick="adminCopiar(${i},'oper')">link proveedor</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link productor</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a></div></div></div>`;
+        +`<div class="ac">${m.pd.n?`<a class="lnk" style="font-weight:700" onclick="adminHoy(${i})">hoy por proveedor</a>`:""}<a class="lnk" onclick="adminCopiar(${i},'oper')">link proveedor</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link productor</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a><a class="lnk" onclick="adminCargar(${i})">📤 carga de administrador</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a></div></div></div>`;
     }).join(""):'<div class="mut">Ningún evento coincide con el filtro. <a class="lnk" id="segTodo2">Ver todo</a></div>');
   const info=$("segInfo"); if(info) info.textContent = activos.length ? `${visibles.length} de ${adminEventos.length} eventos` : `${adminEventos.length} evento(s)`;
   const bind=(id,k)=>{ const el=$(id); if(!el) return; el.addEventListener("change",()=>{ adminSeg[k]=el.value; if(k==="cl") adminSeg.ev=""; if(k==="mes"&&el.value){ adminSeg.desde=""; adminSeg.hasta=""; } if((k==="desde"||k==="hasta")&&el.value) adminSeg.mes=""; saveJSON(NS+"admin_seg",adminSeg); adminRenderDash(); }); };
@@ -1158,7 +1165,7 @@ function eviKey(e){ return e.item_id || ((e.evento_uid||"")+"|"+iidDe(e.item,e.c
 function cargarJS(src){ return new Promise((ok,ko)=>{ if(document.querySelector('script[data-src="'+src+'"]')) return ok(); const s=document.createElement("script"); s.src=src; s.dataset.src=src; s.onload=()=>ok(); s.onerror=()=>ko(new Error("No se pudo cargar "+src)); document.head.appendChild(s); }); }
 window.adminInforme=async()=>{
   const ev=adminEventos[adminEventoActual]; if(!ev||!adminEvidencias.length){ toast("Abre un evento con evidencias"); return; }
-  try{ if(!window.InformeEstrella) await cargarJS("informe.js?v=18"); }catch(e){ toast("No cargó el generador de informes (revisa la conexión)"); return; }
+  try{ if(!window.InformeEstrella) await cargarJS("informe.js?v=19"); }catch(e){ toast("No cargó el generador de informes (revisa la conexión)"); return; }
   adminDlCancel=false;
   InformeEstrella.abrir({ev, evidencias:adminEvidencias, visibles:adminVis, contenedor:$("adInf"), bajarBlob:adminBajarBlob,
     deps:{anotarIids, iidDe, fechasDeItem, candidatoPorDia, isoHoy, slug, bajar, loadJSON, saveJSON, NS}});
@@ -1612,12 +1619,13 @@ function agregar(fileList, meta, metaResp){
     const video=/^video\//.test(file.type)||/\.(mp4|mov|m4v|3gp|webm|avi|mkv)$/i.test(file.name);
     const ext=video?((file.name.split(".").pop()||"mp4").toLowerCase()):"jpg";
     const e={id:++seq,file,itemCodigo:cod,fechaSel:fSel||"",tipo:video?"video":"foto",ext,status:"procesando",blob:null,thumb:"",datos:{},filename:"",meta:meta||null,metaResp:metaResp||null,cargada};
+    if(admCargaActiva() && $("admSinHora") && $("admSinHora").checked){ e.sinHora=true; e.declPor=admCorreo()||"admin"; }   /* v40 */
     batch.push(e); nuevos.push(e); ps.push(procesar(e)); });
   renderLista();
   Promise.all(ps).then(()=>{   /* v34: avisos del lote — fotos rechazadas por fecha y galería sin metadatos */
     const rech=nuevos.filter(e=>e.rechazo), sm=meta?[]:nuevos.filter(e=>!e.rechazo && e.sinMeta); const msg=[];
     if(rech.length) msg.push((rech.length===1?"Esta foto NO se cargó: ":"Estas "+rech.length+" fotos NO se cargaron:\n• ")+rech.map(e=>e.rechazo).join("\n• ")+".\n\nSolo se aceptan fotos tomadas el día de la línea que elegiste.");
-    if(sm.length && admCargaActiva()) msg.push((sm.length===1?"Esta foto no trae":"Estas "+sm.length+" fotos no traen")+" la fecha ni la ubicación originales.\n\nComo administrador: si ya traen marca de agua, usa «Todas: ya traen marca»; si no, «Completar las sin ubicación» (lugar y fecha, sin hora).");   /* v39 */
+    if(sm.length && admCargaActiva()) msg.push((sm.length===1?"Esta foto no trae":"Estas "+sm.length+" fotos no traen")+" la fecha ni la ubicación originales.\n\nComo administrador: si ya traen marca de agua, usa «No aplicar marca configurada»; si no, «Completar ubicación y fecha de las fotos sin datos» (sin hora).");   /* v39 */
     else if(sm.length) msg.push((sm.length===1?"Esta foto no trae":"Estas "+sm.length+" fotos no traen")+" la fecha ni la ubicación originales. Seguro pasaron por WhatsApp o por una app de marca de agua.\n\nQuedan marcadas «sin ubicación» y no sirven bien como prueba.\n\nSi puedes, quítalas y tómalas de nuevo con «Capturar foto».");
     if(msg.length) alert(msg.join("\n\n— — —\n\n")); });
 }
@@ -1711,7 +1719,7 @@ async function procesar(entry){
 }
 function claveDe(iid){ return `${(cfg&&cfg.uid)||"SIN-UID"}|${iid}`; }   // = item_id de la base: llave global e inmutable
 function calcularNombres(){ const u={}; batch.forEach(e=>{ if(!e.itemCodigo){ e.filename=""; return; } const base=counters[claveDe(e.itemCodigo)]||0; u[e.itemCodigo]=(u[e.itemCodigo]||0)+1; e.consec=base+u[e.itemCodigo]; const desc=slug(itemReq(e.itemCodigo)); const cat=itemCat(e.itemCodigo); const ot=opTag();
-  const fch=fechaEfectiva(e); const hr=(e.datos.hora||((e.cargada&&!admDeclara(e))?e.cargada.hora:"")).replace(/:/g,""); const fh=fch?("_"+fch+(hr?"_"+hr:"")):"";   // fecha/hora de captura (EXIF/dispositivo), declarada, o de carga
+  const fch=fechaEfectiva(e); const hr=e.sinHora?"":(e.datos.hora||((e.cargada&&!admDeclara(e))?e.cargada.hora:"")).replace(/:/g,""); const fh=fch?("_"+fch+(hr?"_"+hr:"")):"";   // fecha/hora de captura (EXIF/dispositivo), declarada, o de carga
   const dd=diaDeFoto(e); const tokDia=dd?`_D${dd.idx}de${dd.n}`:"";   // Capa 13: D2de5 = día 2 de 5 del evento · D0de5 = fecha fuera de las programadas
   e.filename=`${slug(cfg.cl)}_${slug(cfg.ev)}_${cat?slug(cat)+"_":""}${itemCod(e.itemCodigo)}${desc&&desc!=="NA"?"_"+desc:""}${ot?"_"+ot:""}${tokDia}${fh}_${String(e.consec).padStart(3,"0")}.${e.ext||"jpg"}`; }); }
 function renderLista(){
@@ -1900,7 +1908,7 @@ async function subirEvidencia(e, radicado){
       cantidad:String(itemCant(e.itemCodigo)||""), adicional:!!itemAdic(e.itemCodigo), solicitado_por:ad.solicitadoPor||"", justificacion:ad.justificacion||"",
       operador_nombre:operador.nombre, operador_cedula:operador.cedula, operador_celular:operador.celular,
       tipo:e.tipo||"foto", archivo:e.filename, storage_path:"evidencias/"+path,
-      fecha:fechaEfectiva(e)||"", hora:e.datos.hora||"", lugar:e.datos.lugar||"", lat:e.datos.lat, lon:e.datos.lon };
+      fecha:fechaEfectiva(e)||"", hora:e.sinHora?"":(e.datos.hora||""), lugar:e.datos.lugar||"", lat:e.datos.lat, lon:e.datos.lon };
     const dd=diaDeFoto(e); row.fecha_origen=e.fechaOrigen||""; row.dia_evento=dd?dd.idx:null; row.dias_evento=dd?dd.n:null;   // Capa 13
     if(e.declPor) row.declarado_por=e.declPor; if(ad.grupo) row.grupo=ad.grupo;   /* v39 (Capa 15) */
     let ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row)}, 15000);
@@ -2230,7 +2238,16 @@ function textoMarca(d){ if(!d) return "";
    El sello de C lleva un "_" pegado a la fecha (convención interna, no se explica en la foto). En la base:
    fecha_origen = admin | admin-sin-sello y declarado_por = correo de la sesión. Solo con sesión de admin vigente
    en este navegador; el proveedor no ve nada de esto. Los datos originales quedan en e.orig para poder deshacer. */
-function admCargaActiva(){ try{ return typeof adminValido==="function" && adminValido(); }catch(_){ return false; } }
+/* v40: la carga del administrador es un MÓDULO aparte (reunión con Kevin, 25-sep 4:12 p. m.): sus herramientas solo existen
+   si se entró por «Carga de administrador» desde el panel admin (bandera por pestaña en sessionStorage, atada al evento) y la
+   sesión sigue vigente. El enlace del proveedor abre otra pestaña sin bandera → pantalla del proveedor tal cual (v38). */
+function admBandera(){ try{ return sessionStorage.getItem(NS+"adm_carga")||""; }catch(_){ return ""; } }
+function admSalirModo(){ try{ sessionStorage.removeItem(NS+"adm_carga"); }catch(_){} }
+function admCargaActiva(){ try{ return typeof adminValido==="function" && adminValido() && !!cfg && !!cfg.uid && admBandera()===cfg.uid; }catch(_){ return false; } }
+window.adminCargar=(i)=>{ const e=adminEventos[i]; if(!e) return; if(!adminValido()){ adminSesExpirada(); return; }
+  try{ sessionStorage.setItem(NS+"adm_carga", e.uid); }catch(_){}
+  location.href="?ev="+encodeURIComponent(e.uid); };   /* relativo: se queda en /beta/ */
+window.admSalir=()=>{ admSalirModo(); renderLista(); };
 function admCorreo(){ try{ const p=String((adminSes&&adminSes.token)||"").split(".")[1]; if(!p) return "";
   const b=atob(p.replace(/-/g,"+").replace(/_/g,"/")); const j=JSON.parse(decodeURIComponent(b.split("").map(c=>"%"+("00"+c.charCodeAt(0).toString(16)).slice(-2)).join("")));
   return String(j.email||""); }catch(_){ return ""; } }
@@ -2243,7 +2260,7 @@ function admFechaReal(e){ const o=(e&&e.orig)||{datos:e&&e.datos,fechaOrigen:e&&
 function admAplicar(e){ if(!e||!e.datos||e.tipo==="video") return;
   if(!e.orig) e.orig={datos:Object.assign({},e.datos), fechaOrigen:e.fechaOrigen||""};
   const o=e.orig, m=admModoDe(e);
-  e.datos=Object.assign({},o.datos); e.fechaOrigen=o.fechaOrigen; e.declPor="";
+  e.datos=Object.assign({},o.datos); e.fechaOrigen=o.fechaOrigen; e.declPor=e.sinHora?(admCorreo()||"admin"):"";
   if(!admDeclara(e)) return;
   const real=admFechaReal(e), it=itemById(e.itemCodigo);
   const f = real || ((esPorDia(it)&&e.fechaSel) ? e.fechaSel : ((e.adm&&e.adm.fecha)||""));
@@ -2257,18 +2274,21 @@ function admAplicar(e){ if(!e||!e.datos||e.tipo==="video") return;
 /* Qué se estampa: {texto, con}. Sin modo admin = como siempre (lo decide el evento). */
 function selloDe(e){ const m=admModoDe(e);
   if(m==="sin") return {texto:"", con:false};
-  let t=textoMarca(e&&e.datos);
+  let t=textoMarca(e&&e.sinHora ? Object.assign({},e.datos,{hora:""}) : (e&&e.datos));   /* v40: sello sin hora */
   if(m==="comp" && e.datos && e.datos.fecha){ const L=t.split("\n"); L[0]=L[0]+"_"; t=L.join("\n"); }
-  return {texto:t, con: m ? true : $("marca").checked}; }
+  return {texto:t, con: (m || e&&e.sinHora) ? true : $("marca").checked}; }
 /* Motivo por el que una foto en modo admin todavía no puede salir ("" = lista). */
-function admFalta(e){ if(!e||e.status!=="listo"||!e.itemCodigo||!admDeclara(e)) return "";
+function admFalta(e){ if(!e||e.status!=="listo"||!e.itemCodigo) return "";
+  if(!admDeclara(e)){ return (admCargaActiva() && e.tipo!=="video" && e.sinMeta && !admModoDe(e))
+      ? "Foto sin fecha ni ubicación: elige arriba «Completar ubicación y fecha…» o «No aplicar marca configurada»" : ""; }
   if(!(e.datos&&e.datos.fecha)) return "Falta la fecha: elígela en el panel de administrador ↑";
   if(admModoDe(e)==="comp" && admSinGps(e) && !(e.datos&&e.datos.lugar)) return "Falta el lugar: escríbelo en el panel de administrador ↑";
   return ""; }
 function admFila(e){ if(!admCargaActiva() || !e || e.status!=="listo" || e.tipo==="video") return "";
   const m=admModoDe(e), ev=$("marca").checked?"con sello":"sin sello";
   const op=(v,t)=>`<option value="${v}" ${m===v?"selected":""}>${t}</option>`;
-  let h=`<select onchange="admModo(${e.id},this.value)" style="margin-top:4px">${op("","Sello: como el evento ("+ev+")")}${op("app","Sello de la app")}${op("sin","Ya trae marca: no sellar")}${admSinGps(e)?op("comp","Completar lugar y fecha (sin hora)"):""}</select>`;
+  let h=`<select onchange="admModo(${e.id},this.value)" style="margin-top:4px">${op("","Sello: como el evento ("+ev+")")}${op("app","Sello de la app")}${op("sin","No aplicar marca configurada (ya la trae)")}${admSinGps(e)?op("comp","Completar ubicación y fecha (sin hora)"):""}</select>`;
+  h+=`<label class="mut" style="display:flex;gap:6px;align-items:center;margin:4px 0 0;font-size:12px"><input type="checkbox" style="width:auto;margin:0" ${e.sinHora?"checked":""} onchange="admHora(${e.id},this.checked)"> sin hora</label>`;
   if(admDeclara(e)){ const f=e.datos&&e.datos.fecha;
     h+=`<div class="mut" style="margin:2px 0 0;font-size:12px">🔐 ${m==="sin"?"Sin sello de la app":"Lugar y fecha declarados"}${m==="comp"&&admSinGps(e)?" · 📍 "+escAttr((e.datos&&e.datos.lugar)||"sin lugar"):""}</div>`; }   /* la fecha ya la muestra etiquetaFecha */
   return h; }
@@ -2285,6 +2305,7 @@ function admPintarPanel(){ const box=$("admCarga"); if(!box) return;
   const rec=loadJSON(admLugaresKey(),[])||[]; const dl=$("admLugares"); dl.innerHTML=""; rec.forEach(l=>{ const o=document.createElement("option"); o.value=l; dl.appendChild(o); });
   if(!$("admLugar").value){ let inf={}; try{ inf=loadJSON(NS+"informe_"+((cfg&&cfg.uid)||""),{})||{}; }catch(_){}
     $("admLugar").value = rec[0] || inf.lugar || (cfg&&cfg.ci) || ""; }
+  try{ $("admSinHora").checked = sessionStorage.getItem(NS+"adm_sinhora")==="1"; }catch(_){}
   $("admMsg").textContent=""; admPanelVisible(); }
 function admPanelVisible(){ const box=$("admCarga"); if(box) box.classList.toggle("hide", !admCargaActiva()); }
 async function admResellarVarias(lista){ for(const e of lista){ admAplicar(e); await resellar(e); } renderLista(); }
@@ -2292,6 +2313,7 @@ window.admModo=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e) return;
   e.adm = v ? {modo:v, fecha:$("admFecha").value, lugar:$("admLugar").value.trim()} : null;
   if(v==="comp") admRecordarLugar(e.adm.lugar);
   admResellarVarias([e]); };
+window.admHora=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e) return; e.sinHora=!!v; if(v && !e.declPor) e.declPor=admCorreo()||"admin"; resellar(e).then(renderLista); };
 function admListas(){ return batch.filter(e=>e.status==="listo" && e.tipo!=="video" && e.datos); }
 $("admCompletar").addEventListener("click", ()=>{ const lug=$("admLugar").value.trim(), f=$("admFecha").value;
   const l=admListas().filter(admSinGps);
@@ -2303,6 +2325,10 @@ $("admCompletar").addEventListener("click", ()=>{ const lug=$("admLugar").value.
 $("admSinSello").addEventListener("click", ()=>{ const l=admListas(); if(!l.length){ $("admMsg").textContent="Aún no hay fotos en el lote."; return; }
   const f=$("admFecha").value; l.forEach(e=>{ e.adm={modo:"sin", fecha:f, lugar:""}; });
   $("admMsg").textContent=`${l.length} foto${l.length===1?"":"s"} sin sello de la app.`; admResellarVarias(l); });
+$("admSinHora").addEventListener("change", ()=>{ const v=$("admSinHora").checked; const l=admListas(); try{ sessionStorage.setItem(NS+"adm_sinhora", v?"1":""); }catch(_){}
+  l.forEach(e=>{ e.sinHora=v; if(v && !e.declPor) e.declPor=admCorreo()||"admin"; });
+  $("admMsg").textContent = l.length ? `${l.length} foto${l.length===1?"":"s"} ${v?"sin":"con"} hora en el sello.` : (v?"Las fotos que cargues saldrán sin hora.":"");
+  (async()=>{ for(const e of l) await resellar(e); renderLista(); })(); });
 /* Cambiar fecha o lugar del panel actualiza las fotos que ya están en modo administrador. */
 ["admFecha","admLugar"].forEach(id=>$(id).addEventListener("change", ()=>{ const f=$("admFecha").value, lug=$("admLugar").value.trim();
   const l=batch.filter(e=>admDeclara(e)); if(!l.length) return;

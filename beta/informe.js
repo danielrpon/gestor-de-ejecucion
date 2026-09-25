@@ -93,13 +93,17 @@ function construirModelo(ctx, op){
   if(op.adicionales){ grupos.forEach((lista,k)=>{ if(porIid.has(k)) return; const e0=lista[0]||{};
     extras.push(armar({codigo:e0.item,req:e0.requerimiento,cat:e0.categoria,grupo:e0.grupo||"",cant:e0.cantidad,prov:e0.proveedor,solicitado:e0.solicitado_por,justificacion:e0.justificacion},lista,true)); }); }
   const conEv=reqs.filter(r=>r.total>0);
+  /* v40: orden de categorías = primera aparición en la plantilla (orden de la cotización) */
+  const rankM=new Map(); items.forEach(it=>{ const k=nz(it.cat||it.grupo||""); if(k && k!=="adicionales" && !rankM.has(k)) rankM.set(k,rankM.size); });
+  const rankInf=c=>{ const k=nz(c); return rankM.has(k)?rankM.get(k):1e6; };
   return { ev, cfg, filtrado, reqs, extras, conEv,
     /* v39: cada adicional va al final de SU categoría (grupo), no todos juntos al final del informe */
-    visibles: (op.version==="cliente" ? conEv.concat(extras.filter(r=>r.total)) : reqs.concat(extras)).map((r,i)=>({r,i})).sort((x,y)=>ordenInf(x.r,y.r)||x.i-y.i).map(x=>x.r),
+    visibles: (op.version==="cliente" ? conEv.concat(extras.filter(r=>r.total)) : reqs.concat(extras)).map((r,i)=>({r,i})).sort((x,y)=>ordenInf(x.r,y.r,rankInf)||x.i-y.i).map(x=>x.r),
     totalFotos: fotos.length };
 }
-function ordenInf(a,b){ const ca=String(a.grupo||"").trim(), cb=String(b.grupo||"").trim();
+function ordenInf(a,b,rank){ const ca=String(a.grupo||"").trim(), cb=String(b.grupo||"").trim();
   if(!ca!==!cb) return ca?-1:1;
+  if(rank){ const ra=rank(ca), rb=rank(cb); if(ra!==rb) return ra-rb; }
   const c=ca.localeCompare(cb,"es",{sensitivity:"base"}); if(c) return c;
   return (a.adicional?1:0)-(b.adicional?1:0); }   /* empate: se desempata por el orden de la plantilla */
 /* Parte el informe por categorías, respetando el tope de fotos por archivo. Un requerimiento nunca se corta. */
