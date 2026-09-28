@@ -110,24 +110,26 @@
   <div id="home" class="hide">
     <div class="card">
       <div class="h">¿Cómo vas a usar la app?</div>
-      <button class="btn" id="goExec">Productor · Configurar operación</button>
+      <button class="btn" id="goAdmin">Ingresar · Administrador, productor o ejecutivo</button>
       <div style="height:10px"></div>
       <button class="btn sec" id="goOper">Proveedor · Ingresar a capturar</button>
       <div class="mut" id="homeHint">El proveedor normalmente entra escaneando el QR o abriendo el enlace que le comparte el productor.</div>
-      <div class="mut" style="margin-top:8px"><a class="lnk" id="goAdmin">Soy administrador</a></div>
     </div>
   </div>
 
   <!-- EJECUTIVO · CONFIGURACIÓN -->
   <div id="exec" class="hide">
     <div class="card">
-      <div class="role">Productor</div>
+      <div class="role" id="execRol">Productor</div>
       <div class="h">Configurar operación</div>
+      <div style="margin:-4px 0 10px"><a class="lnk" id="execPanel">← Volver al panel</a></div>
       <div class="guia neutro hide" id="execNuevo" style="margin-bottom:10px">Evento <b>nuevo</b>, en blanco. Para modificar uno que ya existe, ábrelo en <b>▸ Configuración de eventos</b> (al final) o con el enlace del productor.</div>
       <div class="fld"><label>Cliente</label><input id="ecliente" type="text" autocomplete="off"></div>
       <div class="fld"><label>Evento</label><input id="eevento" type="text" autocomplete="off"></div>
       <div class="row"><div class="fld"><label>Fecha del evento (inicio)</label><input id="efecha" type="date"></div><div class="fld"><label>Fecha fin (si dura varios días)</label><input id="efechafin" type="date"></div></div>
       <div class="fld"><label>Ciudad</label><input id="eciudad" type="text" autocomplete="off"></div>
+      <div class="fld hide" id="eEjWrap"><label>Ejecutivo asignado</label><select id="eEj"><option value="">— Sin asignar —</option></select>
+        <div class="mut" style="margin:4px 0 0">El ejecutivo ve y administra solo los eventos que tiene asignados.</div></div>
       <div style="height:14px"></div>
       <button class="btn sec" id="ebtnReq">Cargar lista de evidencias (Excel / CSV)</button>
       <input id="efileReq" type="file" accept=".xlsx,.xls,.csv">
@@ -184,11 +186,11 @@
           <div class="ie" id="invEv"></div>
           <div class="qrbox"><div id="acQR"></div></div>
           <div class="il" id="acLink"></div>
-          <div class="mut" style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">Enlace del <b>productor</b> (para re-editar este evento después):</div>
+          <div class="mut" style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">Enlace para <b>editar</b> este evento (pide ingresar con usuario y contraseña):</div>
           <div class="il" id="acLinkExec" style="color:var(--muted)"></div>
         </div>
         <div class="btn2"><button class="btn sec" id="acCopy">Copiar invitación (proveedor)</button><button class="btn" id="acGo">Continuar como proveedor</button></div>
-        <button class="btn sec" id="acCopyExec" style="margin-top:8px">Copiar enlace del productor</button>
+        <button class="btn sec" id="acCopyExec" style="margin-top:8px">Copiar enlace para editar</button>
       </div>
       <div style="height:14px"></div>
       <a class="lnk" id="verHist">▸ Configuración de eventos</a>
@@ -258,7 +260,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v40 · 25sep · carga de administrador aparte + sello sin hora + orden de la cotización</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v41 · 28sep · Capa 11b: ingreso por rol (admin · productor · ejecutivo) + usuarios</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -266,7 +268,7 @@
   <!-- ADMINISTRADOR · VISUALIZADOR -->
   <div id="admin" class="hide">
     <div class="card" id="adLogin">
-      <div class="role">Administrador</div>
+      <div class="role">Administrador · Productor · Ejecutivo</div>
       <div class="h">Ingreso</div>
       <div class="fld"><label>Correo</label><input id="adEmail" type="email" autocomplete="username"></div>
       <div class="fld" style="margin-top:8px"><label>Contraseña</label><input id="adPass" type="password" autocomplete="current-password"></div>
@@ -275,8 +277,9 @@
       <div class="mut" style="margin-top:8px"><a class="lnk" id="adVolver">Volver al inicio</a></div>
     </div>
     <div class="card hide" id="adPanel">
-      <div class="role">Administrador</div>
+      <div class="role" id="adRol">Administrador</div>
       <div class="h" id="adTitulo">Eventos</div>
+      <div id="adAcciones" style="display:flex;gap:16px;flex-wrap:wrap;margin:-4px 0 12px"><a class="lnk" id="adNuevo">＋ Configurar evento nuevo</a><a class="lnk hide" id="adUsuarios">👥 Usuarios</a></div>
       <div id="adBack" class="hide" style="margin-bottom:8px"><a class="lnk" id="adBackLink">← Volver a eventos</a></div>
       <div id="adLista" class="list"></div>
       <div class="mut" style="margin-top:12px"><a class="lnk" id="adSalir">Cerrar sesión</a></div>
@@ -415,10 +418,25 @@ const PROD = "https://danielrpon.github.io/gestor-de-ejecucion/beta/";  // BETA:
 const SB_URL="https://yjrhnyyftnrmofqrtzmv.supabase.co";
 const SB_KEY="sb_publishable_uYKPtqQlONKLhQZCpnDRsw_vwQi8iwv";   // publishable key (segura en el navegador)
 const SB_H={apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":"application/json"};
-async function sbSave(row){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify(row)}); return r.ok; }catch(_){ return false; } }
-async function sbGet(uid){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos?uid=eq."+encodeURIComponent(uid)+"&select=*",{headers:SB_H}); if(!r.ok) return null; const a=await r.json(); return a[0]||null; }catch(_){ return null; } }
-async function sbList(){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos?select=*&order=consec.desc",{headers:SB_H}); if(!r.ok) return null; return await r.json(); }catch(_){ return null; } }
-async function sbMaxConsec(){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos?select=consec&order=consec.desc&limit=1",{headers:SB_H}); if(r.ok){ const a=await r.json(); if(a.length) return a[0].consec||0; } }catch(_){} return 0; }
+/* Capa 11b · los eventos se leen y guardan con el TOKEN de quien ingresó (admin, productor o ejecutivo), no con la llave
+   pública. El proveedor (sin cuenta) lee SU evento con evento_por_uid(): con el uid exacto, sin poder listar los demás.
+   Guardar: primero PATCH (evento existente y mío); si no tocó ninguna fila, INSERT como evento nuevo con creado_por = yo.
+   Si el evento es de otro, el INSERT choca con el uid existente y devuelve false: nunca se pisa un evento ajeno. */
+function sesHeaders(){ return Object.assign({},SB_H,{Authorization:"Bearer "+adminSes.token}); }
+async function sbSave(row){ try{
+  if(!adminValido()) return false;
+  await sesRenovar();
+  const h=Object.assign({},sesHeaders(),{Prefer:"return=representation"});
+  const p=await fetch(SB_URL+"/rest/v1/eventos?uid=eq."+encodeURIComponent(row.uid),{method:"PATCH",headers:h,body:JSON.stringify(row)});
+  if(p.ok){ const a=await p.json().catch(()=>[]); if(Array.isArray(a)&&a.length) return true; }
+  else if(p.status===401){ return false; }
+  const r=await fetch(SB_URL+"/rest/v1/eventos",{method:"POST",headers:Object.assign({},sesHeaders(),{Prefer:"return=minimal"}),body:JSON.stringify(Object.assign({},row,{creado_por:adminSes.uid}))});
+  return r.ok; }catch(_){ return false; } }
+async function sbGet(uid){ try{
+  if(adminValido()){ const r=await fetch(SB_URL+"/rest/v1/eventos?uid=eq."+encodeURIComponent(uid)+"&select=*",{headers:sesHeaders()}); if(r.ok){ const a=await r.json(); if(a[0]) return a[0]; } }
+  const r=await fetch(SB_URL+"/rest/v1/rpc/evento_por_uid",{method:"POST",headers:SB_H,body:JSON.stringify({p_uid:uid})}); if(!r.ok) return null; const a=await r.json(); return a[0]||null; }catch(_){ return null; } }
+async function sbList(){ try{ if(!adminValido()) return null; const r=await fetch(SB_URL+"/rest/v1/eventos?select=*&order=consec.desc",{headers:sesHeaders()}); if(!r.ok) return null; return filtrarMios(await r.json()); }catch(_){ return null; } }
+async function sbMaxConsec(){ try{ const r=await fetch(SB_URL+"/rest/v1/rpc/max_consec",{method:"POST",headers:sesHeaders(),body:"{}"}); if(r.ok){ const n=await r.json(); return +n||0; } }catch(_){} return 0; }
 let cfg = null;              // {cl, ev, it:[{codigo,req}], od}
 let operador = loadJSON(NS+"operador", null);
 let counters = loadJSON(NS+"counters", {});
@@ -477,7 +495,10 @@ function decCfg(s){ try{ return JSON.parse(decodeURIComponent(escape(atob(s))));
 function eventos(){ return loadJSON(NS+"eventos", {}); }                 // cache local por uid (respaldo si no hay señal)
 function cacheEvento(rec){ try{ if(rec&&rec.uid){ const all=eventos(); all[rec.uid]=rec; saveJSON(NS+"eventos",all); } }catch(_){} }
 function evConsecTag(n){ return "EV-"+String(n).padStart(3,"0"); }
-function nuevoUid(){ return "ev"+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+/* Capa 11b: 8 caracteres aleatorios criptográficos (antes 4 de Math.random): con la hora de creación a la vista, 4 se
+   adivinaban. Solo aplica a eventos NUEVOS: el uid va dentro de item_id y los existentes no se pueden cambiar. */
+function nuevoUid(){ const a="abcdefghijklmnopqrstuvwxyz0123456789", r=new Uint8Array(8); crypto.getRandomValues(r);
+  return "ev"+Date.now().toString(36)+Array.from(r,b=>a[b%36]).join(""); }
 function linkOper(uid){ return PROD+"?ev="+uid; }                          // link estable de operador
 function linkExec(uid){ return PROD+"?ev="+uid+"&rol=ex"; }                 // link estable de ejecutivo
 async function nextConsec(){ const mx=await sbMaxConsec(); const local=Object.values(eventos()).reduce((m,x)=>Math.max(m,x.consec||0),0); return Math.max(mx,local)+1; }
@@ -485,7 +506,9 @@ async function nextConsec(){ const mx=await sbMaxConsec(); const local=Object.va
 async function persistirEvento(shortOper, shortExec){
   const rec={ uid:cfg.uid, consec:cfg.consec, cl:cfg.cl, ev:cfg.ev, fe:cfg.fe||"", ci:cfg.ci||"", n_items:(cfg.it||[]).length,
     config:cfg, short_oper:shortOper||"", short_exec:shortExec||"", actualizado:(new Date()).toISOString() };
-  cacheEvento(rec); return await sbSave(rec);
+  cacheEvento(rec); const ok=await sbSave(rec);
+  if(ok) await asignarEjecutivo(rec.uid);   // Capa 11b: el evento ya existe → se puede registrar su ejecutivo
+  return ok;
 }
 
 /* ---- arranque: decide rol ---- */
@@ -530,19 +553,20 @@ function recuperacionDesdeHash(){
 window.addEventListener("DOMContentLoaded", async () => {
   aplicarMarca();
   recuperacionDesdeHash();   // Capa 11 parcial: enlace de recuperación de contraseña
+  await sesCompletar();      // Capa 11b: renueva el token y trae el rol de sesiones guardadas antes de la v41
   const params=new URLSearchParams(location.search);
   const evUid=params.get("ev"); const rolQ=params.get("rol");
   const m = location.hash.match(/[#&]c=([^&]+)/);
   const me = location.hash.match(/[#&]e=([^&]+)/);
   const fromLink = m ? decCfg(decodeURIComponent(m[1])) : null;
   const fromExec = me ? decCfg(decodeURIComponent(me[1])) : null;
+  if(evUid && rolQ==="ex"){ irAConfig({tipo:"editar",uid:evUid}); return; }   // Capa 11b: editar exige sesión y que el evento sea suyo
   if(evUid){                                                 // link ESTABLE ?ev=<uid> (config desde Supabase)
     const rec=await sbGet(evUid) || eventos()[evUid];
     if(rec&&rec.config){
       cfg=rec.config; cfg.uid=evUid; cfg.consec=rec.consec; saveJSON(NS+"config",cfg); cacheEvento(rec);
       pintarWho();
-      if(rolQ==="ex"){ prefillExec(); editandoId=evUid; aplicarModoExec(); show("exec"); }   // ejecutivo -> editar (editandoId DESPUÉS de prefillExec, que lo resetea)
-      else irALogin();                                       // operador -> capturar
+      irALogin();                                            // proveedor -> capturar
     } else { cfg=loadJSON(NS+"config",null); pintarWho(); if($("homeHint")) $("homeHint").textContent="No pude cargar el evento. Revisa tu conexión y vuelve a abrir el enlace."; show("home"); }
     return;
   }
@@ -550,9 +574,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   if(fromExec || fromLink){ saveJSON(NS+"config", cfg); }
   pintarWho();
   const hash = location.hash.replace(/^#/,"");
-  if(fromExec){ prefillExec(); show("exec"); }             // link viejo del EJECUTIVO (compatibilidad)
+  if(fromExec){ irAConfig({tipo:"legado"}); }               // link viejo del EJECUTIVO (compatibilidad) — ahora exige sesión
   else if(fromLink) irALogin();                            // link viejo de OPERADOR (compatibilidad)
-  else if(hash==="admin"){ prefillExec(); show("exec"); }  // URL de administrador -> ejecutivo
+  else if(hash==="admin"){ irAConfig({tipo:"legado"}); }    // URL de administrador -> configuración (exige sesión)
   else show("home");                                       // URL base -> elegir rol
 });
 function pintarWho(){ $("who").textContent = operador ? (operador.nombre+" · "+operador.cedula) : ""; }
@@ -570,7 +594,7 @@ $("acCopy").addEventListener("click", ()=>{ if(navigator.clipboard) navigator.cl
 $("acGo").addEventListener("click", ()=>{ saveConfigDesdeExec(); irALogin(); });
 $("eguardar").addEventListener("click", guardarEventoEditado);
 if($("eDuplicarLink")) $("eDuplicarLink").addEventListener("click", async ()=>{ if(!confirm("Esto CREA un evento NUEVO con enlace nuevo (no actualiza el actual).\n\n¿Continuar?")) return; await generarAcceso(); });
-$("acCopyExec").addEventListener("click", ()=>{ const u=$("acLinkExec").textContent; if(navigator.clipboard&&u) navigator.clipboard.writeText(u); $("acCopyExec").textContent="Enlace del productor copiado ✓"; toast("Enlace del productor copiado ✓"); });
+$("acCopyExec").addEventListener("click", ()=>{ const u=$("acLinkExec").textContent; if(navigator.clipboard&&u) navigator.clipboard.writeText(u); $("acCopyExec").textContent="Enlace para editar copiado ✓"; toast("Enlace para editar copiado ✓"); });
 $("verHist").addEventListener("click", ()=>{ const l=$("histList"); l.classList.toggle("hide"); const abierto=!l.classList.contains("hide"); if(abierto) renderHistorial(); $("verHist").textContent=(abierto?"▾":"▸")+" Configuración de eventos"; });
 async function renderHistorial(){
   const l=$("histList"); if(!l) return;
@@ -581,9 +605,8 @@ async function renderHistorial(){
   if(!arr.length){ l.innerHTML='<div class="mut">Aún no hay eventos configurados.</div>'; return; }
   l.innerHTML=arr.map(e=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.n_items||0} evidencias</div><div class="ac"><a class="lnk" onclick="copiarLinkEv('${e.uid}','oper')">link proveedor</a><a class="lnk" onclick="copiarLinkEv('${e.uid}','exec')">link productor</a><a class="lnk" onclick="editarEventoId('${e.uid}')">editar</a></div></div></div>`).join("");
 }
-window.copiarLinkEv=(uid,tipo)=>{ const u=tipo==="exec"?linkExec(uid):linkOper(uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del productor":"Enlace del proveedor")); };   // siempre el enlace directo ?ev=
+window.copiarLinkEv=(uid,tipo)=>{ const u=tipo==="exec"?linkExec(uid):linkOper(uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace para editar":"Enlace del proveedor")); };   // siempre el enlace directo ?ev=
 window.editarEventoId=(uid)=>{ editarEvento(uid); };
-$("goExec").addEventListener("click", ()=>{ nuevoExec(); show("exec"); });
 $("goOper").addEventListener("click", ()=>{ if(cfg) irALogin(); else $("homeHint").textContent="Aún no hay una operación configurada en este dispositivo. Pide el enlace o QR de acceso a tu productor."; });
 function nextCodigo(){ let mx=0; execItems.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx) mx=n; }); return String(mx+1).padStart(2,"0"); }
 $("miadd").addEventListener("click", ()=>{ const req=$("mireq").value.trim(), cant=$("micant").value.trim(), prov=$("miprov").value.trim(), cat=$("micat").value.trim();
@@ -902,7 +925,10 @@ async function mostrarAcceso(consec){
   accesoCorto=accesoLink;   // sin acortador: el enlace ?ev= ya es corto, DIRECTO y estable (sin página intermedia)
   $("acLink").textContent=accesoLink; $("acLinkExec").textContent=accesoExec;
   pintarQR(accesoLink);
-  await persistirEvento(accesoLink, accesoExec);   // guarda/actualiza en Supabase + cache
+  const guardado=await persistirEvento(accesoLink, accesoExec);   // guarda/actualiza en Supabase + cache
+  if(!guardado) alert(adminValido()
+    ? "⚠ El evento NO quedó guardado en el servidor.\n\nPuede ser falta de señal o que este evento no esté a tu nombre. Revisa la conexión e intenta de nuevo; si sigue, avisa a un administrador."
+    : "⚠ Tu sesión venció y el evento NO quedó guardado.\n\nIngresa de nuevo y vuelve a guardar.");
   renderHistorial();
 }
 function pintarQR(url){ $("acQR").innerHTML=""; if(window.QRCode){ try{ new QRCode($("acQR"), {text:url, width:220, height:220, colorDark:MARCA.qr, colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.L}); }catch(e){ $("acQR").innerHTML='<div class="mut">Lista muy larga para el QR; comparte el enlace.</div>'; } } }
@@ -914,6 +940,7 @@ async function editarEvento(uid){
   prefillExec(); show("exec");
   editandoId=uid; aplicarModoExec();   // se setea DESPUÉS de prefillExec (que lo resetea)
   $("acWrap").classList.add("hide"); window.scrollTo(0,0);
+  if(adminValido()){ $("execRol").textContent=ROL_NOMBRE[miRol()]||""; cargarEjecutivos(uid); }
 }
 /* Guardar cambios: MISMO uid/consecutivo -> el MISMO enlace sirve el contenido actualizado (link estable). */
 async function guardarEventoEditado(){
@@ -954,19 +981,50 @@ $("reconfig").addEventListener("click", ()=>{ nuevoExec(); show("exec"); });
 $("salir").addEventListener("click", ()=>{ detenerWatch(); admSalirModo(); if(operador){ $("lnom").value=operador.nombre; $("lced").value=operador.cedula; $("lcel").value=operador.celular; } show("login"); });
 
 /* ---- ADMINISTRADOR: visualizador (login + eventos + evidencias con fotos) ---- */
+/* Capa 11b · UNA sola puerta de ingreso para admin, productor y ejecutivo. La sesión guarda token, refresh, uid y ROL
+   (tabla perfiles). Qué ve cada uno lo decide el servidor (políticas de la Capa 11c); la app además oculta lo que no le
+   corresponde: borrar y la carga de administrador son solo del admin. `adminSes` conserva su nombre para no tocar las
+   decenas de lugares que ya lo usan. */
 let adminSes = loadJSON(NS+"admin_ses", null);
 let adminEventos = [];
+const ROL_NOMBRE={admin:"Administrador", productor:"Productor", ejecutivo:"Ejecutivo"};
 function adminValido(){ return !!(adminSes && adminSes.token && Date.now() < (adminSes.exp||0)); }
+function esAdmin(){ return adminValido() && adminSes.rol==="admin"; }
+function miRol(){ return adminValido() ? (adminSes.rol||"") : ""; }
 function adminHeaders(){ return {apikey:SB_KEY, Authorization:"Bearer "+(adminSes&&adminSes.token)}; }
+function jwtClaims(t){ try{ const p=String(t||"").split(".")[1]; if(!p) return {};
+  const b=atob(p.replace(/-/g,"+").replace(/_/g,"/")); return JSON.parse(decodeURIComponent(b.split("").map(c=>"%"+("00"+c.charCodeAt(0).toString(16)).slice(-2)).join(""))); }catch(_){ return {}; } }
+function sesGuardar(){ saveJSON(NS+"admin_ses", adminSes); }
+function sesCerrar(){ adminSes=null; localStorage.removeItem(NS+"admin_ses"); adminOlvidarFiltros(); }
+/* Renueva el token con el refresh_token si le quedan menos de 5 min (o ya venció): una sesión de configuración larga no
+   pierde lo que se está guardando. Sin señal no hace nada. */
+async function sesRenovar(){ if(!adminSes||!adminSes.refresh) return; if((adminSes.exp||0)-Date.now() > 5*60e3) return;
+  try{ const r=await fetch(SB_URL+"/auth/v1/token?grant_type=refresh_token",{method:"POST",headers:{apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({refresh_token:adminSes.refresh})});
+    if(r.ok){ const d=await r.json(); if(d.access_token){ adminSes.token=d.access_token; adminSes.refresh=d.refresh_token||adminSes.refresh; adminSes.exp=Date.now()+((d.expires_in||3600)*1000); sesGuardar(); } }
+    else if(r.status===400||r.status===401){ sesCerrar(); } }catch(_){} }
+async function sesPerfil(){ const r=await fetch(SB_URL+"/rest/v1/perfiles?id=eq."+encodeURIComponent(adminSes.uid)+"&select=rol,nombre",{headers:adminHeaders()});
+  if(!r.ok) throw new Error("perfil "+r.status); const a=await r.json(); return a[0]||null; }
+/* Sesiones guardadas antes de la v41 no traen rol: se completa al abrir. Si el servidor responde que no tiene perfil,
+   se cierra; si no hay señal, se deja como está (sin rol = sin permisos de admin en la app). */
+async function sesCompletar(){ await sesRenovar(); if(!adminValido()||adminSes.rol) return;
+  const c=jwtClaims(adminSes.token); adminSes.uid=adminSes.uid||c.sub||""; adminSes.email=adminSes.email||c.email||"";
+  try{ const p=await sesPerfil(); if(p){ adminSes.rol=p.rol; adminSes.nombre=p.nombre||""; sesGuardar(); } else sesCerrar(); }catch(_){} }
 /* El filtro del tablero (Capa 14) vive con la sesión: al salir o al vencer se olvida,
    para no volver a entrar viendo un recorte viejo sin darse cuenta. */
 function adminOlvidarFiltros(){ adminSeg={}; try{ localStorage.removeItem(NS+"admin_seg"); }catch(_){} }
-function adminSesExpirada(){ adminSes=null; localStorage.removeItem(NS+"admin_ses"); adminOlvidarFiltros(); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent="Tu sesión expiró. Ingresa de nuevo."; }
-$("goAdmin").addEventListener("click", ()=>{ show("admin"); if(adminValido()){ adminMostrarPanel(); } else { adminOlvidarFiltros(); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent=""; } });
-$("adVolver").addEventListener("click", ()=>show("home"));
-$("adSalir").addEventListener("click", ()=>{ adminSes=null; localStorage.removeItem(NS+"admin_ses"); adminOlvidarFiltros(); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); });
+function adminSesExpirada(){ sesCerrar(); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent="Tu sesión expiró. Ingresa de nuevo."; show("admin"); }
+/* A dónde seguir después de ingresar: {tipo:"editar",uid} | {tipo:"nuevo"} | {tipo:"legado"} | null (= panel). */
+let sesDestino=null;
+function pedirIngreso(destino, msg){ sesDestino=destino||null; show("admin"); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent=msg||""; }
+$("goAdmin").addEventListener("click", async ()=>{ await sesCompletar(); if(adminValido()&&adminSes.rol){ show("admin"); adminMostrarPanel(); } else { adminOlvidarFiltros(); pedirIngreso(null,""); } });
+$("adVolver").addEventListener("click", ()=>{ sesDestino=null; show("home"); });
+$("adSalir").addEventListener("click", ()=>{ sesCerrar(); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent=""; });
 $("adBackLink").addEventListener("click", ()=>adminMostrarPanel());
 $("adEntrar").addEventListener("click", adminLogin);
+$("adPass").addEventListener("keydown", e=>{ if(e.key==="Enter") adminLogin(); });
+$("adNuevo").addEventListener("click", ()=>irAConfig({tipo:"nuevo"}));
+$("adUsuarios").addEventListener("click", ()=>usuariosAbrir());
+$("execPanel").addEventListener("click", async ()=>{ await sesCompletar(); if(adminValido()&&adminSes.rol){ show("admin"); adminMostrarPanel(); } else pedirIngreso(null,"Ingresa de nuevo."); });
 async function adminLogin(){
   const email=$("adEmail").value.trim(), pass=$("adPass").value;
   if(!email||!pass){ $("adMsg").textContent="Escribe correo y contraseña."; return; }
@@ -974,24 +1032,193 @@ async function adminLogin(){
   try{
     const r=await fetch(SB_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({email,password:pass})});
     const d=await r.json();
-    if(r.ok && d.access_token){ adminSes={token:d.access_token, exp:Date.now()+((d.expires_in||3600)*1000)}; saveJSON(NS+"admin_ses",adminSes); $("adPass").value=""; $("adMsg").textContent=""; adminMostrarPanel(); }
-    else { $("adMsg").textContent="No se pudo ingresar: "+((d&&(d.error_description||d.msg||d.message))||"credenciales inválidas"); }
+    if(!(r.ok && d.access_token)){ const t=(d&&(d.error_description||d.msg||d.message))||"";
+      $("adMsg").textContent = /banned/i.test(t) ? "Este usuario está desactivado. Habla con un administrador." : "No se pudo ingresar: "+(t||"credenciales inválidas"); return; }
+    const u=d.user||{};
+    adminSes={token:d.access_token, refresh:d.refresh_token||"", exp:Date.now()+((d.expires_in||3600)*1000), uid:u.id||jwtClaims(d.access_token).sub||"", email:u.email||email};
+    const p=await sesPerfil().catch(()=>undefined);
+    if(p===undefined){ adminSes=null; $("adMsg").textContent="No pude leer tu rol (¿sin señal?). Intenta de nuevo."; return; }
+    if(!p){ adminSes=null; $("adMsg").textContent="Tu usuario no tiene un rol asignado en la app. Pídele a un administrador que te lo asigne."; return; }
+    adminSes.rol=p.rol; adminSes.nombre=p.nombre||""; sesGuardar(); $("adPass").value=""; $("adMsg").textContent="";
+    if(u.user_metadata && u.user_metadata.debe_cambiar){ const ok=await pedirClaveNueva(); if(!ok){ sesCerrar(); $("adMsg").textContent="Debes cambiar la contraseña temporal para continuar."; return; } }
+    const dst=sesDestino; sesDestino=null;
+    if(dst) irAConfig(dst); else adminMostrarPanel();
   }catch(e){ $("adMsg").textContent="Error de conexión."; }
   finally{ $("adEntrar").disabled=false; }
 }
-function adminMostrarPanel(){ $("adLogin").classList.add("hide"); $("adPanel").classList.remove("hide"); $("adBack").classList.add("hide"); $("adTitulo").textContent="Eventos"; adminCargarEventos(); }
+/* Primer ingreso con contraseña temporal (creada por un admin desde «Usuarios»): no se sigue sin cambiarla.
+   Se guarda con PUT /auth/v1/user y se apaga la marca debe_cambiar del usuario. */
+function pedirClaveNueva(){ return new Promise(res=>{
+  const w=document.createElement("div"); w.id="claveNueva";
+  w.style.cssText="position:fixed;inset:0;z-index:9998;background:var(--bg,#f2f4f7);display:flex;align-items:flex-start;justify-content:center;padding:40px 14px;overflow:auto";
+  w.innerHTML=`<div class="card" style="max-width:420px;width:100%">
+    <div class="role">${escAttr(ROL_NOMBRE[adminSes.rol]||"")}</div>
+    <div class="h">Crea tu contraseña</div>
+    <div class="mut" style="margin:0 0 10px">Entraste con una contraseña temporal. Escribe una nueva que solo tú conozcas. Mínimo 8 caracteres.</div>
+    <div class="fld"><label>Contraseña nueva</label><input id="cnP1" type="password" autocomplete="new-password"></div>
+    <div class="fld"><label>Repítela</label><input id="cnP2" type="password" autocomplete="new-password"></div>
+    <div class="mut" id="cnMsg" style="margin-top:8px;min-height:18px"></div>
+    <button class="btn" id="cnOk" style="margin-top:10px">Guardar y continuar</button>
+    <div class="mut" style="margin-top:10px"><a class="lnk" id="cnSalir">Salir</a></div></div>`;
+  document.body.appendChild(w); $("cnP1").focus();
+  const fin=v=>{ w.remove(); res(v); };
+  $("cnSalir").addEventListener("click", ()=>fin(false));
+  $("cnOk").addEventListener("click", async ()=>{
+    const p1=$("cnP1").value, p2=$("cnP2").value, m=$("cnMsg");
+    if(p1.length<8){ m.innerHTML='<span style="color:#b3261e">Mínimo 8 caracteres.</span>'; return; }
+    if(p1!==p2){ m.innerHTML='<span style="color:#b3261e">Las dos contraseñas no coinciden.</span>'; return; }
+    $("cnOk").disabled=true; m.textContent="Guardando…";
+    try{ const r=await fetch(SB_URL+"/auth/v1/user",{method:"PUT",headers:Object.assign({},adminHeaders(),{"Content-Type":"application/json"}),body:JSON.stringify({password:p1,data:{debe_cambiar:false}})});
+      if(r.ok){ toast("Contraseña guardada ✓"); fin(true); return; }
+      let t=""; try{ const j=await r.json(); t=j.msg||j.message||j.error_description||""; }catch(_){}
+      m.innerHTML=`<span style="color:#b3261e">No se pudo guardar${t?": "+escAttr(t):""}.</span>`; $("cnOk").disabled=false;
+    }catch(_){ m.innerHTML='<span style="color:#b3261e">Sin conexión. Intenta de nuevo.</span>'; $("cnOk").disabled=false; }
+  });
+}); }
+/* ---- Capa 11b · panel de configuración: exige sesión. `&rol=ex` ya no da acceso por sí solo. ---- */
+async function esMio(uid){ if(esAdmin()) return true;
+  try{ const r=await fetch(SB_URL+"/rest/v1/rpc/es_evento_mio",{method:"POST",headers:sesHeaders(),body:JSON.stringify({p_uid:uid})}); return r.ok && (await r.json())===true; }catch(_){ return false; } }
+async function irAConfig(dst){
+  await sesCompletar();
+  if(!(adminValido()&&adminSes.rol)){ pedirIngreso(dst, dst.tipo==="editar" ? "Ingresa con tu usuario para editar este evento." : "Ingresa con tu usuario para configurar eventos."); return; }
+  if(dst.tipo==="editar"){
+    if(!(await esMio(dst.uid))){ show("home"); $("homeHint").textContent="Este evento no está a tu nombre. Si necesitas editarlo, pídele a un administrador que te lo asigne."; return; }
+    await editarEvento(dst.uid);
+  } else if(dst.tipo==="legado"){ prefillExec(); show("exec"); cargarEjecutivos(null); }
+  else { nuevoExec(); show("exec"); cargarEjecutivos(null); }
+  $("execRol").textContent=ROL_NOMBRE[adminSes.rol]||"";
+}
+/* Ejecutivo asignado (tabla evento_ejecutivos; hoy uno por evento, abierta a varios). Lo eligen admin y productor.
+   Cuando crea un EJECUTIVO, queda asignado él mismo. */
+let ejActual="";
+async function cargarEjecutivos(uid){
+  const w=$("eEjWrap"), s=$("eEj"); ejActual=""; s.innerHTML='<option value="">— Sin asignar —</option>';
+  const puede = miRol()==="admin" || miRol()==="productor"; w.classList.toggle("hide", !puede); if(!puede) return;
+  try{
+    const r=await fetch(SB_URL+"/rest/v1/rpc/ejecutivos_disponibles",{method:"POST",headers:sesHeaders(),body:"{}"});
+    const lista=r.ok ? await r.json() : [];
+    lista.forEach(x=>{ const o=document.createElement("option"); o.value=x.id; o.textContent=x.nombre||x.id; s.appendChild(o); });
+    if(uid){ const a=await fetch(SB_URL+"/rest/v1/evento_ejecutivos?evento_uid=eq."+encodeURIComponent(uid)+"&select=usuario",{headers:sesHeaders()});
+      const f=a.ok ? await a.json() : []; if(f[0]){ ejActual=f[0].usuario; if(![...s.options].some(o=>o.value===ejActual)){ const o=document.createElement("option"); o.value=ejActual; o.textContent="(usuario sin rol de ejecutivo)"; s.appendChild(o); } s.value=ejActual; } }
+  }catch(_){}
+}
+async function asignarEjecutivo(uid){
+  if(!adminValido()) return;
+  const H=Object.assign({},sesHeaders(),{Prefer:"resolution=ignore-duplicates,return=minimal"});
+  try{
+    if(miRol()==="ejecutivo"){ await fetch(SB_URL+"/rest/v1/evento_ejecutivos",{method:"POST",headers:H,body:JSON.stringify({evento_uid:uid,usuario:adminSes.uid})}); return; }
+    if($("eEjWrap").classList.contains("hide")) return;
+    const sel=$("eEj").value; if(sel===ejActual) return;
+    const d=await fetch(SB_URL+"/rest/v1/evento_ejecutivos?evento_uid=eq."+encodeURIComponent(uid),{method:"DELETE",headers:sesHeaders()});
+    let ok=d.ok;
+    if(ok && sel){ const r=await fetch(SB_URL+"/rest/v1/evento_ejecutivos",{method:"POST",headers:H,body:JSON.stringify({evento_uid:uid,usuario:sel})}); ok=r.ok; }
+    if(ok) ejActual=sel; else toast("⚠ No se pudo guardar el ejecutivo asignado");
+  }catch(_){ toast("⚠ No se pudo guardar el ejecutivo asignado"); }
+}
+/* Eventos que le tocan a quien ingresó: admin = todos; productor/ejecutivo = los que creó o tiene asignados.
+   Tras la Capa 11c el servidor ya devuelve solo esos; este filtro deja la beta mostrando lo mismo desde antes. */
+async function filtrarMios(arr){
+  if(!Array.isArray(arr) || esAdmin()) return arr;
+  let asig=new Set();
+  try{ const r=await fetch(SB_URL+"/rest/v1/evento_ejecutivos?usuario=eq."+encodeURIComponent(adminSes.uid)+"&select=evento_uid",{headers:sesHeaders()}); if(r.ok) asig=new Set((await r.json()).map(x=>x.evento_uid)); }catch(_){}
+  return arr.filter(e=>e.creado_por===adminSes.uid || asig.has(e.uid));
+}
+function adminMostrarPanel(){ $("adLogin").classList.add("hide"); $("adPanel").classList.remove("hide"); $("adBack").classList.add("hide"); $("adTitulo").textContent="Eventos";
+  $("adRol").textContent=ROL_NOMBRE[miRol()]||""; $("adAcciones").classList.remove("hide"); $("adUsuarios").classList.toggle("hide", !esAdmin());
+  adminCargarEventos(); }
+/* ---- Capa 11b · USUARIOS (solo admin): crear, cambiar rol, desactivar y dar contraseña temporal.
+   Crear usuarios exige la llave de servicio, que NUNCA va en la página: lo hace la Edge Function «usuarios» en Supabase,
+   que verifica que quien llama sea admin. La contraseña temporal la genera el servidor, se muestra UNA vez para
+   compartirla por WhatsApp y el usuario debe cambiarla en su primer ingreso. ---- */
+async function fnUsuarios(accion, datos){
+  await sesRenovar();
+  const r=await fetch(SB_URL+"/functions/v1/usuarios",{method:"POST",headers:Object.assign({},adminHeaders(),{"Content-Type":"application/json"}),body:JSON.stringify(Object.assign({accion},datos||{}))});
+  let j={}; try{ j=await r.json(); }catch(_){}
+  if(r.status===401){ adminSesExpirada(); throw new Error("Sesión vencida"); }
+  if(!r.ok) throw new Error(j.error||("HTTP "+r.status));
+  return j;
+}
+function usuariosMsgClave(u, clave){
+  return `Hola ${u.nombre||""}. Ya tienes usuario en la app de evidencias de Estrella.\n\nEntra a: ${PROD}\nToca «Ingresar» y usa:\nCorreo: ${u.email}\nContraseña temporal: ${clave}\n\nAl entrar te pedirá crear tu propia contraseña.`;
+}
+function usuariosMostrarClave(u, clave){
+  const c=$("usClave"); if(!c) return;
+  c.classList.remove("hide");
+  c.innerHTML=`<div class="guia neutro"><b>Contraseña temporal de ${escAttr(u.email)}</b><div style="font:700 18px/1.4 ui-monospace,monospace;margin:6px 0;letter-spacing:.5px">${escAttr(clave)}</div>
+    Se muestra <b>solo esta vez</b>. Compártela por WhatsApp; al entrar, la app le pedirá crear la suya.
+    <div style="margin-top:8px"><button class="btn sec" id="usCopiarMsg">Copiar mensaje para WhatsApp</button></div></div>`;
+  $("usCopiarMsg").addEventListener("click", ()=>copiarAlPortapapeles(usuariosMsgClave(u, clave), "Mensaje"));
+  c.scrollIntoView({block:"nearest"});
+}
+async function usuariosAbrir(){
+  if(!esAdmin()){ toast("Solo un administrador"); return; }
+  $("adBack").classList.remove("hide"); $("adAcciones").classList.add("hide"); $("adTitulo").textContent="Usuarios";
+  const l=$("adLista");
+  l.innerHTML=`<div class="guia neutro" style="margin-bottom:10px"><b>Productor</b>: crea eventos y asigna ejecutivo; ve solo los que creó. <b>Ejecutivo</b>: ve y administra solo los eventos asignados. <b>Administrador</b>: ve todo y es el único que borra.</div>
+    <div class="fld"><label>Correo</label><input id="usEmail" type="email" autocomplete="off"></div>
+    <div class="fld"><label>Nombre</label><input id="usNombre" type="text" autocomplete="off"></div>
+    <div class="fld"><label>Rol</label><select id="usRol"><option value="productor">Productor</option><option value="ejecutivo">Ejecutivo</option><option value="admin">Administrador</option></select></div>
+    <button class="btn" id="usCrear" style="margin-top:6px">Crear usuario</button>
+    <div class="mut" id="usMsg" style="margin-top:8px;min-height:18px"></div>
+    <div id="usClave" class="hide" style="margin-top:6px"></div>
+    <div class="h" style="margin-top:16px">Usuarios</div>
+    <div id="usLista" class="list"><div class="mut">Cargando…</div></div>`;
+  $("usCrear").addEventListener("click", usuariosCrear);
+  usuariosListar();
+}
+async function usuariosCrear(){
+  const email=$("usEmail").value.trim().toLowerCase(), nombre=$("usNombre").value.trim(), rol=$("usRol").value, m=$("usMsg");
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ m.innerHTML='<span style="color:#b3261e">Escribe un correo válido.</span>'; return; }
+  if(!nombre){ m.innerHTML='<span style="color:#b3261e">Escribe el nombre.</span>'; return; }
+  if(rol==="admin" && !confirm("Un ADMINISTRADOR ve todos los eventos, todas las fotos y puede borrar.\n\n¿Crear "+email+" como administrador?")) return;
+  $("usCrear").disabled=true; m.textContent="Creando…";
+  try{ const j=await fnUsuarios("crear",{email,nombre,rol});
+    m.innerHTML='<span style="color:#1a9e56;font-weight:700">✅ Usuario creado.</span>'; $("usEmail").value=""; $("usNombre").value="";
+    usuariosMostrarClave({email,nombre}, j.clave); usuariosListar();
+  }catch(e){ m.innerHTML=`<span style="color:#b3261e">No se pudo crear: ${escAttr(e.message)}</span>`; }
+  finally{ $("usCrear").disabled=false; }
+}
+let usuariosCache=[];
+async function usuariosListar(){
+  const l=$("usLista"); if(!l) return;
+  try{ const j=await fnUsuarios("listar"); usuariosCache=j.usuarios||[]; }
+  catch(e){ l.innerHTML=`<div class="mut">No se pudo cargar la lista: ${escAttr(e.message)}</div>`; return; }
+  if(!usuariosCache.length){ l.innerHTML='<div class="mut">Aún no hay usuarios.</div>'; return; }
+  l.innerHTML=usuariosCache.map((u,k)=>{ const yo=u.id===adminSes.uid;
+    return `<div class="ev"><div class="in"><b>${escAttr(u.nombre||u.email)}</b>${yo?' <span class="mut" style="margin:0">(tú)</span>':""}${u.activo?"":' <span style="color:#b3261e;font-weight:700">· desactivado</span>'}
+      <div class="mut" style="margin:2px 0 0">${escAttr(u.email)} · ${escAttr(ROL_NOMBRE[u.rol]||"sin rol")}${u.ultimo?" · último ingreso "+escAttr(fmtFecha(u.ultimo)):" · nunca ha ingresado"}</div>
+      ${yo?"":`<div class="ac" style="margin-top:6px;align-items:center"><select data-k="${k}" class="usRolSel">${["productor","ejecutivo","admin"].map(r=>`<option value="${r}"${u.rol===r?" selected":""}>${ROL_NOMBRE[r]}</option>`).join("")}</select>
+        <a class="lnk" data-k="${k}" data-acc="clave">nueva contraseña temporal</a>
+        <a class="lnk" data-k="${k}" data-acc="activo" style="color:${u.activo?"#b3261e":"var(--azul)"}">${u.activo?"desactivar":"reactivar"}</a></div>`}
+    </div></div>`; }).join("");
+  l.querySelectorAll(".usRolSel").forEach(sel=>sel.addEventListener("change", ()=>usuariosCambiarRol(+sel.dataset.k, sel.value, sel)));
+  l.querySelectorAll("a[data-acc]").forEach(a=>a.addEventListener("click", ()=>a.dataset.acc==="clave" ? usuariosClave(+a.dataset.k) : usuariosActivo(+a.dataset.k)));
+}
+async function usuariosCambiarRol(k, rol, sel){ const u=usuariosCache[k]; if(!u) return;
+  if(rol==="admin" && !confirm("Un ADMINISTRADOR ve todo y puede borrar.\n\n¿Dar rol de administrador a "+u.email+"?")){ sel.value=u.rol; return; }
+  try{ await fnUsuarios("rol",{id:u.id,rol}); toast("Rol actualizado ✓"); usuariosListar(); }
+  catch(e){ sel.value=u.rol; alert("No se pudo cambiar el rol: "+e.message); } }
+async function usuariosClave(k){ const u=usuariosCache[k]; if(!u) return;
+  if(!confirm("Se crea una contraseña temporal NUEVA para "+u.email+" y la actual deja de servir.\n\n¿Continuar?")) return;
+  try{ const j=await fnUsuarios("clave",{id:u.id}); usuariosMostrarClave(u, j.clave); }
+  catch(e){ alert("No se pudo: "+e.message); } }
+async function usuariosActivo(k){ const u=usuariosCache[k]; if(!u) return; const activar=!u.activo;
+  if(!activar && !confirm("¿Desactivar a "+u.email+"?\n\nNo podrá volver a ingresar hasta que lo reactives. Sus eventos y fotos no se borran.")) return;
+  try{ await fnUsuarios("activo",{id:u.id,activo:activar}); toast(activar?"Usuario reactivado ✓":"Usuario desactivado ✓"); usuariosListar(); }
+  catch(e){ alert("No se pudo: "+e.message); } }
 let adminDatos=null, adminSeg=loadJSON(NS+"admin_seg",{})||{};
 const SEG_KEYS=["cl","ev","mes","desde","hasta","estado","prov","cat"];
 async function adminCargarEventos(){
   const l=$("adLista"); l.innerHTML='<div class="mut">Cargando…</div>';
   try{
     const [rEv,rEvi]=await Promise.all([
-      fetch(SB_URL+"/rest/v1/eventos?select=uid,consec,cl,ev,fe,config,short_oper,short_exec&order=consec.desc",{headers:adminHeaders()}),
+      fetch(SB_URL+"/rest/v1/eventos?select=uid,consec,cl,ev,fe,config,short_oper,short_exec,creado_por&order=consec.desc",{headers:adminHeaders()}),
       fetch(SB_URL+"/rest/v1/evidencias?select=evento_uid,item,item_id,categoria,adicional,fecha,tipo,proveedor",{headers:adminHeaders()})
     ]);
     if(rEv.status===401||rEvi.status===401){ adminSesExpirada(); return; }
-    adminEventos=await rEv.json();
-    const evis = rEvi.ok ? await rEvi.json() : [];
+    adminEventos=await filtrarMios(await rEv.json());   // Capa 11b: productor/ejecutivo ven solo los suyos
+    const misUid=new Set(adminEventos.map(e=>e.uid));
+    const evis = (rEvi.ok ? await rEvi.json() : []).filter(x=>misUid.has(x.evento_uid));
     if(!adminEventos.length){ l.innerHTML='<div class="mut">Aún no hay eventos.</div>'; return; }
     adminEventos.forEach(e=>{ e._items=anotarIids((e.config&&e.config.it)||[]); e._ff=(e.config&&e.config.ff)||e.fe||""; });
     adminDatos={evis};
@@ -1067,7 +1294,7 @@ function adminRenderDash(){
         +bar(m.av)
         +`<div class="mut" style="margin:2px 0 0">Requerimientos: <b>${m.n}</b>${m.n!==m.tot?` <span class="mut" style="margin:0">(de ${m.tot})</span>`:""} · Con evidencia: <b>${m.conEvi}</b> · Completos: <b>${m.comp}</b> · Pendientes: <b>${m.pend}</b> · Evidencias: <b>${m.reg}</b> · Avance: <b>${m.av}%</b>${m.extras?` · <span style="color:var(--oro-d)">Extras en sitio: <b>${m.extras}</b></span>`:""}</div>`
         +(m.pd.n?`<div class="mut" style="margin:3px 0 0">📅 Por día: <b>${m.pd.n}</b> req · días cubiertos <b>${m.pd.diasCub}/${m.pd.diasReq}</b> · hoy <b>${m.pd.hoyOk}/${m.pd.hoyTotal}</b>${m.pd.atras?` · <span style="color:#b3261e">⚠ ${m.pd.atras} con días atrasados</span>`:""}</div><div id="adHoy${i}" class="hide"></div>`:"")
-        +`<div class="ac">${m.pd.n?`<a class="lnk" style="font-weight:700" onclick="adminHoy(${i})">hoy por proveedor</a>`:""}<a class="lnk" onclick="adminCopiar(${i},'oper')">link proveedor</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link productor</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a><a class="lnk" onclick="adminCargar(${i})">📤 carga de administrador</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a></div></div></div>`;
+        +`<div class="ac">${m.pd.n?`<a class="lnk" style="font-weight:700" onclick="adminHoy(${i})">hoy por proveedor</a>`:""}<a class="lnk" onclick="adminCopiar(${i},'oper')">link proveedor</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link para editar</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a>${esAdmin()?`<a class="lnk" onclick="adminCargar(${i})">📤 carga de administrador</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a>`:""}</div></div></div>`;
     }).join(""):'<div class="mut">Ningún evento coincide con el filtro. <a class="lnk" id="segTodo2">Ver todo</a></div>');
   const info=$("segInfo"); if(info) info.textContent = activos.length ? `${visibles.length} de ${adminEventos.length} eventos` : `${adminEventos.length} evento(s)`;
   const bind=(id,k)=>{ const el=$(id); if(!el) return; el.addEventListener("change",()=>{ adminSeg[k]=el.value; if(k==="cl") adminSeg.ev=""; if(k==="mes"&&el.value){ adminSeg.desde=""; adminSeg.hasta=""; } if((k==="desde"||k==="hasta")&&el.value) adminSeg.mes=""; saveJSON(NS+"admin_seg",adminSeg); adminRenderDash(); }); };
@@ -1107,8 +1334,8 @@ window.adminRecordatorio=(i,prov)=>{ const e=adminEventos[i], m=adminMetricas[i]
   if(atr.length){ T.push("Días anteriores sin foto:"); atr.forEach(x=>T.push(`• ${x.it.codigo} ${x.it.req||""}: ${x.atrasados.map(fmtDia).join(", ")}`)); }
   T.push(`Súbelas desde la app: ${linkOper(e.uid)}`); T.push("Gracias.");
   copiarAlPortapapeles(T.join("\n"), "Recordatorio para "+prov); };
-window.adminCopiar=(i,tipo)=>{ const e=adminEventos[i]; if(!e) return; const u=tipo==="exec"?linkExec(e.uid):linkOper(e.uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del productor":"Enlace del proveedor")); };   // siempre el enlace directo ?ev= (nunca tinyurl viejo)
-window.adminBorrarEvento=async(i)=>{
+window.adminCopiar=(i,tipo)=>{ const e=adminEventos[i]; if(!e) return; const u=tipo==="exec"?linkExec(e.uid):linkOper(e.uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace para editar":"Enlace del proveedor")); };   // siempre el enlace directo ?ev= (nunca tinyurl viejo)
+window.adminBorrarEvento=async(i)=>{ if(!esAdmin()){ toast("Solo un administrador puede borrar"); return; }
   const ev=adminEventos[i]; if(!ev) return;
   if(!confirm(`⚠️ BORRAR EVENTO ${evConsecTag(ev.consec)}\n\n${ev.cl||""} — ${ev.ev||""}\n\nEsto elimina el evento Y TODAS sus evidencias y fotos. Es una acción DELICADA que NO se puede deshacer.\n\n¿Continuar?`)) return;
   if(!confirm(`Confirma OTRA VEZ: se borrará ${evConsecTag(ev.consec)} y todo su contenido de forma permanente.\n\n¿Seguro?`)) return;
@@ -1131,7 +1358,7 @@ let adminFotoURLs={}, adminEvidencias=[], lbActual=null, adminEventoActual=null;
 function fmtFecha(iso){ try{ const d=new Date(iso); if(isNaN(d)) return iso||""; return `${z(d.getDate())}/${z(d.getMonth()+1)}/${d.getFullYear()} ${z(d.getHours())}:${z(d.getMinutes())}`; }catch(_){ return iso||""; } }
 window.adminAbrir=async(i)=>{
   const ev=adminEventos[i]; if(!ev) return; adminEventoActual=i;
-  $("adBack").classList.remove("hide"); $("adTitulo").textContent=`${ev.cl||""} — ${ev.ev||""}`;
+  $("adBack").classList.remove("hide"); $("adAcciones").classList.add("hide"); $("adTitulo").textContent=`${ev.cl||""} — ${ev.ev||""}`;
   const l=$("adLista"); l.innerHTML='<div class="mut">Cargando evidencias…</div>'; adminColaReset(); adminEvidencias=[]; adminOrig=new Map();
   try{
     const r=await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid)+"&select=*&order=creado.asc",{headers:adminHeaders()});
@@ -1232,7 +1459,7 @@ function renderAdminEvidencias(){
   if(!adminVis.length) cont.innerHTML='<div class="mut" style="padding:8px 2px">Ninguna evidencia coincide con el filtro.</div>'; else adminMostrarMas();
   if($("adFltInfo")){ const f=q||fp||fo||fc||fr; $("adFltInfo").textContent = f ? `Mostrando ${adminVis.length} de ${adminEvidencias.length}` : `${adminEvidencias.length} evidencia(s)`; }
 }
-function adminFilaHTML(e,j){ return `<div class="ev"><div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})">${(e.tipo||"foto")==="video"?`<div style="width:66px;height:66px;border-radius:7px;background:#e9eef5;display:flex;align-items:center;justify-content:center;font-size:24px">🎬</div>`:`<img id="adimg${j}" data-j="${j}" alt="" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5">`}</div><div class="in">${e.categoria?`<span class="cchip">${escAttr(e.categoria)}</span> `:""}<b>${e.item||""}</b> · ${(e.requerimiento||"").slice(0,38)}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${e.operador_nombre||""}${e.operador_cedula?" · "+e.operador_cedula:""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+e.radicado:""}</div><div class="fn" style="margin-top:3px">${e.archivo||""}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${(e.lugar||"").slice(0,60)}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvidencia(${j})">borrar</a></div></div></div>`; }
+function adminFilaHTML(e,j){ return `<div class="ev"><div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})">${(e.tipo||"foto")==="video"?`<div style="width:66px;height:66px;border-radius:7px;background:#e9eef5;display:flex;align-items:center;justify-content:center;font-size:24px">🎬</div>`:`<img id="adimg${j}" data-j="${j}" alt="" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5">`}</div><div class="in">${e.categoria?`<span class="cchip">${escAttr(e.categoria)}</span> `:""}<b>${e.item||""}</b> · ${(e.requerimiento||"").slice(0,38)}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${e.operador_nombre||""}${e.operador_cedula?" · "+e.operador_cedula:""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+e.radicado:""}</div><div class="fn" style="margin-top:3px">${e.archivo||""}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${(e.lugar||"").slice(0,60)}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a>${esAdmin()?`<a class="lnk" style="color:#b3261e" onclick="adminBorrarEvidencia(${j})">borrar</a>`:""}</div></div></div>`; }
 function adminMostrarMas(){
   const cont=$("adEviList"); if(!cont) return; const btn=$("adMas"); if(btn) btn.remove();
   const fin=Math.min(adminVis.length, adminMostrados+AD_PAGINA); let html="";
@@ -1264,7 +1491,7 @@ window.adminVerFoto=async(j)=>{ const e=adminEvidencias[j]; if(!e) return; if((e
   lbActual=j; $("lbName").textContent=e.archivo||""; const f=adminFotoURLs[j]; $("lbImg").src=f?f.url:""; $("lightbox").classList.remove("hide");
   const b=await adminOriginal(j); if(b && lbActual===j && !$("lightbox").classList.contains("hide")){ const u=URL.createObjectURL(b); $("lbImg").src=u; setTimeout(()=>URL.revokeObjectURL(u),60000); } };
 window.descargarFoto=async(j)=>{ const e=adminEvidencias[j]; if(!e) return; toast("Descargando…"); const b=await adminOriginal(j); if(!b){ toast("No se pudo descargar, reintenta"); return; } bajar(b, e.archivo||"evidencia.jpg"); };
-window.adminBorrarEvidencia=async(j)=>{
+window.adminBorrarEvidencia=async(j)=>{ if(!esAdmin()){ toast("Solo un administrador puede borrar"); return; }
   const e=adminEvidencias[j]; if(!e) return;
   if(!confirm(`¿Borrar esta evidencia?\n\n${e.item||""} · ${(e.requerimiento||"").slice(0,40)}\n${e.archivo||""}\n\nElimina la foto y su registro. No se puede deshacer.`)) return;
   try{
@@ -2243,8 +2470,8 @@ function textoMarca(d){ if(!d) return "";
    sesión sigue vigente. El enlace del proveedor abre otra pestaña sin bandera → pantalla del proveedor tal cual (v38). */
 function admBandera(){ try{ return sessionStorage.getItem(NS+"adm_carga")||""; }catch(_){ return ""; } }
 function admSalirModo(){ try{ sessionStorage.removeItem(NS+"adm_carga"); }catch(_){} }
-function admCargaActiva(){ try{ return typeof adminValido==="function" && adminValido() && !!cfg && !!cfg.uid && admBandera()===cfg.uid; }catch(_){ return false; } }
-window.adminCargar=(i)=>{ const e=adminEventos[i]; if(!e) return; if(!adminValido()){ adminSesExpirada(); return; }
+function admCargaActiva(){ try{ return typeof esAdmin==="function" && esAdmin() && !!cfg && !!cfg.uid && admBandera()===cfg.uid; }catch(_){ return false; } }
+window.adminCargar=(i)=>{ const e=adminEventos[i]; if(!e) return; if(!adminValido()){ adminSesExpirada(); return; } if(!esAdmin()){ toast("Solo un administrador"); return; }
   try{ sessionStorage.setItem(NS+"adm_carga", e.uid); }catch(_){}
   location.href="?ev="+encodeURIComponent(e.uid); };   /* relativo: se queda en /beta/ */
 window.admSalir=()=>{ admSalirModo(); renderLista(); };
