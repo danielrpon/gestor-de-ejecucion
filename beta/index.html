@@ -260,7 +260,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v41 · 28sep · Capa 11b: ingreso por rol (admin · productor · ejecutivo) + usuarios</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v41.1 · 28sep · Capa 11b: ingreso por rol (admin · productor · ejecutivo) + usuarios · carga admin con sesión</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -2120,6 +2120,10 @@ async function miniatura(blob, lado){ try{ const bmp=await createImageBitmap(blo
 let ultimoErr="";
 async function subirEvidencia(e, radicado){
   try{
+    /* Capa 11c: en «Carga de administrador» la fila va con la SESIÓN del admin (el servidor solo acepta
+       fecha_origen = admin | admin-sin-sello de un admin). El proveedor sigue con la llave pública. */
+    const adm=admCargaActiva(); if(adm) await sesRenovar();
+    const HE=Object.assign({}, (adm&&adminValido()) ? sesHeaders() : SB_H, {Prefer:"return=minimal"});
     const path=(cfg.uid||"sinuid")+"/"+e.filename;
     const up=await fetchTO(SB_URL+"/storage/v1/object/evidencias/"+encodeURI(path), {method:"POST",
       headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":(e.tipo==="video"?((e.file&&e.file.type)||"video/mp4"):"image/jpeg")}, body:e.blob}, 20000);
@@ -2138,18 +2142,18 @@ async function subirEvidencia(e, radicado){
       fecha:fechaEfectiva(e)||"", hora:e.sinHora?"":(e.datos.hora||""), lugar:e.datos.lugar||"", lat:e.datos.lat, lon:e.datos.lon };
     const dd=diaDeFoto(e); row.fecha_origen=e.fechaOrigen||""; row.dia_evento=dd?dd.idx:null; row.dias_evento=dd?dd.n:null;   // Capa 13
     if(e.declPor) row.declarado_por=e.declPor; if(ad.grupo) row.grupo=ad.grupo;   /* v39 (Capa 15) */
-    let ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row)}, 15000);
+    let ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:HE,body:JSON.stringify(row)}, 15000);
     if(!ins.ok && (row.declarado_por!==undefined || row.grupo!==undefined)){   /* Capa 15 sin correr: soltar SOLO sus columnas */
       delete row.declarado_por; delete row.grupo;
-      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row)}, 15000); }
+      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:HE,body:JSON.stringify(row)}, 15000); }
     if(!ins.ok){   // Capa 13 sin correr: soltar SOLO sus columnas, sin perder item_id
       const row0=Object.assign({},row); delete row0.fecha_origen; delete row0.dia_evento; delete row0.dias_evento;
-      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row0)}, 15000); }
+      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:HE,body:JSON.stringify(row0)}, 15000); }
     if(!ins.ok){   // reintento escalonado: primero soltar SOLO item_id (Capa9 sin correr) para NO perder la categoria
       const row1=Object.assign({},row); delete row1.item_id; delete row1.cantidad; delete row1.fecha_origen; delete row1.dia_evento; delete row1.dias_evento;
-      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row1)}, 15000);
+      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:HE,body:JSON.stringify(row1)}, 15000);
       if(!ins.ok){ const row2=Object.assign({},row1); delete row2.radicado; delete row2.categoria; delete row2.proveedor_nit;   // último recurso: columnas viejas
-        ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row2)}, 15000); } }
+        ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:HE,body:JSON.stringify(row2)}, 15000); } }
     if(!ins.ok) ultimoErr="registrar dato: HTTP "+ins.status;
     return ins.ok;
   }catch(err){ ultimoErr=(err&&err.name==="AbortError")?"tiempo agotado (señal muy lenta)":("red: "+((err&&err.name)||"error")); return false; }
