@@ -262,7 +262,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v42.1 · 29sep · fotos incompletas en el tablero + evento puede rechazar fotos sin metadatos · hora declarada por el admin</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v43 · 29sep · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -1383,7 +1383,7 @@ window.adminBorrarEvento=async(i)=>{ if(!esAdmin()){ toast("Solo un administrado
     const r=await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid)+"&select=storage_path",{headers:adminHeaders()});
     if(r.status===401){ adminSesExpirada(); return; }
     const evs = r.ok ? await r.json() : [];
-    for(const e of evs){ if(e.storage_path){ try{ const p=e.storage_path.replace(/^evidencias\//,"").split("/").map(encodeURIComponent).join("/"); await fetch(SB_URL+"/storage/v1/object/evidencias/"+p,{method:"DELETE",headers:adminHeaders()}); }catch(_){} } }
+    for(const e of evs){ if(e.storage_path){ try{ const p=e.storage_path.replace(/^evidencias\//,"").split("/").map(encodeURIComponent).join("/"); await fetch(SB_URL+"/storage/v1/object/evidencias/"+p,{method:"DELETE",headers:adminHeaders()}); for(const pre of ["thumbs/","orig/","prev/"]) await fetch(SB_URL+"/storage/v1/object/evidencias/"+pre+p,{method:"DELETE",headers:adminHeaders()}); }catch(_){} } }
     await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid),{method:"DELETE",headers:Object.assign({},adminHeaders(),{Prefer:"return=representation",Accept:"application/json"})});
     const de=await fetch(SB_URL+"/rest/v1/eventos?uid=eq."+encodeURIComponent(ev.uid),{method:"DELETE",headers:Object.assign({},adminHeaders(),{Prefer:"return=representation",Accept:"application/json"})});
     if(!de.ok){ alert("No se pudo borrar el evento (HTTP "+de.status+").\n\nCorre las Capas 5 y 6 en Supabase y reintenta."); return; }
@@ -1418,10 +1418,17 @@ window.adminAbrir=async(i)=>{
         +`<div class="row" style="margin-top:8px"><div><label>Proveedor</label><select id="adFltProv">${opt(provs,"Todos")}</select></div><div><label>Quién capturó</label><select id="adFltOper">${opt(opers,"Todos")}</select></div></div>`
         +`<div class="fld" style="margin-top:8px"><label>Escenario / categoría</label><select id="adFltCat">${opt(cats,"Todos")}</select></div>`
         +`<div class="fld" style="margin-top:8px"><label>Requerimiento</label><select id="adFltReq">${opt(reqs,"Todos")}</select></div>`
-        +`<div class="fld" style="margin-top:8px"><label>Datos de la foto</label><select id="adFltInc">${opt([["inc","Solo incompletas (sin fecha, hora o ubicación)"]],"Todas")}</select></div>`
+        +`<div class="fld" style="margin-top:8px"><label>Datos de la foto</label><select id="adFltInc">${opt([["inc","Incompletas (les falta algún dato)"],["ubicación","Sin ubicación"],["hora","Sin hora"],["fecha original","Sin fecha original"]],"Todas")}</select></div>`
         +`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span class="mut" id="adFltInfo"></span><a class="lnk" id="adFltLimpiar" style="font-size:13px">Limpiar filtros</a></div>`
-      +`</div><div id="adEviList" class="list"></div>`;
-    l.innerHTML=cab;
+      +`</div>`
+      +(esAdmin()?`<div id="adCorr" class="xbox" style="margin-bottom:10px"><div class="xt">🔐 Corregir datos de fotos</div>`
+        +`<div class="mut" style="margin:0 0 6px;font-size:12px">Marca las fotos (o «seleccionar las filtradas») y escribe lo que falta. A cada foto solo se le completa lo que le falta; sus datos reales no se tocan. El sello se rehace con «_» y la versión anterior queda de respaldo.</div>`
+        +`<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px;margin-bottom:6px;align-items:baseline"><a class="lnk" id="adSelTodas">seleccionar las filtradas</a><a class="lnk" id="adSelNinguna">quitar selección</a><b id="adSelN">0 seleccionadas</b></div>`
+        +`<div class="fld"><label>Lugar (para las que no tienen ubicación)</label><input id="adCorrLugar" type="text" autocomplete="off" placeholder="Dirección, barrio, ciudad"></div>`
+        +`<div class="row" style="margin-top:8px"><div><label>Fecha (sin fecha original)</label><input id="adCorrFecha" type="date"></div><div><label>Hora (sin hora)</label><input id="adCorrHora" type="time"></div></div>`
+        +`<button class="btn sec" id="adCorrAplicar" style="margin-top:10px">Aplicar a las seleccionadas</button><div class="mut" id="adCorrMsg" style="margin:6px 0 0;font-size:12px"></div></div>`:"")
+      +`<div id="adEviList" class="list"></div>`;
+    l.innerHTML=cab; adminCorrBind();
     ["adFltBuscar","adFltProv","adFltOper","adFltCat","adFltReq","adFltInc"].forEach(id=>{ const el=$(id); if(el) el.addEventListener(id==="adFltBuscar"?"input":"change", renderAdminEvidencias); });
     if($("adFltLimpiar")) $("adFltLimpiar").addEventListener("click", ()=>{ ["adFltBuscar","adFltProv","adFltOper","adFltCat","adFltReq","adFltInc"].forEach(id=>{ if($(id)) $(id).value=""; }); renderAdminEvidencias(); });
     renderAdminEvidencias();
@@ -1481,6 +1488,106 @@ let adminVis=[], adminMostrados=0, adminCola=[], adminEnCurso=0, adminGen=0, adm
 function thumbPath(e){ return e.storage_path ? e.storage_path.replace(/^evidencias\//,"evidencias/thumbs/") : ""; }
 function adminUrlObjeto(storagePath){ return SB_URL+"/storage/v1/object/authenticated/"+storagePath.split("/").map(encodeURIComponent).join("/"); }
 function adminColaReset(){ adminGen++; adminCola=[]; adminEnCurso=0; if(adminIO){ adminIO.disconnect(); adminIO=null; } Object.values(adminFotoURLs).forEach(f=>{ try{ URL.revokeObjectURL(f.url); }catch(_){} }); adminFotoURLs={}; adminCacheOrden=[]; }
+/* ===== v43 · CORRECCIÓN MASIVA DEL ADMIN (pedido de Daniel 29-sep, caso Montería) =====
+   En «ver evidencias»: filtrar por lo que falta, marcar fotos y completar lugar, fecha y/u hora. Solo se completa lo que
+   le falta a cada foto (lo real nunca se toca). La foto se vuelve a sellar con «_»: si existe la original sin sello
+   (orig/, se guarda desde v43) sale limpia; si no, se ubica el sello viejo de la app y el nuevo lo tapa en el mismo
+   sitio con fondo más oscuro. La versión anterior queda en prev/. Fila: fecha_origen=admin + declarado_por.
+   Orden: primero la fila (si la base no deja editar, la foto no se toca); si la foto falla, la fila se devuelve. Capa 16. */
+let adminSel=new Set();
+function eviRel(e){ return String((e&&e.storage_path)||"").replace(/^evidencias\//,""); }
+function sbObj(rel){ return SB_URL+"/storage/v1/object/evidencias/"+rel.split("/").map(encodeURIComponent).join("/"); }
+async function adminBajarRel(rel){ try{ const r=await fetchTO(adminUrlObjeto("evidencias/"+rel),{headers:adminHeaders()},60000); if(r.ok){ const b=await r.blob(); return b.size?b:null; } }catch(_){} return null; }
+async function adminSubirRel(rel, blob, reemplazar){
+  const H=Object.assign({}, adminHeaders(), {"Content-Type":"image/jpeg"}); if(reemplazar) H["x-upsert"]="true";
+  let r=await fetchTO(sbObj(rel), {method:"POST", headers:H, body:blob}, 60000);
+  if(r.ok) return true;
+  if(!reemplazar){ try{ const t=await r.json(); if(t&&(t.statusCode==="409"||t.error==="Duplicate"||t.code==="KeyAlreadyExists")) return true; }catch(_){} return false; }   /* prev/ ya existe = se conserva la primera versión */
+  const d=await fetchTO(sbObj(rel), {method:"DELETE", headers:adminHeaders()}, 30000); if(!d.ok) return false;   /* sin permiso de reemplazo: borrar y subir (el respaldo ya está en prev/) */
+  delete H["x-upsert"]; r=await fetchTO(sbObj(rel), {method:"POST", headers:H, body:blob}, 60000); return r.ok; }
+function hexRGB(h){ const m=String(h||"").replace("#",""); return [0,2,4].map(i=>parseInt(m.substr(i,2),16)); }
+/* Ubica el sello de la app en una foto ya sellada, con la misma geometría de dibujar(): la barra de color marca el
+   borde y el alto; el ancho es el salto de luz donde termina el fondo oscurecido. null = la foto no trae sello de la app. */
+function selloViejo(bmp, mk){
+  const W=bmp.width, H=bmp.height; const cv=document.createElement("canvas"); cv.width=W; cv.height=H; const cx=cv.getContext("2d"); cx.drawImage(bmp,0,0);
+  let D; try{ D=cx.getImageData(0,0,W,H).data; }catch(_){ cv.width=cv.height=1; return null; } cv.width=cv.height=1;
+  const cols=Object.values(BRANDS).map(b=>hexRGB(b.stamp));
+  const esBarra=(x,y)=>{ if(x<0||y<0||x>=W||y>=H) return false; const i=(y*W+x)*4; return cols.some(c=>Math.abs(c[0]-D[i])<55&&Math.abs(c[1]-D[i+1])<55&&Math.abs(c[2]-D[i+2])<55); };
+  const lum=(x,y)=>{ const i=(y*W+x)*4; return 0.299*D[i]+0.587*D[i+1]+0.114*D[i+2]; };
+  const escs=[mk&&mk.esc,"3.4","2.6","4.4","5.6"].filter((v,i,a)=>v&&a.indexOf(v)===i), poss=[mk&&mk.pos,"bl","br","tl","tr"].filter((v,i,a)=>v&&a.indexOf(v)===i);
+  let mejor=null;   /* se prueban todos los tamaños y posiciones y gana el que mejor calza con los bordes medidos de la barra */
+  for(const esc of escs){ const fpx=Math.max(14,Math.round(H*parseFloat(esc)/100)), pad=Math.round(fpx*0.5), mg=Math.round(fpx*0.6), lh=Math.round(fpx*1.32), bar=Math.max(4,pad/2);
+    for(const pos of poss){ const abajo=pos==="bl"||pos==="br", izq=pos==="bl"||pos==="tl"; const y0=abajo?H-mg-2:mg+1;
+      let x=-1, xc=-1, err=0;
+      if(izq){ xc=mg+Math.floor(bar/2); if(!esBarra(xc,y0)||!esBarra(xc,abajo?y0-3:y0+3)) continue; let l=xc; while(l-1>=0&&esBarra(l-1,y0)) l--; err+=Math.abs(l-mg); x=mg; }
+      else { for(let c=W-mg-1; c>W*0.2; c--){ if(esBarra(c,y0)&&esBarra(c-1,y0)&&esBarra(c,abajo?y0-3:y0+3)){ xc=c-Math.floor(bar/2); x=c-Math.ceil(bar)+1; break; } } if(xc<0) continue; }
+      let a=y0, b=y0; while(a-1>=0&&esBarra(xc,a-1)) a--; while(b+1<H&&esBarra(xc,b+1)) b++;
+      err += abajo ? Math.abs(b-(H-mg-1)) : Math.abs(a-mg);
+      if(abajo) b=H-mg-1; else a=mg;
+      const bh=b-a+1, n=Math.round((bh-2*pad)/lh); if(n<1||n>8) continue;
+      err += Math.abs(n*lh+2*pad-bh);
+      if(err>8 || (mejor && err>=mejor.err)) continue;
+      let bw;
+      if(izq){ const r0=a+pad, r1=b-pad, x0=x+Math.ceil(bar)+2*pad, colL=new Float32Array(W);
+        for(let c=Math.max(0,x0-4); c<W-mg; c++){ let s2=0,k=0; for(let yy=r0; yy<=r1; yy+=2){ const L=lum(c,yy); if(L<200){ s2+=L; k++; } } colL[c]=k?s2/k:0; }
+        let best=0, bx=-1; for(let c=x0; c<W-mg-4; c++){ const Lm=(colL[c-3]+colL[c-2]+colL[c-1])/3, Rm=(colL[c+1]+colL[c+2]+colL[c+3])/3, q=(Rm+4)/(Lm+4); if(q>best){ best=q; bx=c; } }
+        bw = best>1.5 ? bx-x+1 : Math.round(W*0.6); }
+      else bw=(W-mg)-x;
+      let tr=0,tg=0,tb=0,tk=0; for(let yy=a+2; yy<b-1; yy+=3) for(let c=x+Math.ceil(bar)+1; c<Math.min(W,x+bw)-1; c+=3){ const i=(yy*W+c)*4; if(0.299*D[i]+0.587*D[i+1]+0.114*D[i+2]<150){ tr+=D[i]; tg+=D[i+1]; tb+=D[i+2]; tk++; } }
+      const tono = tk ? `rgb(${Math.round(tr/tk)},${Math.round(tg/tk)},${Math.round(tb/tk)})` : "rgb(20,20,20)";   /* color promedio del fondo viejo sin letras: la tapa sólida se ve como el recuadro de siempre */
+      mejor={x, y:a, bw, bh, pos, esc, n, err, tono}; } }
+  return mejor; }
+async function adminCorregir(j, P, correo){
+  const e=adminEvidencias[j]; if(!e||(e.tipo||"foto")==="video") return "video";
+  const F=eviFaltantes(e); if(!F.length) return "completa";
+  const nv={fecha:e.fecha||"", hora:e.hora||"", lugar:e.lugar||""}; let cambia=false;
+  if(F.includes("fecha original")&&P.fecha){ nv.fecha=P.fecha; cambia=true; }
+  if(F.includes("hora")&&P.hora){ nv.hora=P.hora; cambia=true; }
+  if(F.includes("ubicación")&&P.lugar){ nv.lugar=P.lugar; cambia=true; }
+  if(!cambia) return "nada";
+  const rel=eviRel(e); if(!rel||e.id==null) return "error: evidencia sin ruta";
+  const actual=await adminOriginal(j); if(!actual) return "error: no se pudo descargar la foto";
+  const HJ=Object.assign({},adminHeaders(),{"Content-Type":"application/json",Prefer:"return=representation",Accept:"application/json"});
+  const patch=(body)=>fetchTO(SB_URL+"/rest/v1/evidencias?id=eq."+encodeURIComponent(e.id),{method:"PATCH",headers:HJ,body:JSON.stringify(body)},20000);
+  const antes={fecha:e.fecha==null?null:e.fecha, hora:e.hora==null?null:e.hora, lugar:e.lugar==null?null:e.lugar, fecha_origen:e.fecha_origen||null, declarado_por:e.declarado_por||null};
+  const cambios={fecha:nv.fecha, hora:nv.hora, lugar:nv.lugar, fecha_origen:"admin", declarado_por:correo||"admin"};
+  const pr=await patch(cambios); if(pr.status===401){ adminSesExpirada(); return "error: sesión vencida"; }
+  let filas=[]; try{ filas=await pr.json(); }catch(_){}
+  if(!pr.ok||!Array.isArray(filas)||!filas.length) return "error: la base no dejó editar (falta correr la Capa 16)";
+  try{
+    const mk=(((adminEventos[adminEventoActual]||{}).config)||{}).marca||{};
+    const d={fecha:nv.fecha, hora:nv.hora, lugar:nv.lugar, lugLin:nv.lugar?nv.lugar.split(",").map(x=>x.trim()).filter(Boolean):[], lat:num(e.lat), lon:num(e.lon)};
+    const L=textoMarca(d).split("\n"); L[0]+="_"; const texto=L.join("\n");
+    const ob=await adminBajarRel("orig/"+rel); let src, op;
+    if(ob){ src=await createImageBitmap(ob); op={esc:mk.esc||"3.4", pos:mk.pos||"bl"}; }
+    else { src=await createImageBitmap(actual); const v=selloViejo(src, mk); op=v?{esc:v.esc, pos:v.pos, minW:v.bw, minH:v.bh, fondo:v.tono}:{esc:mk.esc||"3.4", pos:mk.pos||"bl"}; }
+    const out=await dibujar(src, texto, true, op);
+    if(out.vacio) throw new Error("la foto salió en negro");
+    if(!await adminSubirRel("prev/"+rel, actual, false)) throw new Error("no se pudo guardar el respaldo");
+    if(!await adminSubirRel(rel, out.blob, true)) throw new Error("no se pudo reemplazar la foto");
+    try{ const mini=await miniatura(out.blob,220); if(mini) await adminSubirRel("thumbs/"+rel, mini, true); }catch(_){}
+    Object.assign(e, cambios); adminOrig.delete(j); if(adminFotoURLs[j]){ try{ URL.revokeObjectURL(adminFotoURLs[j].url); }catch(_){} delete adminFotoURLs[j]; }
+    return "ok";
+  }catch(err){ try{ await patch(antes); }catch(_){} return "error: "+((err&&err.message)||err); } }
+window.adminSelToggle=(j,v)=>{ if(v) adminSel.add(j); else adminSel.delete(j); adminSelPintar(); };
+function adminSelPintar(){ const n=$("adSelN"); if(n) n.textContent=adminSel.size+" seleccionada"+(adminSel.size===1?"":"s"); document.querySelectorAll(".adSel").forEach(c=>{ c.checked=adminSel.has(+c.dataset.j); }); }
+function adminCorrBind(){ adminSel=new Set(); if(!$("adCorr")) return;
+  $("adCorrFecha").max=isoHoy();
+  $("adSelTodas").addEventListener("click",()=>{ adminVis.forEach(j=>{ const e=adminEvidencias[j]; if(e&&(e.tipo||"foto")!=="video"&&eviFaltantes(e).length) adminSel.add(j); }); adminSelPintar(); });
+  $("adSelNinguna").addEventListener("click",()=>{ adminSel.clear(); adminSelPintar(); });
+  $("adCorrAplicar").addEventListener("click", async()=>{ const P={lugar:$("adCorrLugar").value.trim(), fecha:$("adCorrFecha").value, hora:$("adCorrHora").value}, msg=$("adCorrMsg");
+    if(!adminValido()){ adminSesExpirada(); return; } if(!esAdmin()){ msg.textContent="Solo un administrador."; return; }
+    if(!P.lugar&&!P.fecha&&!P.hora){ msg.textContent="Escribe el lugar, la fecha y/o la hora que quieres completar."; return; }
+    if(P.fecha&&P.fecha>isoHoy()){ msg.textContent="La fecha no puede ser futura."; return; }
+    const L=[...adminSel]; if(!L.length){ msg.textContent="Marca primero las fotos (o «seleccionar las filtradas»)."; return; }
+    if(!confirm(`Se completarán los datos que les faltan a ${L.length} foto${L.length===1?"":"s"} y se volverán a sellar con «_».\n\nLa versión anterior de cada foto queda de respaldo. ¿Continuar?`)) return;
+    const btn=$("adCorrAplicar"); btn.disabled=true; await sesRenovar(); const correo=admCorreo(); const res={ok:0,nada:0,err:[]};
+    for(let k=0;k<L.length;k++){ msg.textContent=`Corrigiendo ${k+1} de ${L.length}…`; const r=await adminCorregir(L[k], P, correo);
+      if(r==="ok"){ res.ok++; adminSel.delete(L[k]); } else if(r==="nada"||r==="completa"||r==="video") res.nada++; else res.err.push(((adminEvidencias[L[k]]||{}).archivo||"foto")+": "+r.replace(/^error: /,""));
+      if(/Capa 16|sesión vencida/.test(r)) break; }
+    btn.disabled=false;
+    msg.innerHTML=`<b>${res.ok}</b> corregida${res.ok===1?"":"s"}`+(res.nada?` · ${res.nada} sin cambios (ya tenían esos datos o faltaba otro dato)`:"")+(res.err.length?`<br><span style="color:#b3261e">${res.err.length} con error: ${res.err.slice(0,3).map(escAttr).join(" · ")}</span>`:"");
+    renderAdminEvidencias(); adminSelPintar(); }); }
 function renderAdminEvidencias(){
   const cont=$("adEviList"); if(!cont) return;
   const q=fnorm($("adFltBuscar")&&$("adFltBuscar").value), fp=($("adFltProv")&&$("adFltProv").value)||"", fo=($("adFltOper")&&$("adFltOper").value)||"", fc=($("adFltCat")&&$("adFltCat").value)||"", fr=($("adFltReq")&&$("adFltReq").value)||"", fi=($("adFltInc")&&$("adFltInc").value)||"";
@@ -1490,7 +1597,7 @@ function renderAdminEvidencias(){
     if(fo && (e.operador_nombre||"").trim()!==fo) return;
     if(fc && (e.categoria||"").trim()!==fc) return;
     if(fr && eviKey(e)!==fr) return;
-    if(fi && !eviFaltantes(e).length) return;
+    if(fi && !(fi==="inc" ? eviFaltantes(e).length : eviFaltantes(e).includes(fi))) return;
     if(q && !fnorm([e.item,e.requerimiento,e.proveedor,e.proveedor_nit,e.operador_nombre,e.operador_cedula,e.archivo,e.radicado,e.categoria].join(" ")).includes(q)) return;
     adminVis.push(j);
   });
@@ -1500,7 +1607,7 @@ function renderAdminEvidencias(){
   if(!adminVis.length) cont.innerHTML='<div class="mut" style="padding:8px 2px">Ninguna evidencia coincide con el filtro.</div>'; else adminMostrarMas();
   if($("adFltInfo")){ const f=q||fp||fo||fc||fr||fi; $("adFltInfo").textContent = f ? `Mostrando ${adminVis.length} de ${adminEvidencias.length}` : `${adminEvidencias.length} evidencia(s)`; }
 }
-function adminFilaHTML(e,j){ return `<div class="ev"><div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})">${(e.tipo||"foto")==="video"?`<div style="width:66px;height:66px;border-radius:7px;background:#e9eef5;display:flex;align-items:center;justify-content:center;font-size:24px">🎬</div>`:`<img id="adimg${j}" data-j="${j}" alt="" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5">`}</div><div class="in">${e.categoria?`<span class="cchip">${escAttr(e.categoria)}</span> `:""}<b>${escAttr(e.item||"")}</b> · ${escAttr((e.requerimiento||"").slice(0,38))}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${escAttr(e.operador_nombre||"")}${e.operador_cedula?" · "+escAttr(e.operador_cedula):""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+escAttr(e.radicado):""}</div><div class="fn" style="margin-top:3px">${escAttr(e.archivo||"")}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${escAttr((e.lugar||"").slice(0,60))}</div>`:""}${eviFaltantes(e).length?`<div class="mut" style="margin:2px 0 0;color:#b3261e">⚠ sin ${eviFaltantes(e).join(" · sin ")}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a>${esAdmin()?`<a class="lnk" style="color:#b3261e" onclick="adminBorrarEvidencia(${j})">borrar</a>`:""}</div></div></div>`; }
+function adminFilaHTML(e,j){ return `<div class="ev">${(esAdmin()&&$("adCorr")&&(e.tipo||"foto")!=="video"&&eviFaltantes(e).length)?`<input type="checkbox" class="adSel" data-j="${j}" ${adminSel.has(j)?"checked":""} onchange="adminSelToggle(${j},this.checked)" style="width:auto;margin:0 4px 0 0;flex:none;align-self:center" aria-label="Seleccionar para corregir">`:""}<div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})">${(e.tipo||"foto")==="video"?`<div style="width:66px;height:66px;border-radius:7px;background:#e9eef5;display:flex;align-items:center;justify-content:center;font-size:24px">🎬</div>`:`<img id="adimg${j}" data-j="${j}" alt="" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5">`}</div><div class="in">${e.categoria?`<span class="cchip">${escAttr(e.categoria)}</span> `:""}<b>${escAttr(e.item||"")}</b> · ${escAttr((e.requerimiento||"").slice(0,38))}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${escAttr(e.operador_nombre||"")}${e.operador_cedula?" · "+escAttr(e.operador_cedula):""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+escAttr(e.radicado):""}</div><div class="fn" style="margin-top:3px">${escAttr(e.archivo||"")}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${escAttr((e.lugar||"").slice(0,60))}</div>`:""}${eviFaltantes(e).length?`<div class="mut" style="margin:2px 0 0;color:#b3261e">⚠ sin ${eviFaltantes(e).join(" · sin ")}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a>${esAdmin()?`<a class="lnk" style="color:#b3261e" onclick="adminBorrarEvidencia(${j})">borrar</a>`:""}</div></div></div>`; }
 function adminMostrarMas(){
   const cont=$("adEviList"); if(!cont) return; const btn=$("adMas"); if(btn) btn.remove();
   const fin=Math.min(adminVis.length, adminMostrados+AD_PAGINA); let html="";
@@ -1543,7 +1650,8 @@ window.adminBorrarEvidencia=async(j)=>{ if(!esAdmin()){ toast("Solo un administr
     if(!Array.isArray(borradas)||!borradas.length){ alert("La evidencia NO se borró (el servidor no eliminó ninguna fila).\n\nEsto pasa cuando el permiso de borrado no está activo: corre la Capa5 en Supabase (SQL Editor) y reintenta."); return; }   // 200 con 0 filas = RLS bloqueó
     if(e.storage_path){ try{ const p=e.storage_path.replace(/^evidencias\//,"").split("/").map(encodeURIComponent).join("/");
       await fetch(SB_URL+"/storage/v1/object/evidencias/"+p, {method:"DELETE", headers:adminHeaders()});
-      await fetch(SB_URL+"/storage/v1/object/evidencias/thumbs/"+p, {method:"DELETE", headers:adminHeaders()}); }catch(_){} }   // Capa 14: miniatura
+      await fetch(SB_URL+"/storage/v1/object/evidencias/thumbs/"+p, {method:"DELETE", headers:adminHeaders()});
+      for(const pre of ["orig/","prev/"]) await fetch(SB_URL+"/storage/v1/object/evidencias/"+pre+p, {method:"DELETE", headers:adminHeaders()}); }catch(_){} }   // Capa 14: miniatura · v43: original y respaldo
     toast("Evidencia borrada ✓");
     if(adminEventoActual!=null) adminAbrir(adminEventoActual);   // refresca la vista del evento
   }catch(_){ toast("Error al borrar"); }
@@ -1986,8 +2094,8 @@ async function procesar(entry){
     let lugar="",lugLin=[]; if(ex.lat!=null&&ex.lon!=null){ const d=await geocodeThrottled(ex.lat,ex.lon); if(d){ lugar=d.txt; lugLin=d.lineas; } }
     entry.datos={fecha:ex.fecha,hora:ex.hora,lugar,lugLin,lat:ex.lat,lon:ex.lon,sinMeta:!!entry.sinMeta,origen:entry.fechaOrigen||"",fcarga:(entry.cargada&&entry.cargada.fecha)||""};
     const sl=selloDe(entry);
-    const out=await dibujar(bitmap,sl.texto,sl.con);
-    entry.blob=out.blob; entry.thumb=out.thumb;
+    const out=await dibujar(bitmap,sl.texto,sl.con,{conOrig:true});
+    entry.blob=out.blob; entry.thumb=out.thumb; entry.origBlob=out.orig||null;
     entry.status = out.vacio ? "⚠ salió en negro — vuelve a tomarla" : "listo";
     if(!lugar && ex.lat!=null) programarCompletado();   // se resella sola en cuanto haya dirección
   }catch(err){ entry.status=(err&&err.message==="no-decode")?"HEIC no decodificable (usa Safari o JPG)":("error: "+(err&&err.message||err)); }
@@ -2181,7 +2289,8 @@ async function subirEvidencia(e, radicado){
       if(!dup){ ultimoErr="subir foto: HTTP "+up.status; return false; }
     }
     if((e.tipo||"foto")!=="video"){ try{ const mini=await miniatura(e.blob,220); if(mini) await fetchTO(SB_URL+"/storage/v1/object/evidencias/thumbs/"+encodeURI(path), {method:"POST",
-      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":"image/jpeg"}, body:mini}, 12000); }catch(_){} }   // Capa 14: miniatura (~6 KB) para el visor del admin; si falla, el visor usa la original
+      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":"image/jpeg"}, body:mini}, 12000); }catch(_){} }
+    if(e.origBlob){ try{ await fetchTO(SB_URL+"/storage/v1/object/evidencias/orig/"+encodeURI(path), {method:"POST", headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":"image/jpeg"}, body:e.origBlob}, 20000); }catch(_){} }   /* v43: original sin sello; si falla no pasa nada */   // Capa 14: miniatura (~6 KB) para el visor del admin; si falla, el visor usa la original
     const ad=itemAdic(e.itemCodigo)||{};
     const row={ radicado:radicado||"", evento_uid:cfg.uid||"", consec:cfg.consec||null, cliente:cfg.cl, evento:cfg.ev,
       categoria:itemCat(e.itemCodigo), item:itemCod(e.itemCodigo), item_id:claveDe(e.itemCodigo), requerimiento:itemReq(e.itemCodigo), proveedor:itemProv(e.itemCodigo), proveedor_nit:itemNit(e.itemCodigo),
@@ -2470,21 +2579,22 @@ function lienzoPlano(ctx,W,H){
     return (mx-mn)<=2;
   }catch(_){ return false; }                    // ante cualquier fallo, no bloquear el envío
 }
-async function dibujar(src,texto,conMarca){
+async function dibujar(src,texto,conMarca,op){   /* v43: op = {esc,pos,minW,minH,fondo,conOrig} */
   if(src&&typeof src.decode==="function"){ try{ await src.decode(); }catch(_){} }   // nunca estampar sobre una imagen a medio decodificar
   const W0=src.naturalWidth||src.width, H0=src.naturalHeight||src.height;
   const k=(W0*H0>LIM_PX)?Math.sqrt(DEST_PX/(W0*H0)):1;                              // k=1 => no se toca nada
   const W=Math.round(W0*k), H=Math.round(H0*k);
   const cv=document.createElement("canvas"); cv.width=W; cv.height=H; const ctx=cv.getContext("2d"); ctx.drawImage(src,0,0,W,H);
   if(src&&typeof src.src==="string"&&src.src.indexOf("blob:")===0) URL.revokeObjectURL(src.src);
+  let orig=null; if(op&&op.conOrig&&conMarca&&texto) orig=await new Promise(res=>cv.toBlob(res,"image/jpeg",0.8));   /* v43: original sin sello (permite volver a sellar limpio) */
   if(conMarca && texto){
-    const fpx=Math.max(14,Math.round(H*parseFloat($("esc").value)/100)); ctx.font=`700 ${fpx}px Montserrat,-apple-system,sans-serif`;
+    const fpx=Math.max(14,Math.round(H*parseFloat((op&&op.esc)||$("esc").value)/100)); ctx.font=`700 ${fpx}px Montserrat,-apple-system,sans-serif`;
     const pad=Math.round(fpx*0.5),mg=Math.round(fpx*0.6),lh=Math.round(fpx*1.32);
     const lines=[]; String(texto).split("\n").forEach(t=>{ wrap(ctx,t,W-2*mg-2*pad).forEach(l=>lines.push(l)); });
     const tw=Math.max(...lines.map(l=>ctx.measureText(l).width));
-    const bw=tw+2*pad,bh=lines.length*lh+2*pad,pos=$("pos").value;
+    const bw=Math.max(tw+2*pad,(op&&op.minW)||0),bh=Math.max(lines.length*lh+2*pad,(op&&op.minH)||0),pos=(op&&op.pos)||$("pos").value;
     let x=(pos==="br"||pos==="tr")?W-bw-mg:mg, y=(pos==="tl"||pos==="tr")?mg:H-bh-mg;
-    ctx.fillStyle="rgba(0,0,0,0.55)"; ctx.fillRect(x,y,bw,bh); ctx.fillStyle=VERDE; ctx.fillRect(x,y,Math.max(4,pad/2),bh);
+    ctx.fillStyle=(op&&op.fondo)||"rgba(0,0,0,0.55)"; ctx.fillRect(x,y,bw,bh);   /* v43: fondo sólido al tapar un sello viejo */ ctx.fillStyle=VERDE; ctx.fillRect(x,y,Math.max(4,pad/2),bh);
     ctx.fillStyle="#fff"; ctx.textBaseline="top"; lines.forEach((l,i)=>ctx.fillText(l,x+pad,y+pad+i*lh+(lh-fpx)/2));
   }
   const s=Math.min(1,420/Math.max(W,H)); const tc=document.createElement("canvas"); tc.width=Math.round(W*s); tc.height=Math.round(H*s); tc.getContext("2d").drawImage(cv,0,0,tc.width,tc.height);
@@ -2495,7 +2605,7 @@ async function dibujar(src,texto,conMarca){
      de ahí los siguientes salen EN NEGRO sin lanzar error. Es la causa medida de las 6 negras
      del lote del 25-ago (todas de 12,2 MP, por debajo del límite de área). */
   cv.width=cv.height=1; tc.width=tc.height=1;
-  return {blob,thumb,vacio};
+  return {blob,thumb,vacio,orig};
 }
 /* Sello al estilo Timestamp: fecha y hora arriba, y debajo una línea por nivel de la dirección.
    Si el geocoder no respondió pero sí hay GPS, se estampan las coordenadas: nunca una foto muda. */
