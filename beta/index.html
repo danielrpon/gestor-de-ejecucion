@@ -246,12 +246,13 @@
       <div class="cnt" id="cnt">Aún no agregas fotos.</div>
       <div id="admCarga" class="xbox hide" style="margin-top:8px">
         <div class="xt" style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">🔐 Carga de administrador <a class="lnk" onclick="admSalir()" style="font-size:12px;font-weight:600">salir del modo</a></div>
-        <div class="mut" style="margin:0 0 8px;font-size:12px">Fotos que llegaron por otros medios. El proveedor nunca ve este recuadro. La hora nunca se declara.</div>
+        <div class="mut" style="margin:0 0 8px;font-size:12px">Fotos que llegaron por otros medios. El proveedor nunca ve este recuadro. Lo que declares aquí sale en el sello con «_» y queda registrado a tu nombre.</div>
         <label class="tgl" style="margin:0 0 8px"><input id="admSinHora" type="checkbox"> Sello sin hora (deja fecha y ubicación)</label>
         <div class="fld"><label>Lugar para las fotos sin ubicación</label><input id="admLugar" type="text" autocomplete="off" list="admLugares" placeholder="Dirección, barrio, ciudad"><datalist id="admLugares"></datalist></div>
         <div class="fld" style="margin-top:8px"><label>Fecha para las fotos sin fecha</label><select id="admFecha"></select></div>
+        <div class="fld" style="margin-top:8px"><label>Hora para las fotos sin hora <span class="mut" style="font-weight:400">(cada foto se puede ajustar en su fila)</span></label><input id="admHoraIn" type="time"></div>
         <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-          <button class="btn sec" id="admCompletar" style="margin:0;flex:1 1 100%">Completar ubicación y fecha de las fotos sin datos</button>
+          <button class="btn sec" id="admCompletar" style="margin:0;flex:1 1 100%">Completar ubicación, fecha y hora de las fotos sin datos</button>
           <button class="btn sec" id="admSinSello" style="margin:0;flex:1 1 100%">No aplicar marca configurada (ya la traen)</button>
         </div>
         <div class="mut" id="admMsg" style="margin:6px 0 0;font-size:12px"></div>
@@ -260,7 +261,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v41.1 · 28sep · Capa 11b: ingreso por rol (admin · productor · ejecutivo) + usuarios · carga admin con sesión</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v41.2 · 29sep · carga admin: hora declarada por foto · Capa 11b: ingreso por rol + usuarios</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -2485,6 +2486,12 @@ function admCorreo(){ try{ const p=String((adminSes&&adminSes.token)||"").split(
 function admModoDe(e){ return (e&&e.adm&&e.adm.modo)||""; }
 function admDeclara(e){ const m=admModoDe(e); return m==="sin"||m==="comp"; }
 function admSinGps(e){ const d=(e&&e.orig&&e.orig.datos)||(e&&e.datos)||{}; return !esNum(d.lat); }
+/* v41.2 (reunión con Kevin 29-sep, informe de Montería: el cliente no recibe fotos sin fecha, hora y lugar): el admin
+   también declara la HORA. Revierte la regla v39 «la hora nunca se declara»: la defensa sigue en la base
+   (fecha_origen=admin + declarado_por) y en el «_» del sello. La hora real de la foto nunca se reemplaza. */
+function admHoraReal(e){ const o=(e&&e.orig)||{datos:e&&e.datos,fechaOrigen:e&&e.fechaOrigen};
+  return (o.fechaOrigen==="captura"||o.fechaOrigen==="metadatos") ? ((o.datos&&o.datos.hora)||"") : ""; }
+function admFaltaDato(e){ return admSinGps(e) || !admFechaReal(e) || !admHoraReal(e); }
 function admFechaReal(e){ const o=(e&&e.orig)||{datos:e&&e.datos,fechaOrigen:e&&e.fechaOrigen};
   return (o.fechaOrigen==="captura"||o.fechaOrigen==="metadatos") ? ((o.datos&&o.datos.fecha)||"") : ""; }
 /* Recalcula datos y origen de la foto según su modo. No dibuja. */
@@ -2495,7 +2502,7 @@ function admAplicar(e){ if(!e||!e.datos||e.tipo==="video") return;
   if(!admDeclara(e)) return;
   const real=admFechaReal(e), it=itemById(e.itemCodigo);
   const f = real || ((esPorDia(it)&&e.fechaSel) ? e.fechaSel : ((e.adm&&e.adm.fecha)||""));
-  e.datos.fecha=f; if(!real) e.datos.hora="";      // la hora solo si es la real de la foto
+  e.datos.fecha=f; e.datos.hora = admHoraReal(e) || (m==="comp" ? ((e.adm&&e.adm.hora)||"") : "");   /* v41.2: la real manda; si no hay, la declarada */
   e.datos.sinMeta=false;
   if(m==="comp" && admSinGps(e)){ const lug=String((e.adm&&e.adm.lugar)||"").trim();
     e.datos.lugar=lug; e.datos.lugLin=lug?lug.split(",").map(x=>x.trim()).filter(Boolean):[]; e.datos.lat=null; e.datos.lon=null; }
@@ -2514,14 +2521,19 @@ function admFalta(e){ if(!e||e.status!=="listo"||!e.itemCodigo) return "";
       ? "Foto sin fecha ni ubicación: elige arriba «Completar ubicación y fecha…» o «No aplicar marca configurada»" : ""; }
   if(!(e.datos&&e.datos.fecha)) return "Falta la fecha: elígela en el panel de administrador ↑";
   if(admModoDe(e)==="comp" && admSinGps(e) && !(e.datos&&e.datos.lugar)) return "Falta el lugar: escríbelo en el panel de administrador ↑";
+  if(admModoDe(e)==="comp" && !e.sinHora && !(e.datos&&e.datos.hora)) return "Falta la hora: escríbela en esta foto o en el panel de administrador ↑";
   return ""; }
 function admFila(e){ if(!admCargaActiva() || !e || e.status!=="listo" || e.tipo==="video") return "";
   const m=admModoDe(e), ev=$("marca").checked?"con sello":"sin sello";
   const op=(v,t)=>`<option value="${v}" ${m===v?"selected":""}>${t}</option>`;
-  let h=`<select onchange="admModo(${e.id},this.value)" style="margin-top:4px">${op("","Sello: como el evento ("+ev+")")}${op("app","Sello de la app")}${op("sin","No aplicar marca configurada (ya la trae)")}${admSinGps(e)?op("comp","Completar ubicación y fecha (sin hora)"):""}</select>`;
+  let h=`<select onchange="admModo(${e.id},this.value)" style="margin-top:4px">${op("","Sello: como el evento ("+ev+")")}${op("app","Sello de la app")}${op("sin","No aplicar marca configurada (ya la trae)")}${admFaltaDato(e)?op("comp","Completar ubicación, fecha y hora"):""}</select>`;
   h+=`<label class="mut" style="display:flex;gap:6px;align-items:center;margin:4px 0 0;font-size:12px"><input type="checkbox" style="width:auto;margin:0" ${e.sinHora?"checked":""} onchange="admHora(${e.id},this.checked)"> sin hora</label>`;
   if(admDeclara(e)){ const f=e.datos&&e.datos.fecha;
-    h+=`<div class="mut" style="margin:2px 0 0;font-size:12px">🔐 ${m==="sin"?"Sin sello de la app":"Lugar y fecha declarados"}${m==="comp"&&admSinGps(e)?" · 📍 "+escAttr((e.datos&&e.datos.lugar)||"sin lugar"):""}</div>`; }   /* la fecha ya la muestra etiquetaFecha */
+    if(m==="comp"){ const it=itemById(e.itemCodigo);
+      if(!admFechaReal(e) && !(esPorDia(it)&&e.fechaSel)){ const fs=admFechasPosibles(), cur=(e.adm&&e.adm.fecha)||"";
+        h+=`<select onchange="admFechaFoto(${e.id},this.value)" style="margin-top:4px">${`<option value="">— Fecha de esta foto —</option>`+fs.map(x=>`<option value="${x}" ${x===cur?"selected":""}>${fmtDia(x)}</option>`).join("")}</select>`; }
+      if(!admHoraReal(e) && !e.sinHora) h+=`<label class="mut" style="display:flex;gap:6px;align-items:center;margin:4px 0 0;font-size:12px">Hora de esta foto <input type="time" style="width:auto;margin:0" value="${escAttr((e.adm&&e.adm.hora)||"")}" onchange="admHoraFoto(${e.id},this.value)"></label>`; }
+    h+=`<div class="mut" style="margin:2px 0 0;font-size:12px">🔐 ${m==="sin"?"Sin sello de la app":"Datos declarados"}${m==="comp"&&admSinGps(e)?" · 📍 "+escAttr((e.datos&&e.datos.lugar)||"sin lugar"):""}</div>`; }   /* la fecha ya la muestra etiquetaFecha */
   return h; }
 function admLugaresKey(){ return NS+"adm_lugares_"+((cfg&&cfg.uid)||"x"); }
 function admRecordarLugar(l){ l=String(l||"").trim(); if(!l) return; try{ const a=(loadJSON(admLugaresKey(),[])||[]).filter(x=>x!==l); a.unshift(l); saveJSON(admLugaresKey(),a.slice(0,8)); }catch(_){} }
@@ -2541,17 +2553,20 @@ function admPintarPanel(){ const box=$("admCarga"); if(!box) return;
 function admPanelVisible(){ const box=$("admCarga"); if(box) box.classList.toggle("hide", !admCargaActiva()); }
 async function admResellarVarias(lista){ for(const e of lista){ admAplicar(e); await resellar(e); } renderLista(); }
 window.admModo=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e) return;
-  e.adm = v ? {modo:v, fecha:$("admFecha").value, lugar:$("admLugar").value.trim()} : null;
+  e.adm = v ? {modo:v, fecha:$("admFecha").value, lugar:$("admLugar").value.trim(), hora:$("admHoraIn").value} : null;
   if(v==="comp") admRecordarLugar(e.adm.lugar);
   admResellarVarias([e]); };
+window.admHoraFoto=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e||!e.adm) return; e.adm.hora=v||""; e.adm.horaPropia=!!v; admResellarVarias([e]); };
+window.admFechaFoto=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e||!e.adm) return; e.adm.fecha=v||""; e.adm.fechaPropia=!!v; admResellarVarias([e]); };
 window.admHora=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e) return; e.sinHora=!!v; if(v && !e.declPor) e.declPor=admCorreo()||"admin"; resellar(e).then(renderLista); };
 function admListas(){ return batch.filter(e=>e.status==="listo" && e.tipo!=="video" && e.datos); }
-$("admCompletar").addEventListener("click", ()=>{ const lug=$("admLugar").value.trim(), f=$("admFecha").value;
-  const l=admListas().filter(admSinGps);
-  if(!l.length){ $("admMsg").textContent="No hay fotos sin ubicación en el lote."; return; }
-  if(!lug){ $("admMsg").textContent="Escribe el lugar primero."; return; }
-  l.forEach(e=>{ e.adm={modo:"comp", fecha:f, lugar:lug}; }); admRecordarLugar(lug);
-  $("admMsg").textContent=`${l.length} foto${l.length===1?"":"s"} con lugar y fecha declarados${f?"":" · falta elegir la fecha"}.`;
+$("admCompletar").addEventListener("click", ()=>{ const lug=$("admLugar").value.trim(), f=$("admFecha").value, h=$("admHoraIn").value;
+  const l=admListas().filter(admFaltaDato);
+  if(!l.length){ $("admMsg").textContent="Todas las fotos del lote traen ubicación, fecha y hora."; return; }
+  if(!lug && l.some(admSinGps)){ $("admMsg").textContent="Escribe el lugar primero."; return; }
+  l.forEach(e=>{ e.adm={modo:"comp", fecha:f, lugar:lug, hora:h}; }); if(lug) admRecordarLugar(lug);
+  const falta=[f?"":"la fecha", (h||$("admSinHora").checked)?"":"la hora (en el panel o foto por foto)"].filter(Boolean).join(" y ");
+  $("admMsg").textContent=`${l.length} foto${l.length===1?"":"s"} con datos declarados${falta?" · falta "+falta:""}.`;
   admResellarVarias(l); });
 $("admSinSello").addEventListener("click", ()=>{ const l=admListas(); if(!l.length){ $("admMsg").textContent="Aún no hay fotos en el lote."; return; }
   const f=$("admFecha").value; l.forEach(e=>{ e.adm={modo:"sin", fecha:f, lugar:""}; });
@@ -2561,9 +2576,9 @@ $("admSinHora").addEventListener("change", ()=>{ const v=$("admSinHora").checked
   $("admMsg").textContent = l.length ? `${l.length} foto${l.length===1?"":"s"} ${v?"sin":"con"} hora en el sello.` : (v?"Las fotos que cargues saldrán sin hora.":"");
   (async()=>{ for(const e of l) await resellar(e); renderLista(); })(); });
 /* Cambiar fecha o lugar del panel actualiza las fotos que ya están en modo administrador. */
-["admFecha","admLugar"].forEach(id=>$(id).addEventListener("change", ()=>{ const f=$("admFecha").value, lug=$("admLugar").value.trim();
+["admFecha","admLugar","admHoraIn"].forEach(id=>$(id).addEventListener("change", ()=>{ const f=$("admFecha").value, lug=$("admLugar").value.trim(), h=$("admHoraIn").value;
   const l=batch.filter(e=>admDeclara(e)); if(!l.length) return;
-  l.forEach(e=>{ e.adm.fecha=f; if(e.adm.modo==="comp") e.adm.lugar=lug; }); if(lug) admRecordarLugar(lug);
+  l.forEach(e=>{ if(!e.adm.fechaPropia) e.adm.fecha=f; if(e.adm.modo==="comp"){ e.adm.lugar=lug; if(!e.adm.horaPropia) e.adm.hora=h; } }); if(lug) admRecordarLugar(lug);   /* v41.2: lo ajustado foto por foto no se pisa */
   $("admMsg").textContent=`${l.length} foto${l.length===1?"":"s"} actualizada${l.length===1?"":"s"}${f?"":" · falta elegir la fecha"}.`; admResellarVarias(l); }));
 function geoKey(lat,lon){ return (+lat).toFixed(3)+","+(+lon).toFixed(3); }
 function metrosEntre(la1,lo1,la2,lo2){ const R=111320, dy=(la2-la1)*R, dx=(lo2-lo1)*R*Math.cos(la1*Math.PI/180); return Math.sqrt(dx*dx+dy*dy); }
