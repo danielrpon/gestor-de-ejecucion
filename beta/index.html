@@ -174,7 +174,7 @@
         <label class="tgl"><input id="emOn" type="checkbox" checked> Aplicar marca de agua (fecha · hora · dirección)</label>
         <label class="tgl"><input id="emGal" type="checkbox" checked> Permitir subir fotos desde la Galería del celular (si lo apagas, el proveedor solo puede usar «Capturar foto»)</label>
         <label class="tgl"><input id="emVf" type="checkbox" checked> Exigir que las fotos sean de las fechas del evento (si lo apagas, se aceptan fotos de cualquier fecha; las de fecha futura siguen bloqueadas)</label>
-        <div class="fld" style="margin-top:8px"><label>Fotos de la Galería sin sus datos originales (pasaron por WhatsApp, correo u otra app)</label><select id="emMm"><option value="">Aceptarlas y marcarlas como incompletas en el tablero</option><option value="fh">No cargar las que no traigan fecha y hora originales</option><option value="fhu">No cargar las que no traigan fecha, hora y ubicación originales</option></select></div>
+        <div class="fld" style="margin-top:8px"><label>Fotos de la Galería sin sus datos originales (pasaron por WhatsApp, correo u otra app)</label><select id="emMm"><option value="">Aceptarlas y marcarlas como incompletas en el tablero</option><option value="fh" selected>No cargar las que no traigan fecha y hora originales (recomendado)</option><option value="fhu">No cargar las que no traigan fecha, hora y ubicación originales</option></select></div>
       </div>
       <div style="height:14px"></div>
       <button class="btn" id="egen" disabled>Generar acceso para proveedores</button>
@@ -262,7 +262,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v42 · 29sep · fotos incompletas en el tablero + evento puede rechazar fotos sin metadatos · hora declarada por el admin</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v42.1 · 29sep · fotos incompletas en el tablero + evento puede rechazar fotos sin metadatos · hora declarada por el admin</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -626,7 +626,7 @@ function nuevoExec(){
   epdAuto=false;   /* v38: el auto-encendido de «por día» es solo para eventos nuevos */
   $("ecliente").value=""; $("eevento").value=""; $("efecha").value=""; $("efechafin").value=""; $("epd").checked=false; $("eciudad").value="";
   execItems=[]; renderExecItems();
-  $("emPos").value="bl"; $("emEsc").value="3.4"; $("emOn").checked=true; $("emGal").checked=true; $("emVf").checked=true; $("emMm").value="";
+  $("emPos").value="bl"; $("emEsc").value="3.4"; $("emOn").checked=true; $("emGal").checked=true; $("emVf").checked=true; $("emMm").value="fh";   /* v42.1: eventos nuevos exigen fecha y hora originales (decisión de Daniel 29-sep) */
   if($("acWrap")) $("acWrap").classList.add("hide");
   if($("ereqInfo")) $("ereqInfo").textContent="";
   if(typeof renderHistorial==="function") renderHistorial();
