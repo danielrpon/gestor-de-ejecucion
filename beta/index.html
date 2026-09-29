@@ -174,6 +174,7 @@
         <label class="tgl"><input id="emOn" type="checkbox" checked> Aplicar marca de agua (fecha · hora · dirección)</label>
         <label class="tgl"><input id="emGal" type="checkbox" checked> Permitir subir fotos desde la Galería del celular (si lo apagas, el proveedor solo puede usar «Capturar foto»)</label>
         <label class="tgl"><input id="emVf" type="checkbox" checked> Exigir que las fotos sean de las fechas del evento (si lo apagas, se aceptan fotos de cualquier fecha; las de fecha futura siguen bloqueadas)</label>
+        <div class="fld" style="margin-top:8px"><label>Fotos de la Galería sin sus datos originales (pasaron por WhatsApp, correo u otra app)</label><select id="emMm"><option value="">Aceptarlas y marcarlas como incompletas en el tablero</option><option value="fh">No cargar las que no traigan fecha y hora originales</option><option value="fhu">No cargar las que no traigan fecha, hora y ubicación originales</option></select></div>
       </div>
       <div style="height:14px"></div>
       <button class="btn" id="egen" disabled>Generar acceso para proveedores</button>
@@ -261,7 +262,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v41.2 · 29sep · carga admin: hora declarada por foto · Capa 11b: ingreso por rol + usuarios</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v42 · 29sep · fotos incompletas en el tablero + evento puede rechazar fotos sin metadatos · hora declarada por el admin</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -625,7 +626,7 @@ function nuevoExec(){
   epdAuto=false;   /* v38: el auto-encendido de «por día» es solo para eventos nuevos */
   $("ecliente").value=""; $("eevento").value=""; $("efecha").value=""; $("efechafin").value=""; $("epd").checked=false; $("eciudad").value="";
   execItems=[]; renderExecItems();
-  $("emPos").value="bl"; $("emEsc").value="3.4"; $("emOn").checked=true; $("emGal").checked=true; $("emVf").checked=true;
+  $("emPos").value="bl"; $("emEsc").value="3.4"; $("emOn").checked=true; $("emGal").checked=true; $("emVf").checked=true; $("emMm").value="";
   if($("acWrap")) $("acWrap").classList.add("hide");
   if($("ereqInfo")) $("ereqInfo").textContent="";
   if(typeof renderHistorial==="function") renderHistorial();
@@ -635,7 +636,7 @@ function nuevoExec(){
   window.scrollTo(0,0);
 }
 function prefillExec(){ if(cfg){ epdAuto=true;   /* v38: evento existente = se respeta su cfg.pd guardado; antes se prendía solo al abrir el enlace del productor */ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("efechafin").value=cfg.ff||""; $("epd").checked=!!cfg.pd; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",grupo:i.grupo||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null))})); renderExecItems();
-    const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; $("emGal").checked=cfg.gal!==false; $("emVf").checked=cfg.vf!==false; } if(typeof renderHistorial==="function") renderHistorial();
+    const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; $("emGal").checked=cfg.gal!==false; $("emVf").checked=cfg.vf!==false; $("emMm").value=cfg.mm||""; } if(typeof renderHistorial==="function") renderHistorial();
   editandoId=null; aplicarModoExec(); }   // por defecto: modo NUEVO (los que editan fijan editandoId DESPUÉS y llaman aplicarModoExec)
 /* Modo de la vista ejecutivo: EDITAR (editandoId fijado) muestra solo "Guardar cambios" + "Duplicar";
    NUEVO muestra solo "Generar acceso". Unifica ambas puertas de entrada (enlace y "Editar"). */
@@ -905,7 +906,7 @@ function saveConfigDesdeExec(){
   const uid=cfg&&cfg.uid, consec=cfg&&cfg.consec;   // preservar identidad del evento si ya existe
   cfg = { cl:$("ecliente").value.trim(), ev:$("eevento").value.trim(), fe:$("efecha").value, ff:$("efechafin").value||"", pd:!!$("epd").checked, ci:$("eciudad").value.trim(),
           it:execItems.map(i=>Object.assign({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null))}, i.grupo?{grupo:i.grupo}:{})),
-          marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked}, gal:$("emGal").checked, vf:$("emVf").checked };   /* v38: vf=false → no se exige que la foto sea de las fechas del evento */   // marca definida por el ejecutivo, igual para todos
+          marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked}, gal:$("emGal").checked, vf:$("emVf").checked, mm:$("emMm").value };   /* v42: mm = qué hacer con fotos de galería sin metadatos ("" aceptar y marcar · fh · fhu) */   /* v38: vf=false → no se exige que la foto sea de las fechas del evento */   // marca definida por el ejecutivo, igual para todos
   if(uid) cfg.uid=uid; if(consec) cfg.consec=consec;
   saveJSON(NS+"config", cfg);
 }
@@ -1212,10 +1213,11 @@ const SEG_KEYS=["cl","ev","mes","desde","hasta","estado","prov","cat"];
 async function adminCargarEventos(){
   const l=$("adLista"); l.innerHTML='<div class="mut">Cargando…</div>';
   try{
-    const [rEv,rEvi]=await Promise.all([
+    let [rEv,rEvi]=await Promise.all([
       fetch(SB_URL+"/rest/v1/eventos?select=uid,consec,cl,ev,fe,config,short_oper,short_exec,creado_por&order=consec.desc",{headers:adminHeaders()}),
-      fetch(SB_URL+"/rest/v1/evidencias?select=evento_uid,item,item_id,categoria,adicional,fecha,tipo,proveedor",{headers:adminHeaders()})
+      fetch(SB_URL+"/rest/v1/evidencias?select=evento_uid,item,item_id,categoria,adicional,fecha,tipo,proveedor,requerimiento,hora,lat,lugar,fecha_origen,declarado_por,operador_nombre,operador_celular,creado",{headers:adminHeaders()})
     ]);
+    if(!rEvi.ok && rEvi.status!==401) rEvi=await fetch(SB_URL+"/rest/v1/evidencias?select=evento_uid,item,item_id,categoria,adicional,fecha,tipo,proveedor",{headers:adminHeaders()});   /* v42: sin columnas nuevas = tablero de siempre */
     if(rEv.status===401||rEvi.status===401){ adminSesExpirada(); return; }
     adminEventos=await filtrarMios(await rEv.json());   // Capa 11b: productor/ejecutivo ven solo los suyos
     const misUid=new Set(adminEventos.map(e=>e.uid));
@@ -1270,7 +1272,7 @@ function adminRenderDash(){
   Object.values(evisF).flat().forEach(x=>{ const k = x.item_id || (x.evento_uid+"|"+iidDe(x.item,x.categoria,1)); porItem[k]=(porItem[k]||0)+1;
     if((x.tipo||"foto")!=="video" && x.fecha) adminPorItemDia[k+"@"+x.fecha]=(adminPorItemDia[k+"@"+x.fecha]||0)+1;   // Capa 12
     if(x.adicional){ (extrasPorEvento[x.evento_uid]=extrasPorEvento[x.evento_uid]||new Set()).add(k); } });
-  let gReq=0,gComp=0,gEvi=0,gExtra=0,gReqTot=0; adminMetricas=[]; const visibles=[];
+  let gReq=0,gComp=0,gEvi=0,gExtra=0,gReqTot=0,gInc=0; adminMetricas=[]; const visibles=[];
   adminEventos.forEach((e,i)=>{ if(!segPasaEvento(e, evisPorEv[e.uid])) return;
     const items=e._items.filter(segPasaItem); const reg=evisF[e.uid].length;
     if((s.prov||s.cat) && !items.length && !reg) return;   // el evento no tiene nada de esa empresa/categoría: no estorba
@@ -1281,21 +1283,23 @@ function adminRenderDash(){
     const pend=items.length-comp, av=items.length?Math.round(comp/items.length*100):0;
     const extras=(extrasPorEvento[e.uid]||new Set()).size;   // adicionales creados en sitio, no están en el config
     gReq+=items.length; gComp+=comp; gEvi+=reg; gExtra+=extras;
-    adminMetricas[i]={n:items.length,tot:e._items.length,reg,conEvi,comp,pend,av,extras,pd:pdm}; });
+    const inc=evisF[e.uid].filter(x=>eviFaltantes(x).length); gInc+=inc.length;   /* v42 */
+    adminMetricas[i]={n:items.length,tot:e._items.length,reg,conEvi,comp,pend,av,extras,pd:pdm,inc}; });
   const gAv=gReq?Math.round(gComp/gReq*100):0;
   const kpi=(v,t)=>`<div style="flex:1;min-width:70px;text-align:center;border:1px solid var(--bd,#e3e3e3);border-radius:10px;padding:8px 4px"><div style="font-size:20px;font-weight:800;color:var(--azul)">${v}</div><div class="mut" style="margin:2px 0 0;font-size:11px">${t}</div></div>`;
   const bar=av=>`<div style="height:7px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0 2px"><div style="height:100%;width:${av}%;background:${av>=100?'#1a9e56':(av>0?'var(--azul)':'#e9e9ee')}"></div></div>`;
   const dash=`<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">`
     +kpi(visibles.length+(visibles.length!==adminEventos.length?`<span class="mut" style="margin:0;font-size:12px">/${adminEventos.length}</span>`:""),"Eventos")
     +kpi(gReq+(gReq!==gReqTot?`<span class="mut" style="margin:0;font-size:12px">/${gReqTot}</span>`:""),"Requerimientos")
-    +kpi(gEvi,"Evidencias")+kpi(gComp+"/"+gReq,"Completos")+kpi(gAv+"%","Avance")+kpi(gExtra,"Extras en sitio")+`</div>`;
+    +kpi(gEvi,"Evidencias")+kpi(gComp+"/"+gReq,"Completos")+kpi(gAv+"%","Avance")+kpi(gExtra,"Extras en sitio")+(gInc?kpi(`<span style="color:#b3261e">${gInc}</span>`,"Fotos incompletas"):"")+`</div>`;
   l.innerHTML=seg+dash+(visibles.length?visibles.map(i=>{
       const e=adminEventos[i], m=adminMetricas[i];
       return `<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe}${e.config&&e.config.ff&&e.config.ff!==e.fe?" → "+e.config.ff:""})</span>`:""}${e.config&&e.config.pd?` <span class="mut" style="margin:0;color:var(--azul)">· por día</span>`:""}`
         +bar(m.av)
         +`<div class="mut" style="margin:2px 0 0">Requerimientos: <b>${m.n}</b>${m.n!==m.tot?` <span class="mut" style="margin:0">(de ${m.tot})</span>`:""} · Con evidencia: <b>${m.conEvi}</b> · Completos: <b>${m.comp}</b> · Pendientes: <b>${m.pend}</b> · Evidencias: <b>${m.reg}</b> · Avance: <b>${m.av}%</b>${m.extras?` · <span style="color:var(--oro-d)">Extras en sitio: <b>${m.extras}</b></span>`:""}</div>`
         +(m.pd.n?`<div class="mut" style="margin:3px 0 0">📅 Por día: <b>${m.pd.n}</b> req · días cubiertos <b>${m.pd.diasCub}/${m.pd.diasReq}</b> · hoy <b>${m.pd.hoyOk}/${m.pd.hoyTotal}</b>${m.pd.atras?` · <span style="color:#b3261e">⚠ ${m.pd.atras} con días atrasados</span>`:""}</div><div id="adHoy${i}" class="hide"></div>`:"")
-        +`<div class="ac">${m.pd.n?`<a class="lnk" style="font-weight:700" onclick="adminHoy(${i})">hoy por proveedor</a>`:""}<a class="lnk" onclick="adminCopiar(${i},'oper')">link proveedor</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link para editar</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a>${esAdmin()?`<a class="lnk" onclick="adminCargar(${i})">📤 carga de administrador</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a>`:""}</div></div></div>`;
+        +(m.inc.length?incResumen(m.inc)+`<div id="adInc${i}" class="hide"></div>`:"")
+        +`<div class="ac">${m.inc.length?`<a class="lnk" style="font-weight:700;color:#b3261e" onclick="adminIncompletas(${i})">incompletas por persona</a>`:""}${m.pd.n?`<a class="lnk" style="font-weight:700" onclick="adminHoy(${i})">hoy por proveedor</a>`:""}<a class="lnk" onclick="adminCopiar(${i},'oper')">link proveedor</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link para editar</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a>${esAdmin()?`<a class="lnk" onclick="adminCargar(${i})">📤 carga de administrador</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a>`:""}</div></div></div>`;
     }).join(""):'<div class="mut">Ningún evento coincide con el filtro. <a class="lnk" id="segTodo2">Ver todo</a></div>');
   const info=$("segInfo"); if(info) info.textContent = activos.length ? `${visibles.length} de ${adminEventos.length} eventos` : `${adminEventos.length} evento(s)`;
   const bind=(id,k)=>{ const el=$(id); if(!el) return; el.addEventListener("change",()=>{ adminSeg[k]=el.value; if(k==="cl") adminSeg.ev=""; if(k==="mes"&&el.value){ adminSeg.desde=""; adminSeg.hasta=""; } if((k==="desde"||k==="hasta")&&el.value) adminSeg.mes=""; saveJSON(NS+"admin_seg",adminSeg); adminRenderDash(); }); };
@@ -1314,6 +1318,40 @@ function adminPorDia(e, items){
     out.mapa[it.iid]={fechas:fs,cubiertos:cub,atrasados:atras,hoyReq,hoyOk,completo:cub.length===fs.length,idx:fs.indexOf(out.hoy)+1,it}; });
   return out;
 }
+/* ---- v42 · FOTOS INCOMPLETAS (reunión con Kevin 29-sep, Montería): el cliente no recibe una foto sin fecha, hora y lugar.
+   Qué le falta a cada evidencia; lo que el admin ya resolvió en su carga (fecha_origen admin*, declarado_por) no cuenta.
+   Si el select vino sin las columnas nuevas (Capa 13/15 sin correr) no se marca nada. ---- */
+function eviFaltantes(x){ if(!x || (x.tipo||"foto")==="video" || !("hora" in x)) return [];
+  if(x.declarado_por || /^admin/.test(x.fecha_origen||"")) return [];
+  const f=[], fo=x.fecha_origen||"";
+  if(!x.fecha || fo==="carga" || fo==="declarada") f.push("fecha original");
+  if(!x.hora) f.push("hora");
+  if(!esNum(x.lat) && !String(x.lugar||"").trim()) f.push("ubicación");
+  return f; }
+function isoLocal(ts){ const d=new Date(ts); return isNaN(d)?"":`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
+function incConteo(L){ const c={}; L.forEach(x=>eviFaltantes(x).forEach(k=>{ c[k]=(c[k]||0)+1; })); return ["hora","ubicación","fecha original"].filter(k=>c[k]).map(k=>`sin ${k} ${c[k]}`).join(" · "); }
+function incResumen(L){ const hoy=isoHoy(), h=L.filter(x=>isoLocal(x.creado)===hoy).length;
+  return `<div class="mut" style="margin:3px 0 0;color:#b3261e">⚠ Fotos incompletas: <b>${L.length}</b>${h?` · hoy <b>${h}</b>`:""} (${incConteo(L)})</div>`; }
+function incGrupos(L){ const g={}; L.forEach(x=>{ const k=(x.operador_nombre||"").trim().toUpperCase()+"|"+String(x.operador_celular||"").replace(/\D/g,"");
+    (g[k]=g[k]||{nombre:(x.operador_nombre||"").trim()||"Sin nombre", cel:String(x.operador_celular||"").replace(/\D/g,""), provs:new Set(), L:[]}); g[k].L.push(x); if(x.proveedor) g[k].provs.add(String(x.proveedor).trim()); });
+  return Object.values(g).sort((a,b)=>b.L.length-a.L.length); }
+function waNumero(cel){ const d=String(cel||"").replace(/\D/g,""); return d.length===10 && d[0]==="3" ? "57"+d : (d.length>=11 ? d : ""); }
+function incMensaje(e, g){ const c=incConteo(g.L).replace(/ \d+/g,"").replace(/ · /g,", ");
+  const ej=g.L.slice(0,3).map(x=>`• ${x.item||""} ${String(x.requerimiento||"").slice(0,40)}`.trim());
+  return [`Hola ${g.nombre.split(" ")[0]}, sobre el evento ${e.ev||""} (${e.cl||""}):`,
+    `llegaron ${g.L.length} foto${g.L.length===1?"":"s"} sin datos completos (${c}). Así el cliente no nos recibe el informe.`, ...ej,
+    "Eso pasa cuando la foto se envía por WhatsApp o correo, o se toma con otra app, antes de subirla.",
+    `Por favor tómalas en el sitio desde la app con «Capturar foto», con la ubicación activada, y súbelas tú mismo: ${linkOper(e.uid)}`, "Gracias."].join("\n"); }
+window.adminIncompletas=(i)=>{ const e=adminEventos[i], m=adminMetricas[i], box=$("adInc"+i); if(!e||!m||!box) return;
+  if(!box.classList.contains("hide")){ box.classList.add("hide"); return; }
+  const G=incGrupos(m.inc); m.incG=G; const hoy=isoHoy();
+  box.innerHTML=`<div style="margin:6px 0 2px;font-weight:700">Fotos incompletas por persona</div>`+G.map((g,k)=>{ const h=g.L.filter(x=>isoLocal(x.creado)===hoy).length, wa=waNumero(g.cel);
+    const ult=g.L.map(x=>x.creado||"").sort().pop();
+    return `<div style="border-top:1px solid var(--line);padding:6px 0"><div><b>${escAttr(g.nombre)}</b>${g.cel?` · ${escAttr(g.cel)}`:""}${g.provs.size?` <span class="mut" style="margin:0">(${escAttr([...g.provs].join(", "))})</span>`:""}</div>`
+      +`<div class="mut" style="margin:2px 0 0;color:#b3261e">${g.L.length} foto${g.L.length===1?"":"s"}${h?` · hoy ${h}`:""} · ${escAttr(incConteo(g.L))}${ult?` · última ${escAttr(fmtFecha(ult))}`:""}</div>`
+      +`<div class="ac">${wa?`<a class="lnk" style="font-weight:700" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${encodeURIComponent(incMensaje(e,g))}">escribir por WhatsApp</a>`:""}<a class="lnk" onclick="adminIncCopiar(${i},${k})">copiar mensaje</a></div></div>`; }).join("");
+  box.classList.remove("hide"); };
+window.adminIncCopiar=(i,k)=>{ const e=adminEventos[i], m=adminMetricas[i]; const g=m&&m.incG&&m.incG[k]; if(!e||!g) return; copiarAlPortapapeles(incMensaje(e,g), "Mensaje para "+g.nombre); };
 /* Vista "Hoy por proveedor": semáforo de quién subió lo del día y quién no, con recordatorio listo para WhatsApp. */
 window.adminHoy=(i)=>{ const e=adminEventos[i], m=adminMetricas[i], box=$("adHoy"+i); if(!e||!m||!box) return;
   if(!box.classList.contains("hide")){ box.classList.add("hide"); return; }
@@ -1380,11 +1418,12 @@ window.adminAbrir=async(i)=>{
         +`<div class="row" style="margin-top:8px"><div><label>Proveedor</label><select id="adFltProv">${opt(provs,"Todos")}</select></div><div><label>Quién capturó</label><select id="adFltOper">${opt(opers,"Todos")}</select></div></div>`
         +`<div class="fld" style="margin-top:8px"><label>Escenario / categoría</label><select id="adFltCat">${opt(cats,"Todos")}</select></div>`
         +`<div class="fld" style="margin-top:8px"><label>Requerimiento</label><select id="adFltReq">${opt(reqs,"Todos")}</select></div>`
+        +`<div class="fld" style="margin-top:8px"><label>Datos de la foto</label><select id="adFltInc">${opt([["inc","Solo incompletas (sin fecha, hora o ubicación)"]],"Todas")}</select></div>`
         +`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span class="mut" id="adFltInfo"></span><a class="lnk" id="adFltLimpiar" style="font-size:13px">Limpiar filtros</a></div>`
       +`</div><div id="adEviList" class="list"></div>`;
     l.innerHTML=cab;
-    ["adFltBuscar","adFltProv","adFltOper","adFltCat","adFltReq"].forEach(id=>{ const el=$(id); if(el) el.addEventListener(id==="adFltBuscar"?"input":"change", renderAdminEvidencias); });
-    if($("adFltLimpiar")) $("adFltLimpiar").addEventListener("click", ()=>{ ["adFltBuscar","adFltProv","adFltOper","adFltCat","adFltReq"].forEach(id=>{ if($(id)) $(id).value=""; }); renderAdminEvidencias(); });
+    ["adFltBuscar","adFltProv","adFltOper","adFltCat","adFltReq","adFltInc"].forEach(id=>{ const el=$(id); if(el) el.addEventListener(id==="adFltBuscar"?"input":"change", renderAdminEvidencias); });
+    if($("adFltLimpiar")) $("adFltLimpiar").addEventListener("click", ()=>{ ["adFltBuscar","adFltProv","adFltOper","adFltCat","adFltReq","adFltInc"].forEach(id=>{ if($(id)) $(id).value=""; }); renderAdminEvidencias(); });
     renderAdminEvidencias();
   }catch(_){ l.innerHTML='<div class="mut">Error al cargar evidencias.</div>'; }
 };
@@ -1444,13 +1483,14 @@ function adminUrlObjeto(storagePath){ return SB_URL+"/storage/v1/object/authenti
 function adminColaReset(){ adminGen++; adminCola=[]; adminEnCurso=0; if(adminIO){ adminIO.disconnect(); adminIO=null; } Object.values(adminFotoURLs).forEach(f=>{ try{ URL.revokeObjectURL(f.url); }catch(_){} }); adminFotoURLs={}; adminCacheOrden=[]; }
 function renderAdminEvidencias(){
   const cont=$("adEviList"); if(!cont) return;
-  const q=fnorm($("adFltBuscar")&&$("adFltBuscar").value), fp=($("adFltProv")&&$("adFltProv").value)||"", fo=($("adFltOper")&&$("adFltOper").value)||"", fc=($("adFltCat")&&$("adFltCat").value)||"", fr=($("adFltReq")&&$("adFltReq").value)||"";
+  const q=fnorm($("adFltBuscar")&&$("adFltBuscar").value), fp=($("adFltProv")&&$("adFltProv").value)||"", fo=($("adFltOper")&&$("adFltOper").value)||"", fc=($("adFltCat")&&$("adFltCat").value)||"", fr=($("adFltReq")&&$("adFltReq").value)||"", fi=($("adFltInc")&&$("adFltInc").value)||"";
   adminVis=[];
   adminEvidencias.forEach((e,j)=>{
     if(fp && (e.proveedor||"").trim()!==fp) return;
     if(fo && (e.operador_nombre||"").trim()!==fo) return;
     if(fc && (e.categoria||"").trim()!==fc) return;
     if(fr && eviKey(e)!==fr) return;
+    if(fi && !eviFaltantes(e).length) return;
     if(q && !fnorm([e.item,e.requerimiento,e.proveedor,e.proveedor_nit,e.operador_nombre,e.operador_cedula,e.archivo,e.radicado,e.categoria].join(" ")).includes(q)) return;
     adminVis.push(j);
   });
@@ -1458,9 +1498,9 @@ function renderAdminEvidencias(){
   if(adminIO) adminIO.disconnect();
   adminIO=new IntersectionObserver(ents=>{ ents.forEach(en=>{ if(en.isIntersecting){ adminIO.unobserve(en.target); adminEncolar(+en.target.dataset.j); } }); },{rootMargin:"400px"});
   if(!adminVis.length) cont.innerHTML='<div class="mut" style="padding:8px 2px">Ninguna evidencia coincide con el filtro.</div>'; else adminMostrarMas();
-  if($("adFltInfo")){ const f=q||fp||fo||fc||fr; $("adFltInfo").textContent = f ? `Mostrando ${adminVis.length} de ${adminEvidencias.length}` : `${adminEvidencias.length} evidencia(s)`; }
+  if($("adFltInfo")){ const f=q||fp||fo||fc||fr||fi; $("adFltInfo").textContent = f ? `Mostrando ${adminVis.length} de ${adminEvidencias.length}` : `${adminEvidencias.length} evidencia(s)`; }
 }
-function adminFilaHTML(e,j){ return `<div class="ev"><div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})">${(e.tipo||"foto")==="video"?`<div style="width:66px;height:66px;border-radius:7px;background:#e9eef5;display:flex;align-items:center;justify-content:center;font-size:24px">🎬</div>`:`<img id="adimg${j}" data-j="${j}" alt="" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5">`}</div><div class="in">${e.categoria?`<span class="cchip">${escAttr(e.categoria)}</span> `:""}<b>${e.item||""}</b> · ${(e.requerimiento||"").slice(0,38)}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${e.operador_nombre||""}${e.operador_cedula?" · "+e.operador_cedula:""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+e.radicado:""}</div><div class="fn" style="margin-top:3px">${e.archivo||""}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${(e.lugar||"").slice(0,60)}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a>${esAdmin()?`<a class="lnk" style="color:#b3261e" onclick="adminBorrarEvidencia(${j})">borrar</a>`:""}</div></div></div>`; }
+function adminFilaHTML(e,j){ return `<div class="ev"><div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})">${(e.tipo||"foto")==="video"?`<div style="width:66px;height:66px;border-radius:7px;background:#e9eef5;display:flex;align-items:center;justify-content:center;font-size:24px">🎬</div>`:`<img id="adimg${j}" data-j="${j}" alt="" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5">`}</div><div class="in">${e.categoria?`<span class="cchip">${escAttr(e.categoria)}</span> `:""}<b>${escAttr(e.item||"")}</b> · ${escAttr((e.requerimiento||"").slice(0,38))}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${escAttr(e.operador_nombre||"")}${e.operador_cedula?" · "+escAttr(e.operador_cedula):""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+escAttr(e.radicado):""}</div><div class="fn" style="margin-top:3px">${escAttr(e.archivo||"")}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${escAttr((e.lugar||"").slice(0,60))}</div>`:""}${eviFaltantes(e).length?`<div class="mut" style="margin:2px 0 0;color:#b3261e">⚠ sin ${eviFaltantes(e).join(" · sin ")}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a>${esAdmin()?`<a class="lnk" style="color:#b3261e" onclick="adminBorrarEvidencia(${j})">borrar</a>`:""}</div></div></div>`; }
 function adminMostrarMas(){
   const cont=$("adEviList"); if(!cont) return; const btn=$("adMas"); if(btn) btn.remove();
   const fin=Math.min(adminVis.length, adminMostrados+AD_PAGINA); let html="";
@@ -1851,9 +1891,10 @@ function agregar(fileList, meta, metaResp){
     batch.push(e); nuevos.push(e); ps.push(procesar(e)); });
   renderLista();
   Promise.all(ps).then(()=>{   /* v34: avisos del lote — fotos rechazadas por fecha y galería sin metadatos */
-    const rech=nuevos.filter(e=>e.rechazo), sm=meta?[]:nuevos.filter(e=>!e.rechazo && e.sinMeta); const msg=[];
+    const rech=nuevos.filter(e=>e.rechazo && !e.rechazoMeta), rechM=nuevos.filter(e=>e.rechazoMeta), sm=meta?[]:nuevos.filter(e=>!e.rechazo && e.sinMeta); const msg=[];
+    if(rechM.length) msg.push((rechM.length===1?"Esta foto NO se cargó: ":"Estas "+rechM.length+" fotos NO se cargaron:\n• ")+rechM.map(e=>e.rechazo).join("\n• ")+".\n\nEste evento solo acepta fotos con sus datos originales. Se pierden cuando la foto se envía por WhatsApp o correo, o se toma con otra app.\n\nTómala en el sitio con «Capturar foto».");   /* v42 */
     if(rech.length) msg.push((rech.length===1?"Esta foto NO se cargó: ":"Estas "+rech.length+" fotos NO se cargaron:\n• ")+rech.map(e=>e.rechazo).join("\n• ")+".\n\nSolo se aceptan fotos tomadas el día de la línea que elegiste.");
-    if(sm.length && admCargaActiva()) msg.push((sm.length===1?"Esta foto no trae":"Estas "+sm.length+" fotos no traen")+" la fecha ni la ubicación originales.\n\nComo administrador: si ya traen marca de agua, usa «No aplicar marca configurada»; si no, «Completar ubicación y fecha de las fotos sin datos» (sin hora).");   /* v39 */
+    if(sm.length && admCargaActiva()) msg.push((sm.length===1?"Esta foto no trae":"Estas "+sm.length+" fotos no traen")+" la fecha ni la ubicación originales.\n\nComo administrador: si ya traen marca de agua, usa «No aplicar marca configurada»; si no, «Completar ubicación, fecha y hora de las fotos sin datos».");   /* v39 */
     else if(sm.length) msg.push((sm.length===1?"Esta foto no trae":"Estas "+sm.length+" fotos no traen")+" la fecha ni la ubicación originales. Seguro pasaron por WhatsApp o por una app de marca de agua.\n\nQuedan marcadas «sin ubicación» y no sirven bien como prueba.\n\nSi puedes, quítalas y tómalas de nuevo con «Capturar foto».");
     if(msg.length) alert(msg.join("\n\n— — —\n\n")); });
 }
@@ -1897,6 +1938,12 @@ function fotoDelDia(fecha){ if(!fecha) return true;
   return isFinite(t) && (Date.now()-t) < 36*3600*1000; }
 /* v34: la fecha real de la foto (cámara o metadatos) tiene que ser la del día elegido; sin línea por día, dentro de las
    fechas del evento. Devuelve el motivo del rechazo o "". Las declaradas/de carga no traen fecha real: no aplica. */
+/* v42 (reunión con Kevin 29-sep): el productor o el admin decide en el evento si una foto de la galería sin sus datos
+   originales se acepta (y queda marcada en el tablero) o no se carga. Solo mira el EXIF: la posición del teléfono no cuenta
+   como ubicación original. No aplica a «Capturar foto» ni a la carga de administrador. */
+function faltaMeta(entry, ex){ const mm=cfg&&cfg.mm; if(!mm || entry.meta || entry.tipo==="video" || admCargaActiva()) return "";
+  const f=[]; if(entry.fechaOrigen!=="metadatos") f.push("fecha y hora"); if(mm==="fhu" && !esNum(ex.lat)) f.push("ubicación");
+  return f.length ? ((entry.file&&entry.file.name)?entry.file.name+": ":"")+"no trae "+f.join(" ni ")+" originales" : ""; }
 function fechaNoCorresponde(e, f){ if(!f || e.fechaOrigen==="declarada" || e.fechaOrigen==="carga") return "";
   const hoy=isoHoy();
   if(f>hoy) return `tiene fecha ${fmtDia(f)}, que todavía no llega`;
@@ -1926,6 +1973,7 @@ async function procesar(entry){
       else if(esPorDia(itemById(entry.itemCodigo))){ entry.fechaOrigen="declarada"; if(entry.fechaSel){ entry.fechaDecl=entry.fechaSel; } if(entry.fechaDecl){ ex.fecha=entry.fechaDecl; } }
       else entry.fechaOrigen="carga";
       try{ const g=await exifr.gps(entry.file); if(g&&esNum(g.latitude)&&esNum(g.longitude)){ ex.lat=+g.latitude; ex.lon=+g.longitude; } }catch(_){}
+      { const mot=faltaMeta(entry, ex); if(mot){ entry.rechazo=mot; entry.rechazoMeta=true; batch=batch.filter(x=>x!==entry); renderLista(); return; } }   /* v42: el evento no acepta fotos sin metadatos */
       /* v34: sin fecha NI ubicación originales = la foto pasó por WhatsApp, una app de marca de agua o un editor.
          No se le pone la posición ni la hora de ahora (serían inventadas): se sella a la vista como tal y se avisa. */
       entry.sinMeta = entry.fechaOrigen!=="metadatos" && ex.lat==null;
