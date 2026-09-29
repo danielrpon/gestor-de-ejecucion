@@ -262,7 +262,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v43 · 29sep · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v43.1 · 29sep · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -1537,6 +1537,16 @@ function selloViejo(bmp, mk){
       const tono = tk ? `rgb(${Math.round(tr/tk)},${Math.round(tg/tk)},${Math.round(tb/tk)})` : "rgb(20,20,20)";   /* color promedio del fondo viejo sin letras: la tapa sólida se ve como el recuadro de siempre */
       mejor={x, y:a, bw, bh, pos, esc, n, err, tono}; } }
   return mejor; }
+/* v43.1: el nombre de descarga (columna archivo) se actualiza con la fecha y hora corregidas, para que coincida con la
+   etiqueta y con el informe. El archivo NO se mueve en el almacenamiento (storage_path igual). En ítems por día también
+   se recalcula el token _DndeN_ con las fechas del requerimiento en el evento. Nombre con otro formato = se deja igual. */
+function nombreCorregido(e, nv){ const a=String(e.archivo||""); const m=a.match(/^(.*?)(_D\d+de\d+)?_\d{4}-\d{2}-\d{2}(?:_\d{4})?_(\d{3,})\.(\w+)$/);
+  if(!m||!nv.fecha) return {archivo:a, dia:null};
+  let tok="", dia=null;
+  if(m[2]){ const ev=adminEventos[adminEventoActual]||{}, c=ev.config||{}; const it=(ev._items||[]).find(x=>(ev.uid+"|"+x.iid)===e.item_id);
+    if(it){ const fs=fechasDeItem(it, c.fe||""); const idx=fs.indexOf(nv.fecha)+1; tok=`_D${idx}de${fs.length}`; dia={dia_evento:idx, dias_evento:fs.length}; } else tok=m[2]; }
+  const hr=String(nv.hora||"").replace(/:/g,"").slice(0,4);
+  return {archivo:`${m[1]}${tok}_${nv.fecha}${hr?"_"+hr:""}_${m[3]}.${m[4]}`, dia}; }
 async function adminCorregir(j, P, correo){
   const e=adminEvidencias[j]; if(!e||(e.tipo||"foto")==="video") return "video";
   const F=eviFaltantes(e); if(!F.length) return "completa";
@@ -1549,8 +1559,10 @@ async function adminCorregir(j, P, correo){
   const actual=await adminOriginal(j); if(!actual) return "error: no se pudo descargar la foto";
   const HJ=Object.assign({},adminHeaders(),{"Content-Type":"application/json",Prefer:"return=representation",Accept:"application/json"});
   const patch=(body)=>fetchTO(SB_URL+"/rest/v1/evidencias?id=eq."+encodeURIComponent(e.id),{method:"PATCH",headers:HJ,body:JSON.stringify(body)},20000);
-  const antes={fecha:e.fecha==null?null:e.fecha, hora:e.hora==null?null:e.hora, lugar:e.lugar==null?null:e.lugar, fecha_origen:e.fecha_origen||null, declarado_por:e.declarado_por||null};
+  const antes={fecha:e.fecha==null?null:e.fecha, hora:e.hora==null?null:e.hora, lugar:e.lugar==null?null:e.lugar, fecha_origen:e.fecha_origen||null, declarado_por:e.declarado_por||null, archivo:e.archivo==null?null:e.archivo};
   const cambios={fecha:nv.fecha, hora:nv.hora, lugar:nv.lugar, fecha_origen:"admin", declarado_por:correo||"admin"};
+  const nc=nombreCorregido(e, nv); if(nc.archivo && nc.archivo!==e.archivo) cambios.archivo=nc.archivo;
+  if(nc.dia && ("dia_evento" in e)){ Object.assign(cambios, nc.dia); antes.dia_evento=e.dia_evento==null?null:e.dia_evento; antes.dias_evento=e.dias_evento==null?null:e.dias_evento; }
   const pr=await patch(cambios); if(pr.status===401){ adminSesExpirada(); return "error: sesión vencida"; }
   let filas=[]; try{ filas=await pr.json(); }catch(_){}
   if(!pr.ok||!Array.isArray(filas)||!filas.length) return "error: la base no dejó editar (falta correr la Capa 16)";
