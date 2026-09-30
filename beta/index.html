@@ -28,7 +28,10 @@
   label{display:block;font-size:11px;color:var(--muted);margin:0 0 5px;font-weight:600;letter-spacing:.3px}
   input,select{width:100%;min-width:0;background:var(--field);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:11px;font-size:15px;font-family:var(--font)}
   input:focus,select:focus{outline:none;border-color:var(--azul)}
-  .fld+.fld{margin-top:10px} .row{display:flex;gap:10px} .row>*{flex:1;min-width:0} .row .fld+.fld{margin-top:0}
+  .fld+.fld{margin-top:10px} .row{display:flex;gap:10px} .row>*{flex:1;min-width:0} .row .fld+.fld{margin-top:0} .fld+.row,.row+.fld{margin-top:10px}
+  /* v44.1 · iOS Safari da a date/time un ancho mínimo propio y se salen de su columna: se neutraliza */
+  input[type=date],input[type=time]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;min-height:45px;text-align:left}
+  input[type=date]::-webkit-date-and-time-value,input[type=time]::-webkit-date-and-time-value{text-align:left}
   .btn{width:100%;max-width:100%;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;font-family:var(--font);background:var(--oro);color:var(--btn-ink);white-space:normal;overflow-wrap:anywhere;line-height:1.25}
   .btn:disabled{opacity:.45;cursor:not-allowed}
   .btn.sec{background:#fff;color:var(--azul);border:1px solid var(--azul);font-weight:700}
@@ -149,10 +152,10 @@
       <div class="guia neutro hide" id="execNuevo" style="margin-bottom:10px">Evento <b>nuevo</b>, en blanco. Para modificar uno que ya existe, ábrelo en <b>▸ Configuración de eventos</b> (al final) o con el enlace del productor.</div>
       <div class="fld"><label>Cliente</label><input id="ecliente" type="text" autocomplete="off"></div>
       <div class="fld"><label>Evento</label><input id="eevento" type="text" autocomplete="off"></div>
-      <div class="row"><div class="fld"><label>Fecha del evento (inicio)</label><input id="efecha" type="date"></div><div class="fld"><label>Fecha fin (si dura varios días)</label><input id="efechafin" type="date"></div></div>
+      <div class="row"><div class="fld"><label>Fecha de inicio</label><input id="efecha" type="date"></div><div class="fld"><label>Fecha fin <span style="font-weight:500">(si son varios días)</span></label><input id="efechafin" type="date"></div></div>
       <div class="fld"><label>Ciudad</label><input id="eciudad" type="text" autocomplete="off"></div>
-      <div class="fld hide" id="eEjWrap"><label>Ejecutivo asignado</label><select id="eEj"><option value="">— Sin asignar —</option></select>
-        <div class="mut" style="margin:4px 0 0">El ejecutivo ve y administra solo los eventos que tiene asignados.</div></div>
+      <div class="fld hide" id="eEjWrap"><label>Productor asignado</label><select id="eEj"><option value="">— Sin asignar —</option></select>
+        <div class="mut" style="margin:4px 0 0">El productor ve y administra solo los eventos que tiene asignados.</div></div>
       <div style="height:14px"></div>
       <button class="btn sec" id="ebtnReq">Cargar lista de evidencias (Excel / CSV)</button>
       <input id="efileReq" type="file" accept=".xlsx,.xls,.csv">
@@ -285,7 +288,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v44 · 29sep · tablero admin legible en celular · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v44.1 · 29sep · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -1324,7 +1327,7 @@ function adminRenderDash(){
         +`<div class="st">${est(m.n+(m.n!==m.tot?`<small class="mut" style="margin:0;font-weight:500"> de ${m.tot}</small>`:""),"Requerimientos")}${est(m.conEvi,"Con evidencia")}${est(m.comp,"Completos")}${est(m.pend,"Pendientes",m.pend?"pend":"")}${est(m.reg.toLocaleString("es-CO"),"Evidencias")}${est(m.extras,"Extras en sitio",m.extras?"ext":"")}</div>`
         +(m.pd.n?`<div class="pdl">📅 Por día: <b>${m.pd.n}</b> req · días cubiertos <b>${m.pd.diasCub}/${m.pd.diasReq}</b> · hoy <b>${m.pd.hoyOk}/${m.pd.hoyTotal}</b>${m.pd.atras?`<br><span style="color:#b3261e;font-weight:600">⚠ ${m.pd.atras} con días atrasados</span>`:""}</div><div id="adHoy${i}" class="hide"></div>`:"")
         +(m.inc.length?incResumen(m.inc)+`<div id="adInc${i}" class="hide"></div>`:"")
-        +`<div class="acc"><a class="chip pri" onclick="adminAbrir(${i})">Ver evidencias →</a>${m.pd.n?`<a class="chip" onclick="adminHoy(${i})">Hoy por proveedor</a>`:""}${m.inc.length?`<a class="chip alerta" onclick="adminIncompletas(${i})">Incompletas por persona</a>`:""}<a class="chip" onclick="adminCopiar(${i},'oper')">🔗 Link proveedor</a><a class="chip" onclick="adminCopiar(${i},'exec')">✏️ Link para editar</a>${esAdmin()?`<a class="chip" onclick="adminCargar(${i})">📤 Carga de administrador</a><a class="chip pel" onclick="adminBorrarEvento(${i})">Borrar evento</a>`:""}</div></div>`;
+        +`<div class="acc"><a class="chip pri" onclick="adminAbrir(${i})">Ver evidencias →</a>${m.pd.n?`<a class="chip" onclick="adminHoy(${i})">Hoy por proveedor</a>`:""}${m.inc.length?`<a class="chip alerta" onclick="adminIncompletas(${i})">Incompletas por persona</a>`:""}<a class="chip" onclick="adminCopiar(${i},'oper')">🔗 Link proveedor</a><a class="chip" onclick="adminEditar(${i})">✏️ Editar evento</a>${esAdmin()?`<a class="chip" onclick="adminCargar(${i})">📤 Carga de administrador</a><a class="chip pel" onclick="adminBorrarEvento(${i})">Borrar evento</a>`:""}</div></div>`;
     }).join(""):'<div class="mut">Ningún evento coincide con el filtro. <a class="lnk" id="segTodo2">Ver todo</a></div>');
   const info=$("segInfo"); if(info) info.textContent = activos.length ? `${visibles.length} de ${adminEventos.length} eventos` : `${adminEventos.length} evento(s)`;
   const bind=(id,k)=>{ const el=$(id); if(!el) return; el.addEventListener("change",()=>{ adminSeg[k]=el.value; if(k==="cl") adminSeg.ev=""; if(k==="mes"&&el.value){ adminSeg.desde=""; adminSeg.hasta=""; } if((k==="desde"||k==="hasta")&&el.value) adminSeg.mes=""; saveJSON(NS+"admin_seg",adminSeg); adminRenderDash(); }); };
@@ -2671,6 +2674,10 @@ function textoMarca(d){ if(!d) return "";
 function admBandera(){ try{ return sessionStorage.getItem(NS+"adm_carga")||""; }catch(_){ return ""; } }
 function admSalirModo(){ try{ sessionStorage.removeItem(NS+"adm_carga"); }catch(_){} }
 function admCargaActiva(){ try{ return typeof esAdmin==="function" && esAdmin() && !!cfg && !!cfg.uid && admBandera()===cfg.uid; }catch(_){ return false; } }
+/* v44.1 · el admin edita desde el panel: abre el evento en la misma pestaña (antes copiaba el enlace del productor) */
+window.adminEditar=(i)=>{ const e=adminEventos[i]; if(!e) return; if(!adminValido()){ adminSesExpirada(); return; }
+  try{ sessionStorage.removeItem(NS+"adm_carga"); }catch(_){}
+  location.href="?ev="+encodeURIComponent(e.uid)+"&rol=ex"; };   /* relativo: se queda en /beta/ */
 window.adminCargar=(i)=>{ const e=adminEventos[i]; if(!e) return; if(!adminValido()){ adminSesExpirada(); return; } if(!esAdmin()){ toast("Solo un administrador"); return; }
   try{ sessionStorage.setItem(NS+"adm_carga", e.uid); }catch(_){}
   location.href="?ev="+encodeURIComponent(e.uid); };   /* relativo: se queda en /beta/ */
