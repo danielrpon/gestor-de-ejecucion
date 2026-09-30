@@ -65,7 +65,30 @@
   .ev{display:flex;gap:11px;align-items:center;background:#f7f9fc;border:1px solid var(--line);border-radius:10px;padding:9px}
   .ev img{width:66px;height:66px;object-fit:cover;border-radius:7px;flex:none;background:#000}
   .ev .in{flex:1;min-width:0} .ev .fn{font-family:var(--mono);font-size:11px;color:var(--azul-d);word-break:break-all;margin-top:4px}
-  .ev select{padding:6px 8px;font-size:12.5px} .ev .ac{display:flex;gap:12px;margin-top:5px}
+  .ev select{padding:6px 8px;font-size:12.5px} .ev .ac{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:5px}
+  /* v44 · tablero admin legible en celular: KPIs en rejilla, cifras por evento y acciones como botones táctiles */
+  .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:12px}
+  @media(min-width:560px){ .kpis{grid-template-columns:repeat(auto-fit,minmax(96px,1fr))} }
+  .kpi{text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 4px;min-width:0}
+  .kpi b{display:block;font-size:clamp(16px,5vw,21px);font-weight:800;color:var(--azul);line-height:1.15;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .kpi b small{font-size:.6em;font-weight:600;color:var(--muted)} .kpi span{display:block;font-size:11px;color:var(--muted);margin-top:3px;line-height:1.2}
+  .adEv{display:block;padding:12px}
+  .adEv .t1{font-size:12px;color:var(--muted);line-height:1.35} .adEv .t1 b{color:var(--azul);font-weight:800}
+  .adEv .t2{font-size:14px;font-weight:700;line-height:1.3;margin-top:3px;overflow-wrap:anywhere}
+  .adEv .av{display:flex;align-items:center;gap:8px;margin-top:8px} .adEv .av>div{flex:1;margin:0!important}
+  .adEv .av b{font-size:13px;font-variant-numeric:tabular-nums;min-width:38px;text-align:right}
+  .adEv .st{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-top:9px}
+  .adEv .st div{background:var(--panel);padding:6px 4px;text-align:center;min-width:0}
+  .adEv .st b{display:block;font-size:15px;font-variant-numeric:tabular-nums} .adEv .st span{display:block;font-size:10.5px;color:var(--muted);line-height:1.2}
+  .adEv .st .pend b{color:#b3261e} .adEv .st .ext b{color:var(--oro-d)}
+  .adEv .pdl{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.45}
+  .acc{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .chip{display:inline-flex;align-items:center;gap:5px;min-height:38px;padding:0 13px;border-radius:999px;border:1px solid #bcd0ea;background:#fff;color:var(--azul);font-size:13px;font-weight:600;line-height:1.2;white-space:nowrap;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;transition:transform 140ms cubic-bezier(.23,1,.32,1)}
+  .chip:active{transform:scale(.97)}
+  .chip.pri{background:var(--azul);border-color:var(--azul);color:#fff}
+  .chip.alerta{color:#b3261e;border-color:#efb9b4;background:#fff6f5}
+  .chip.pel{color:#b3261e;border-color:transparent;background:transparent;margin-left:auto;padding:0 6px}
+  @media(prefers-reduced-motion:reduce){ .chip{transition:none} }
   .cnt{font-size:12px;color:var(--muted);margin:0 0 9px}
   .qrbox{display:flex;justify-content:center;margin-top:12px} .qrbox canvas,.qrbox img{background:#fff;border-radius:10px;padding:8px;border:1px solid var(--line);display:block;max-width:100%;height:auto}
   .invite{background:#f7f9fc;border:1px solid #d3e2f4;border-radius:12px;padding:14px;text-align:center;margin-top:6px}
@@ -262,7 +285,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v43.1 · 29sep · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v44 · 29sep · tablero admin legible en celular · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -1286,20 +1309,22 @@ function adminRenderDash(){
     const inc=evisF[e.uid].filter(x=>eviFaltantes(x).length); gInc+=inc.length;   /* v42 */
     adminMetricas[i]={n:items.length,tot:e._items.length,reg,conEvi,comp,pend,av,extras,pd:pdm,inc}; });
   const gAv=gReq?Math.round(gComp/gReq*100):0;
-  const kpi=(v,t)=>`<div style="flex:1;min-width:70px;text-align:center;border:1px solid var(--bd,#e3e3e3);border-radius:10px;padding:8px 4px"><div style="font-size:20px;font-weight:800;color:var(--azul)">${v}</div><div class="mut" style="margin:2px 0 0;font-size:11px">${t}</div></div>`;
-  const bar=av=>`<div style="height:7px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0 2px"><div style="height:100%;width:${av}%;background:${av>=100?'#1a9e56':(av>0?'var(--azul)':'#e9e9ee')}"></div></div>`;
-  const dash=`<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">`
-    +kpi(visibles.length+(visibles.length!==adminEventos.length?`<span class="mut" style="margin:0;font-size:12px">/${adminEventos.length}</span>`:""),"Eventos")
-    +kpi(gReq+(gReq!==gReqTot?`<span class="mut" style="margin:0;font-size:12px">/${gReqTot}</span>`:""),"Requerimientos")
-    +kpi(gEvi,"Evidencias")+kpi(gComp+"/"+gReq,"Completos")+kpi(gAv+"%","Avance")+kpi(gExtra,"Extras en sitio")+(gInc?kpi(`<span style="color:#b3261e">${gInc}</span>`,"Fotos incompletas"):"")+`</div>`;
+  const kpi=(v,t)=>`<div class="kpi"><b>${v}</b><span>${t}</span></div>`;
+  const bar=av=>`<div style="height:8px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0 2px"><div style="height:100%;width:${av}%;background:${av>=100?'#1a9e56':(av>0?'var(--azul)':'#e9e9ee')}"></div></div>`;
+  const dash=`<div class="kpis">`
+    +kpi(visibles.length+(visibles.length!==adminEventos.length?`<small>/${adminEventos.length}</small>`:""),"Eventos")
+    +kpi(gReq+(gReq!==gReqTot?`<small>/${gReqTot}</small>`:""),"Requerimientos")
+    +kpi(gEvi.toLocaleString("es-CO"),"Evidencias")+kpi(`${gComp}<small>/${gReq}</small>`,"Completos")+kpi(gAv+"%","Avance")+kpi(gExtra,"Extras en sitio")+(gInc?kpi(`<span style="color:#b3261e">${gInc}</span>`,"Fotos incompletas"):"")+`</div>`;
   l.innerHTML=seg+dash+(visibles.length?visibles.map(i=>{
       const e=adminEventos[i], m=adminMetricas[i];
-      return `<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe}${e.config&&e.config.ff&&e.config.ff!==e.fe?" → "+e.config.ff:""})</span>`:""}${e.config&&e.config.pd?` <span class="mut" style="margin:0;color:var(--azul)">· por día</span>`:""}`
-        +bar(m.av)
-        +`<div class="mut" style="margin:2px 0 0">Requerimientos: <b>${m.n}</b>${m.n!==m.tot?` <span class="mut" style="margin:0">(de ${m.tot})</span>`:""} · Con evidencia: <b>${m.conEvi}</b> · Completos: <b>${m.comp}</b> · Pendientes: <b>${m.pend}</b> · Evidencias: <b>${m.reg}</b> · Avance: <b>${m.av}%</b>${m.extras?` · <span style="color:var(--oro-d)">Extras en sitio: <b>${m.extras}</b></span>`:""}</div>`
-        +(m.pd.n?`<div class="mut" style="margin:3px 0 0">📅 Por día: <b>${m.pd.n}</b> req · días cubiertos <b>${m.pd.diasCub}/${m.pd.diasReq}</b> · hoy <b>${m.pd.hoyOk}/${m.pd.hoyTotal}</b>${m.pd.atras?` · <span style="color:#b3261e">⚠ ${m.pd.atras} con días atrasados</span>`:""}</div><div id="adHoy${i}" class="hide"></div>`:"")
+      const est=(v,t,c)=>`<div${c?` class="${c}"`:""}><b>${v}</b><span>${t}</span></div>`;
+      return `<div class="ev adEv"><div class="t1"><b>${evConsecTag(e.consec)}</b> · ${escAttr(e.cl)}${e.fe?` · ${e.fe}${e.config&&e.config.ff&&e.config.ff!==e.fe?" → "+e.config.ff:""}`:""}${e.config&&e.config.pd?` · <span style="color:var(--azul);font-weight:600">por día</span>`:""}</div>`
+        +`<div class="t2">${escAttr(e.ev)}</div>`
+        +`<div class="av">${bar(m.av)}<b style="color:${m.av>=100?'#1a9e56':'var(--azul)'}">${m.av}%</b></div>`
+        +`<div class="st">${est(m.n+(m.n!==m.tot?`<small class="mut" style="margin:0;font-weight:500"> de ${m.tot}</small>`:""),"Requerimientos")}${est(m.conEvi,"Con evidencia")}${est(m.comp,"Completos")}${est(m.pend,"Pendientes",m.pend?"pend":"")}${est(m.reg.toLocaleString("es-CO"),"Evidencias")}${est(m.extras,"Extras en sitio",m.extras?"ext":"")}</div>`
+        +(m.pd.n?`<div class="pdl">📅 Por día: <b>${m.pd.n}</b> req · días cubiertos <b>${m.pd.diasCub}/${m.pd.diasReq}</b> · hoy <b>${m.pd.hoyOk}/${m.pd.hoyTotal}</b>${m.pd.atras?`<br><span style="color:#b3261e;font-weight:600">⚠ ${m.pd.atras} con días atrasados</span>`:""}</div><div id="adHoy${i}" class="hide"></div>`:"")
         +(m.inc.length?incResumen(m.inc)+`<div id="adInc${i}" class="hide"></div>`:"")
-        +`<div class="ac">${m.inc.length?`<a class="lnk" style="font-weight:700;color:#b3261e" onclick="adminIncompletas(${i})">incompletas por persona</a>`:""}${m.pd.n?`<a class="lnk" style="font-weight:700" onclick="adminHoy(${i})">hoy por proveedor</a>`:""}<a class="lnk" onclick="adminCopiar(${i},'oper')">link proveedor</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link para editar</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a>${esAdmin()?`<a class="lnk" onclick="adminCargar(${i})">📤 carga de administrador</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a>`:""}</div></div></div>`;
+        +`<div class="acc"><a class="chip pri" onclick="adminAbrir(${i})">Ver evidencias →</a>${m.pd.n?`<a class="chip" onclick="adminHoy(${i})">Hoy por proveedor</a>`:""}${m.inc.length?`<a class="chip alerta" onclick="adminIncompletas(${i})">Incompletas por persona</a>`:""}<a class="chip" onclick="adminCopiar(${i},'oper')">🔗 Link proveedor</a><a class="chip" onclick="adminCopiar(${i},'exec')">✏️ Link para editar</a>${esAdmin()?`<a class="chip" onclick="adminCargar(${i})">📤 Carga de administrador</a><a class="chip pel" onclick="adminBorrarEvento(${i})">Borrar evento</a>`:""}</div></div>`;
     }).join(""):'<div class="mut">Ningún evento coincide con el filtro. <a class="lnk" id="segTodo2">Ver todo</a></div>');
   const info=$("segInfo"); if(info) info.textContent = activos.length ? `${visibles.length} de ${adminEventos.length} eventos` : `${adminEventos.length} evento(s)`;
   const bind=(id,k)=>{ const el=$(id); if(!el) return; el.addEventListener("change",()=>{ adminSeg[k]=el.value; if(k==="cl") adminSeg.ev=""; if(k==="mes"&&el.value){ adminSeg.desde=""; adminSeg.hasta=""; } if((k==="desde"||k==="hasta")&&el.value) adminSeg.mes=""; saveJSON(NS+"admin_seg",adminSeg); adminRenderDash(); }); };
