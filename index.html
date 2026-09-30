@@ -28,7 +28,12 @@
   label{display:block;font-size:11px;color:var(--muted);margin:0 0 5px;font-weight:600;letter-spacing:.3px}
   input,select{width:100%;min-width:0;background:var(--field);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:11px;font-size:15px;font-family:var(--font)}
   input:focus,select:focus{outline:none;border-color:var(--azul)}
-  .fld+.fld{margin-top:10px} .row{display:flex;gap:10px} .row>*{flex:1;min-width:0} .row .fld+.fld{margin-top:0}
+  .fld+.fld{margin-top:10px} .row{display:flex;gap:10px} .row>*{flex:1;min-width:0} .row .fld+.fld{margin-top:0} .fld+.row,.row+.fld{margin-top:10px}
+  /* v44.1 · iOS Safari da a date/time un ancho mínimo propio y se salen de su columna: se neutraliza */
+  input[type=date],input[type=time]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;min-height:45px;text-align:left}
+  input[type=date]::-webkit-date-and-time-value,input[type=time]::-webkit-date-and-time-value{text-align:left}
+  /* v44.2 · aun así el iPhone no encoge la fecha a media pantalla: en celular las fechas van una debajo de la otra */
+  @media(max-width:560px){ .row.fechas{flex-direction:column;gap:10px} }
   .btn{width:100%;max-width:100%;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;font-family:var(--font);background:var(--oro);color:var(--btn-ink);white-space:normal;overflow-wrap:anywhere;line-height:1.25}
   .btn:disabled{opacity:.45;cursor:not-allowed}
   .btn.sec{background:#fff;color:var(--azul);border:1px solid var(--azul);font-weight:700}
@@ -65,7 +70,30 @@
   .ev{display:flex;gap:11px;align-items:center;background:#f7f9fc;border:1px solid var(--line);border-radius:10px;padding:9px}
   .ev img{width:66px;height:66px;object-fit:cover;border-radius:7px;flex:none;background:#000}
   .ev .in{flex:1;min-width:0} .ev .fn{font-family:var(--mono);font-size:11px;color:var(--azul-d);word-break:break-all;margin-top:4px}
-  .ev select{padding:6px 8px;font-size:12.5px} .ev .ac{display:flex;gap:12px;margin-top:5px}
+  .ev select{padding:6px 8px;font-size:12.5px} .ev .ac{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:5px}
+  /* v44 · tablero admin legible en celular: KPIs en rejilla, cifras por evento y acciones como botones táctiles */
+  .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:12px}
+  @media(min-width:560px){ .kpis{grid-template-columns:repeat(auto-fit,minmax(96px,1fr))} }
+  .kpi{text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 4px;min-width:0}
+  .kpi b{display:block;font-size:clamp(16px,5vw,21px);font-weight:800;color:var(--azul);line-height:1.15;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .kpi b small{font-size:.6em;font-weight:600;color:var(--muted)} .kpi span{display:block;font-size:11px;color:var(--muted);margin-top:3px;line-height:1.2}
+  .adEv{display:block;padding:12px}
+  .adEv .t1{font-size:12px;color:var(--muted);line-height:1.35} .adEv .t1 b{color:var(--azul);font-weight:800}
+  .adEv .t2{font-size:14px;font-weight:700;line-height:1.3;margin-top:3px;overflow-wrap:anywhere}
+  .adEv .av{display:flex;align-items:center;gap:8px;margin-top:8px} .adEv .av>div{flex:1;margin:0!important}
+  .adEv .av b{font-size:13px;font-variant-numeric:tabular-nums;min-width:38px;text-align:right}
+  .adEv .st{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-top:9px}
+  .adEv .st div{background:var(--panel);padding:6px 4px;text-align:center;min-width:0}
+  .adEv .st b{display:block;font-size:15px;font-variant-numeric:tabular-nums} .adEv .st span{display:block;font-size:10.5px;color:var(--muted);line-height:1.2}
+  .adEv .st .pend b{color:#b3261e} .adEv .st .ext b{color:var(--oro-d)}
+  .adEv .pdl{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.45}
+  .acc{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .chip{display:inline-flex;align-items:center;gap:5px;min-height:38px;padding:0 13px;border-radius:999px;border:1px solid #bcd0ea;background:#fff;color:var(--azul);font-size:13px;font-weight:600;line-height:1.2;white-space:nowrap;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;transition:transform 140ms cubic-bezier(.23,1,.32,1)}
+  .chip:active{transform:scale(.97)}
+  .chip.pri{background:var(--azul);border-color:var(--azul);color:#fff}
+  .chip.alerta{color:#b3261e;border-color:#efb9b4;background:#fff6f5}
+  .chip.pel{color:#b3261e;border-color:transparent;background:transparent;margin-left:auto;padding:0 6px}
+  @media(prefers-reduced-motion:reduce){ .chip{transition:none} }
   .cnt{font-size:12px;color:var(--muted);margin:0 0 9px}
   .qrbox{display:flex;justify-content:center;margin-top:12px} .qrbox canvas,.qrbox img{background:#fff;border-radius:10px;padding:8px;border:1px solid var(--line);display:block;max-width:100%;height:auto}
   .invite{background:#f7f9fc;border:1px solid #d3e2f4;border-radius:12px;padding:14px;text-align:center;margin-top:6px}
@@ -109,24 +137,26 @@
   <div id="home" class="hide">
     <div class="card">
       <div class="h">¿Cómo vas a usar la app?</div>
-      <button class="btn" id="goExec">Productor · Configurar operación</button>
+      <button class="btn" id="goAdmin">Ingresar · Administrador, productor o ejecutivo</button>
       <div style="height:10px"></div>
       <button class="btn sec" id="goOper">Proveedor · Ingresar a capturar</button>
       <div class="mut" id="homeHint">El proveedor normalmente entra escaneando el QR o abriendo el enlace que le comparte el productor.</div>
-      <div class="mut" style="margin-top:8px"><a class="lnk" id="goAdmin">Soy administrador</a></div>
     </div>
   </div>
 
   <!-- EJECUTIVO · CONFIGURACIÓN -->
   <div id="exec" class="hide">
     <div class="card">
-      <div class="role">Productor</div>
+      <div class="role" id="execRol">Productor</div>
       <div class="h">Configurar operación</div>
+      <div style="margin:-4px 0 10px"><a class="lnk" id="execPanel">← Volver al panel</a></div>
       <div class="guia neutro hide" id="execNuevo" style="margin-bottom:10px">Evento <b>nuevo</b>, en blanco. Para modificar uno que ya existe, ábrelo en <b>▸ Configuración de eventos</b> (al final) o con el enlace del productor.</div>
       <div class="fld"><label>Cliente</label><input id="ecliente" type="text" autocomplete="off"></div>
       <div class="fld"><label>Evento</label><input id="eevento" type="text" autocomplete="off"></div>
-      <div class="row"><div class="fld"><label>Fecha del evento (inicio)</label><input id="efecha" type="date"></div><div class="fld"><label>Fecha fin (si dura varios días)</label><input id="efechafin" type="date"></div></div>
+      <div class="row fechas"><div class="fld"><label>Fecha de inicio</label><input id="efecha" type="date"></div><div class="fld"><label>Fecha fin <span style="font-weight:500">(si son varios días)</span></label><input id="efechafin" type="date"></div></div>
       <div class="fld"><label>Ciudad</label><input id="eciudad" type="text" autocomplete="off"></div>
+      <div class="fld hide" id="eEjWrap"><label>Productor asignado</label><select id="eEj"><option value="">— Sin asignar —</option></select>
+        <div class="mut" style="margin:4px 0 0">El productor ve y administra solo los eventos que tiene asignados.</div></div>
       <div style="height:14px"></div>
       <button class="btn sec" id="ebtnReq">Cargar lista de evidencias (Excel / CSV)</button>
       <input id="efileReq" type="file" accept=".xlsx,.xls,.csv">
@@ -171,6 +201,7 @@
         <label class="tgl"><input id="emOn" type="checkbox" checked> Aplicar marca de agua (fecha · hora · dirección)</label>
         <label class="tgl"><input id="emGal" type="checkbox" checked> Permitir subir fotos desde la Galería del celular (si lo apagas, el proveedor solo puede usar «Capturar foto»)</label>
         <label class="tgl"><input id="emVf" type="checkbox" checked> Exigir que las fotos sean de las fechas del evento (si lo apagas, se aceptan fotos de cualquier fecha; las de fecha futura siguen bloqueadas)</label>
+        <div class="fld" style="margin-top:8px"><label>Fotos de la Galería sin sus datos originales (pasaron por WhatsApp, correo u otra app)</label><select id="emMm"><option value="">Aceptarlas y marcarlas como incompletas en el tablero</option><option value="fh" selected>No cargar las que no traigan fecha y hora originales (recomendado)</option><option value="fhu">No cargar las que no traigan fecha, hora y ubicación originales</option></select></div>
       </div>
       <div style="height:14px"></div>
       <button class="btn" id="egen" disabled>Generar acceso para proveedores</button>
@@ -183,11 +214,11 @@
           <div class="ie" id="invEv"></div>
           <div class="qrbox"><div id="acQR"></div></div>
           <div class="il" id="acLink"></div>
-          <div class="mut" style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">Enlace del <b>productor</b> (para re-editar este evento después):</div>
+          <div class="mut" style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">Enlace para <b>editar</b> este evento (pide ingresar con usuario y contraseña):</div>
           <div class="il" id="acLinkExec" style="color:var(--muted)"></div>
         </div>
         <div class="btn2"><button class="btn sec" id="acCopy">Copiar invitación (proveedor)</button><button class="btn" id="acGo">Continuar como proveedor</button></div>
-        <button class="btn sec" id="acCopyExec" style="margin-top:8px">Copiar enlace del productor</button>
+        <button class="btn sec" id="acCopyExec" style="margin-top:8px">Copiar enlace para editar</button>
       </div>
       <div style="height:14px"></div>
       <a class="lnk" id="verHist">▸ Configuración de eventos</a>
@@ -243,12 +274,13 @@
       <div class="cnt" id="cnt">Aún no agregas fotos.</div>
       <div id="admCarga" class="xbox hide" style="margin-top:8px">
         <div class="xt" style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">🔐 Carga de administrador <a class="lnk" onclick="admSalir()" style="font-size:12px;font-weight:600">salir del modo</a></div>
-        <div class="mut" style="margin:0 0 8px;font-size:12px">Fotos que llegaron por otros medios. El proveedor nunca ve este recuadro. La hora nunca se declara.</div>
+        <div class="mut" style="margin:0 0 8px;font-size:12px">Fotos que llegaron por otros medios. El proveedor nunca ve este recuadro. Lo que declares aquí sale en el sello con «_» y queda registrado a tu nombre.</div>
         <label class="tgl" style="margin:0 0 8px"><input id="admSinHora" type="checkbox"> Sello sin hora (deja fecha y ubicación)</label>
         <div class="fld"><label>Lugar para las fotos sin ubicación</label><input id="admLugar" type="text" autocomplete="off" list="admLugares" placeholder="Dirección, barrio, ciudad"><datalist id="admLugares"></datalist></div>
         <div class="fld" style="margin-top:8px"><label>Fecha para las fotos sin fecha</label><select id="admFecha"></select></div>
+        <div class="fld" style="margin-top:8px"><label>Hora para las fotos sin hora <span class="mut" style="font-weight:400">(cada foto se puede ajustar en su fila)</span></label><input id="admHoraIn" type="time"></div>
         <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-          <button class="btn sec" id="admCompletar" style="margin:0;flex:1 1 100%">Completar ubicación y fecha de las fotos sin datos</button>
+          <button class="btn sec" id="admCompletar" style="margin:0;flex:1 1 100%">Completar ubicación, fecha y hora de las fotos sin datos</button>
           <button class="btn sec" id="admSinSello" style="margin:0;flex:1 1 100%">No aplicar marca configurada (ya la traen)</button>
         </div>
         <div class="mut" id="admMsg" style="margin:6px 0 0;font-size:12px"></div>
@@ -257,7 +289,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v40 · 25sep · carga de administrador aparte + sello sin hora + orden de la cotización</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v44.2 · 30sep · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -265,7 +297,7 @@
   <!-- ADMINISTRADOR · VISUALIZADOR -->
   <div id="admin" class="hide">
     <div class="card" id="adLogin">
-      <div class="role">Administrador</div>
+      <div class="role">Administrador · Productor · Ejecutivo</div>
       <div class="h">Ingreso</div>
       <div class="fld"><label>Correo</label><input id="adEmail" type="email" autocomplete="username"></div>
       <div class="fld" style="margin-top:8px"><label>Contraseña</label><input id="adPass" type="password" autocomplete="current-password"></div>
@@ -274,8 +306,9 @@
       <div class="mut" style="margin-top:8px"><a class="lnk" id="adVolver">Volver al inicio</a></div>
     </div>
     <div class="card hide" id="adPanel">
-      <div class="role">Administrador</div>
+      <div class="role" id="adRol">Administrador</div>
       <div class="h" id="adTitulo">Eventos</div>
+      <div id="adAcciones" style="display:flex;gap:16px;flex-wrap:wrap;margin:-4px 0 12px"><a class="lnk" id="adNuevo">＋ Configurar evento nuevo</a><a class="lnk hide" id="adUsuarios">👥 Usuarios</a></div>
       <div id="adBack" class="hide" style="margin-bottom:8px"><a class="lnk" id="adBackLink">← Volver a eventos</a></div>
       <div id="adLista" class="list"></div>
       <div class="mut" style="margin-top:12px"><a class="lnk" id="adSalir">Cerrar sesión</a></div>
@@ -381,7 +414,9 @@
 <script src="jszip.min.js"></script>
 <script src="qrcode.min.js"></script>
 <script>
-/* Espacio de nombres del almacenamiento del celular: la raíz usa "est_"; la beta (/beta/) usa "estb_" para no pisarlo. */
+/* BETA: espacio de nombres del almacenamiento del celular. La raíz usa "est_"; la beta usa "estb_" para no
+   pisar el evento/operador/contadores de la app en producción (mismo dominio = mismo localStorage/IndexedDB).
+   Al promover la beta a la raíz, volver NS a "est_". */
 const NS="est_";
 const $ = id => document.getElementById(id);
 /* Red de seguridad: cualquier error de JS no capturado se muestra en pantalla (nunca falla en silencio). */
@@ -407,15 +442,30 @@ function aplicarMarca(){
   if(MARCA.logoImg){ if(img){ img.src=MARCA.logoImg; img.style.display=""; } if(word) word.style.display="none"; }
   else { if(img) img.style.display="none"; if(word){ word.innerHTML=MARCA.word; word.style.display=""; } }
 }
-const PROD = "https://danielrpon.github.io/gestor-de-ejecucion/";  // el QR/enlace SIEMPRE apunta a la app publicada (no a file://)
+const PROD = "https://danielrpon.github.io/gestor-de-ejecucion/";  // BETA: los QR/enlaces de eventos creados aquí apuntan a la beta. Al promover a la raíz, quitar "beta/".
 /* ---- Supabase: base de datos de eventos (histórico + compartido entre dispositivos + links estables) ---- */
 const SB_URL="https://yjrhnyyftnrmofqrtzmv.supabase.co";
 const SB_KEY="sb_publishable_uYKPtqQlONKLhQZCpnDRsw_vwQi8iwv";   // publishable key (segura en el navegador)
 const SB_H={apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":"application/json"};
-async function sbSave(row){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify(row)}); return r.ok; }catch(_){ return false; } }
-async function sbGet(uid){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos?uid=eq."+encodeURIComponent(uid)+"&select=*",{headers:SB_H}); if(!r.ok) return null; const a=await r.json(); return a[0]||null; }catch(_){ return null; } }
-async function sbList(){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos?select=*&order=consec.desc",{headers:SB_H}); if(!r.ok) return null; return await r.json(); }catch(_){ return null; } }
-async function sbMaxConsec(){ try{ const r=await fetch(SB_URL+"/rest/v1/eventos?select=consec&order=consec.desc&limit=1",{headers:SB_H}); if(r.ok){ const a=await r.json(); if(a.length) return a[0].consec||0; } }catch(_){} return 0; }
+/* Capa 11b · los eventos se leen y guardan con el TOKEN de quien ingresó (admin, productor o ejecutivo), no con la llave
+   pública. El proveedor (sin cuenta) lee SU evento con evento_por_uid(): con el uid exacto, sin poder listar los demás.
+   Guardar: primero PATCH (evento existente y mío); si no tocó ninguna fila, INSERT como evento nuevo con creado_por = yo.
+   Si el evento es de otro, el INSERT choca con el uid existente y devuelve false: nunca se pisa un evento ajeno. */
+function sesHeaders(){ return Object.assign({},SB_H,{Authorization:"Bearer "+adminSes.token}); }
+async function sbSave(row){ try{
+  if(!adminValido()) return false;
+  await sesRenovar();
+  const h=Object.assign({},sesHeaders(),{Prefer:"return=representation"});
+  const p=await fetch(SB_URL+"/rest/v1/eventos?uid=eq."+encodeURIComponent(row.uid),{method:"PATCH",headers:h,body:JSON.stringify(row)});
+  if(p.ok){ const a=await p.json().catch(()=>[]); if(Array.isArray(a)&&a.length) return true; }
+  else if(p.status===401){ return false; }
+  const r=await fetch(SB_URL+"/rest/v1/eventos",{method:"POST",headers:Object.assign({},sesHeaders(),{Prefer:"return=minimal"}),body:JSON.stringify(Object.assign({},row,{creado_por:adminSes.uid}))});
+  return r.ok; }catch(_){ return false; } }
+async function sbGet(uid){ try{
+  if(adminValido()){ const r=await fetch(SB_URL+"/rest/v1/eventos?uid=eq."+encodeURIComponent(uid)+"&select=*",{headers:sesHeaders()}); if(r.ok){ const a=await r.json(); if(a[0]) return a[0]; } }
+  const r=await fetch(SB_URL+"/rest/v1/rpc/evento_por_uid",{method:"POST",headers:SB_H,body:JSON.stringify({p_uid:uid})}); if(!r.ok) return null; const a=await r.json(); return a[0]||null; }catch(_){ return null; } }
+async function sbList(){ try{ if(!adminValido()) return null; const r=await fetch(SB_URL+"/rest/v1/eventos?select=*&order=consec.desc",{headers:sesHeaders()}); if(!r.ok) return null; return filtrarMios(await r.json()); }catch(_){ return null; } }
+async function sbMaxConsec(){ try{ const r=await fetch(SB_URL+"/rest/v1/rpc/max_consec",{method:"POST",headers:sesHeaders(),body:"{}"}); if(r.ok){ const n=await r.json(); return +n||0; } }catch(_){} return 0; }
 let cfg = null;              // {cl, ev, it:[{codigo,req}], od}
 let operador = loadJSON(NS+"operador", null);
 let counters = loadJSON(NS+"counters", {});
@@ -474,7 +524,10 @@ function decCfg(s){ try{ return JSON.parse(decodeURIComponent(escape(atob(s))));
 function eventos(){ return loadJSON(NS+"eventos", {}); }                 // cache local por uid (respaldo si no hay señal)
 function cacheEvento(rec){ try{ if(rec&&rec.uid){ const all=eventos(); all[rec.uid]=rec; saveJSON(NS+"eventos",all); } }catch(_){} }
 function evConsecTag(n){ return "EV-"+String(n).padStart(3,"0"); }
-function nuevoUid(){ return "ev"+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+/* Capa 11b: 8 caracteres aleatorios criptográficos (antes 4 de Math.random): con la hora de creación a la vista, 4 se
+   adivinaban. Solo aplica a eventos NUEVOS: el uid va dentro de item_id y los existentes no se pueden cambiar. */
+function nuevoUid(){ const a="abcdefghijklmnopqrstuvwxyz0123456789", r=new Uint8Array(8); crypto.getRandomValues(r);
+  return "ev"+Date.now().toString(36)+Array.from(r,b=>a[b%36]).join(""); }
 function linkOper(uid){ return PROD+"?ev="+uid; }                          // link estable de operador
 function linkExec(uid){ return PROD+"?ev="+uid+"&rol=ex"; }                 // link estable de ejecutivo
 async function nextConsec(){ const mx=await sbMaxConsec(); const local=Object.values(eventos()).reduce((m,x)=>Math.max(m,x.consec||0),0); return Math.max(mx,local)+1; }
@@ -482,7 +535,9 @@ async function nextConsec(){ const mx=await sbMaxConsec(); const local=Object.va
 async function persistirEvento(shortOper, shortExec){
   const rec={ uid:cfg.uid, consec:cfg.consec, cl:cfg.cl, ev:cfg.ev, fe:cfg.fe||"", ci:cfg.ci||"", n_items:(cfg.it||[]).length,
     config:cfg, short_oper:shortOper||"", short_exec:shortExec||"", actualizado:(new Date()).toISOString() };
-  cacheEvento(rec); return await sbSave(rec);
+  cacheEvento(rec); const ok=await sbSave(rec);
+  if(ok) await asignarEjecutivo(rec.uid);   // Capa 11b: el evento ya existe → se puede registrar su ejecutivo
+  return ok;
 }
 
 /* ---- arranque: decide rol ---- */
@@ -527,19 +582,20 @@ function recuperacionDesdeHash(){
 window.addEventListener("DOMContentLoaded", async () => {
   aplicarMarca();
   recuperacionDesdeHash();   // Capa 11 parcial: enlace de recuperación de contraseña
+  await sesCompletar();      // Capa 11b: renueva el token y trae el rol de sesiones guardadas antes de la v41
   const params=new URLSearchParams(location.search);
   const evUid=params.get("ev"); const rolQ=params.get("rol");
   const m = location.hash.match(/[#&]c=([^&]+)/);
   const me = location.hash.match(/[#&]e=([^&]+)/);
   const fromLink = m ? decCfg(decodeURIComponent(m[1])) : null;
   const fromExec = me ? decCfg(decodeURIComponent(me[1])) : null;
+  if(evUid && rolQ==="ex"){ irAConfig({tipo:"editar",uid:evUid}); return; }   // Capa 11b: editar exige sesión y que el evento sea suyo
   if(evUid){                                                 // link ESTABLE ?ev=<uid> (config desde Supabase)
     const rec=await sbGet(evUid) || eventos()[evUid];
     if(rec&&rec.config){
       cfg=rec.config; cfg.uid=evUid; cfg.consec=rec.consec; saveJSON(NS+"config",cfg); cacheEvento(rec);
       pintarWho();
-      if(rolQ==="ex"){ prefillExec(); editandoId=evUid; aplicarModoExec(); show("exec"); }   // ejecutivo -> editar (editandoId DESPUÉS de prefillExec, que lo resetea)
-      else irALogin();                                       // operador -> capturar
+      irALogin();                                            // proveedor -> capturar
     } else { cfg=loadJSON(NS+"config",null); pintarWho(); if($("homeHint")) $("homeHint").textContent="No pude cargar el evento. Revisa tu conexión y vuelve a abrir el enlace."; show("home"); }
     return;
   }
@@ -547,9 +603,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   if(fromExec || fromLink){ saveJSON(NS+"config", cfg); }
   pintarWho();
   const hash = location.hash.replace(/^#/,"");
-  if(fromExec){ prefillExec(); show("exec"); }             // link viejo del EJECUTIVO (compatibilidad)
+  if(fromExec){ irAConfig({tipo:"legado"}); }               // link viejo del EJECUTIVO (compatibilidad) — ahora exige sesión
   else if(fromLink) irALogin();                            // link viejo de OPERADOR (compatibilidad)
-  else if(hash==="admin"){ prefillExec(); show("exec"); }  // URL de administrador -> ejecutivo
+  else if(hash==="admin"){ irAConfig({tipo:"legado"}); }    // URL de administrador -> configuración (exige sesión)
   else show("home");                                       // URL base -> elegir rol
 });
 function pintarWho(){ $("who").textContent = operador ? (operador.nombre+" · "+operador.cedula) : ""; }
@@ -567,7 +623,7 @@ $("acCopy").addEventListener("click", ()=>{ if(navigator.clipboard) navigator.cl
 $("acGo").addEventListener("click", ()=>{ saveConfigDesdeExec(); irALogin(); });
 $("eguardar").addEventListener("click", guardarEventoEditado);
 if($("eDuplicarLink")) $("eDuplicarLink").addEventListener("click", async ()=>{ if(!confirm("Esto CREA un evento NUEVO con enlace nuevo (no actualiza el actual).\n\n¿Continuar?")) return; await generarAcceso(); });
-$("acCopyExec").addEventListener("click", ()=>{ const u=$("acLinkExec").textContent; if(navigator.clipboard&&u) navigator.clipboard.writeText(u); $("acCopyExec").textContent="Enlace del productor copiado ✓"; toast("Enlace del productor copiado ✓"); });
+$("acCopyExec").addEventListener("click", ()=>{ const u=$("acLinkExec").textContent; if(navigator.clipboard&&u) navigator.clipboard.writeText(u); $("acCopyExec").textContent="Enlace para editar copiado ✓"; toast("Enlace para editar copiado ✓"); });
 $("verHist").addEventListener("click", ()=>{ const l=$("histList"); l.classList.toggle("hide"); const abierto=!l.classList.contains("hide"); if(abierto) renderHistorial(); $("verHist").textContent=(abierto?"▾":"▸")+" Configuración de eventos"; });
 async function renderHistorial(){
   const l=$("histList"); if(!l) return;
@@ -578,9 +634,8 @@ async function renderHistorial(){
   if(!arr.length){ l.innerHTML='<div class="mut">Aún no hay eventos configurados.</div>'; return; }
   l.innerHTML=arr.map(e=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.n_items||0} evidencias</div><div class="ac"><a class="lnk" onclick="copiarLinkEv('${e.uid}','oper')">link proveedor</a><a class="lnk" onclick="copiarLinkEv('${e.uid}','exec')">link productor</a><a class="lnk" onclick="editarEventoId('${e.uid}')">editar</a></div></div></div>`).join("");
 }
-window.copiarLinkEv=(uid,tipo)=>{ const u=tipo==="exec"?linkExec(uid):linkOper(uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del productor":"Enlace del proveedor")); };   // siempre el enlace directo ?ev=
+window.copiarLinkEv=(uid,tipo)=>{ const u=tipo==="exec"?linkExec(uid):linkOper(uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace para editar":"Enlace del proveedor")); };   // siempre el enlace directo ?ev=
 window.editarEventoId=(uid)=>{ editarEvento(uid); };
-$("goExec").addEventListener("click", ()=>{ nuevoExec(); show("exec"); });
 $("goOper").addEventListener("click", ()=>{ if(cfg) irALogin(); else $("homeHint").textContent="Aún no hay una operación configurada en este dispositivo. Pide el enlace o QR de acceso a tu productor."; });
 function nextCodigo(){ let mx=0; execItems.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx) mx=n; }); return String(mx+1).padStart(2,"0"); }
 $("miadd").addEventListener("click", ()=>{ const req=$("mireq").value.trim(), cant=$("micant").value.trim(), prov=$("miprov").value.trim(), cat=$("micat").value.trim();
@@ -598,7 +653,7 @@ function nuevoExec(){
   epdAuto=false;   /* v38: el auto-encendido de «por día» es solo para eventos nuevos */
   $("ecliente").value=""; $("eevento").value=""; $("efecha").value=""; $("efechafin").value=""; $("epd").checked=false; $("eciudad").value="";
   execItems=[]; renderExecItems();
-  $("emPos").value="bl"; $("emEsc").value="3.4"; $("emOn").checked=true; $("emGal").checked=true; $("emVf").checked=true;
+  $("emPos").value="bl"; $("emEsc").value="3.4"; $("emOn").checked=true; $("emGal").checked=true; $("emVf").checked=true; $("emMm").value="fh";   /* v42.1: eventos nuevos exigen fecha y hora originales (decisión de Daniel 29-sep) */
   if($("acWrap")) $("acWrap").classList.add("hide");
   if($("ereqInfo")) $("ereqInfo").textContent="";
   if(typeof renderHistorial==="function") renderHistorial();
@@ -608,7 +663,7 @@ function nuevoExec(){
   window.scrollTo(0,0);
 }
 function prefillExec(){ if(cfg){ epdAuto=true;   /* v38: evento existente = se respeta su cfg.pd guardado; antes se prendía solo al abrir el enlace del productor */ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("efechafin").value=cfg.ff||""; $("epd").checked=!!cfg.pd; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",grupo:i.grupo||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null))})); renderExecItems();
-    const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; $("emGal").checked=cfg.gal!==false; $("emVf").checked=cfg.vf!==false; } if(typeof renderHistorial==="function") renderHistorial();
+    const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; $("emGal").checked=cfg.gal!==false; $("emVf").checked=cfg.vf!==false; $("emMm").value=cfg.mm||""; } if(typeof renderHistorial==="function") renderHistorial();
   editandoId=null; aplicarModoExec(); }   // por defecto: modo NUEVO (los que editan fijan editandoId DESPUÉS y llaman aplicarModoExec)
 /* Modo de la vista ejecutivo: EDITAR (editandoId fijado) muestra solo "Guardar cambios" + "Duplicar";
    NUEVO muestra solo "Generar acceso". Unifica ambas puertas de entrada (enlace y "Editar"). */
@@ -878,7 +933,7 @@ function saveConfigDesdeExec(){
   const uid=cfg&&cfg.uid, consec=cfg&&cfg.consec;   // preservar identidad del evento si ya existe
   cfg = { cl:$("ecliente").value.trim(), ev:$("eevento").value.trim(), fe:$("efecha").value, ff:$("efechafin").value||"", pd:!!$("epd").checked, ci:$("eciudad").value.trim(),
           it:execItems.map(i=>Object.assign({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null))}, i.grupo?{grupo:i.grupo}:{})),
-          marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked}, gal:$("emGal").checked, vf:$("emVf").checked };   /* v38: vf=false → no se exige que la foto sea de las fechas del evento */   // marca definida por el ejecutivo, igual para todos
+          marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked}, gal:$("emGal").checked, vf:$("emVf").checked, mm:$("emMm").value };   /* v42: mm = qué hacer con fotos de galería sin metadatos ("" aceptar y marcar · fh · fhu) */   /* v38: vf=false → no se exige que la foto sea de las fechas del evento */   // marca definida por el ejecutivo, igual para todos
   if(uid) cfg.uid=uid; if(consec) cfg.consec=consec;
   saveJSON(NS+"config", cfg);
 }
@@ -899,7 +954,10 @@ async function mostrarAcceso(consec){
   accesoCorto=accesoLink;   // sin acortador: el enlace ?ev= ya es corto, DIRECTO y estable (sin página intermedia)
   $("acLink").textContent=accesoLink; $("acLinkExec").textContent=accesoExec;
   pintarQR(accesoLink);
-  await persistirEvento(accesoLink, accesoExec);   // guarda/actualiza en Supabase + cache
+  const guardado=await persistirEvento(accesoLink, accesoExec);   // guarda/actualiza en Supabase + cache
+  if(!guardado) alert(adminValido()
+    ? "⚠ El evento NO quedó guardado en el servidor.\n\nPuede ser falta de señal o que este evento no esté a tu nombre. Revisa la conexión e intenta de nuevo; si sigue, avisa a un administrador."
+    : "⚠ Tu sesión venció y el evento NO quedó guardado.\n\nIngresa de nuevo y vuelve a guardar.");
   renderHistorial();
 }
 function pintarQR(url){ $("acQR").innerHTML=""; if(window.QRCode){ try{ new QRCode($("acQR"), {text:url, width:220, height:220, colorDark:MARCA.qr, colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.L}); }catch(e){ $("acQR").innerHTML='<div class="mut">Lista muy larga para el QR; comparte el enlace.</div>'; } } }
@@ -911,6 +969,7 @@ async function editarEvento(uid){
   prefillExec(); show("exec");
   editandoId=uid; aplicarModoExec();   // se setea DESPUÉS de prefillExec (que lo resetea)
   $("acWrap").classList.add("hide"); window.scrollTo(0,0);
+  if(adminValido()){ $("execRol").textContent=ROL_NOMBRE[miRol()]||""; cargarEjecutivos(uid); }
 }
 /* Guardar cambios: MISMO uid/consecutivo -> el MISMO enlace sirve el contenido actualizado (link estable). */
 async function guardarEventoEditado(){
@@ -951,19 +1010,50 @@ $("reconfig").addEventListener("click", ()=>{ nuevoExec(); show("exec"); });
 $("salir").addEventListener("click", ()=>{ detenerWatch(); admSalirModo(); if(operador){ $("lnom").value=operador.nombre; $("lced").value=operador.cedula; $("lcel").value=operador.celular; } show("login"); });
 
 /* ---- ADMINISTRADOR: visualizador (login + eventos + evidencias con fotos) ---- */
+/* Capa 11b · UNA sola puerta de ingreso para admin, productor y ejecutivo. La sesión guarda token, refresh, uid y ROL
+   (tabla perfiles). Qué ve cada uno lo decide el servidor (políticas de la Capa 11c); la app además oculta lo que no le
+   corresponde: borrar y la carga de administrador son solo del admin. `adminSes` conserva su nombre para no tocar las
+   decenas de lugares que ya lo usan. */
 let adminSes = loadJSON(NS+"admin_ses", null);
 let adminEventos = [];
+const ROL_NOMBRE={admin:"Administrador", productor:"Productor", ejecutivo:"Ejecutivo"};
 function adminValido(){ return !!(adminSes && adminSes.token && Date.now() < (adminSes.exp||0)); }
+function esAdmin(){ return adminValido() && adminSes.rol==="admin"; }
+function miRol(){ return adminValido() ? (adminSes.rol||"") : ""; }
 function adminHeaders(){ return {apikey:SB_KEY, Authorization:"Bearer "+(adminSes&&adminSes.token)}; }
+function jwtClaims(t){ try{ const p=String(t||"").split(".")[1]; if(!p) return {};
+  const b=atob(p.replace(/-/g,"+").replace(/_/g,"/")); return JSON.parse(decodeURIComponent(b.split("").map(c=>"%"+("00"+c.charCodeAt(0).toString(16)).slice(-2)).join(""))); }catch(_){ return {}; } }
+function sesGuardar(){ saveJSON(NS+"admin_ses", adminSes); }
+function sesCerrar(){ adminSes=null; localStorage.removeItem(NS+"admin_ses"); adminOlvidarFiltros(); }
+/* Renueva el token con el refresh_token si le quedan menos de 5 min (o ya venció): una sesión de configuración larga no
+   pierde lo que se está guardando. Sin señal no hace nada. */
+async function sesRenovar(){ if(!adminSes||!adminSes.refresh) return; if((adminSes.exp||0)-Date.now() > 5*60e3) return;
+  try{ const r=await fetch(SB_URL+"/auth/v1/token?grant_type=refresh_token",{method:"POST",headers:{apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({refresh_token:adminSes.refresh})});
+    if(r.ok){ const d=await r.json(); if(d.access_token){ adminSes.token=d.access_token; adminSes.refresh=d.refresh_token||adminSes.refresh; adminSes.exp=Date.now()+((d.expires_in||3600)*1000); sesGuardar(); } }
+    else if(r.status===400||r.status===401){ sesCerrar(); } }catch(_){} }
+async function sesPerfil(){ const r=await fetch(SB_URL+"/rest/v1/perfiles?id=eq."+encodeURIComponent(adminSes.uid)+"&select=rol,nombre",{headers:adminHeaders()});
+  if(!r.ok) throw new Error("perfil "+r.status); const a=await r.json(); return a[0]||null; }
+/* Sesiones guardadas antes de la v41 no traen rol: se completa al abrir. Si el servidor responde que no tiene perfil,
+   se cierra; si no hay señal, se deja como está (sin rol = sin permisos de admin en la app). */
+async function sesCompletar(){ await sesRenovar(); if(!adminValido()||adminSes.rol) return;
+  const c=jwtClaims(adminSes.token); adminSes.uid=adminSes.uid||c.sub||""; adminSes.email=adminSes.email||c.email||"";
+  try{ const p=await sesPerfil(); if(p){ adminSes.rol=p.rol; adminSes.nombre=p.nombre||""; sesGuardar(); } else sesCerrar(); }catch(_){} }
 /* El filtro del tablero (Capa 14) vive con la sesión: al salir o al vencer se olvida,
    para no volver a entrar viendo un recorte viejo sin darse cuenta. */
 function adminOlvidarFiltros(){ adminSeg={}; try{ localStorage.removeItem(NS+"admin_seg"); }catch(_){} }
-function adminSesExpirada(){ adminSes=null; localStorage.removeItem(NS+"admin_ses"); adminOlvidarFiltros(); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent="Tu sesión expiró. Ingresa de nuevo."; }
-$("goAdmin").addEventListener("click", ()=>{ show("admin"); if(adminValido()){ adminMostrarPanel(); } else { adminOlvidarFiltros(); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent=""; } });
-$("adVolver").addEventListener("click", ()=>show("home"));
-$("adSalir").addEventListener("click", ()=>{ adminSes=null; localStorage.removeItem(NS+"admin_ses"); adminOlvidarFiltros(); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); });
+function adminSesExpirada(){ sesCerrar(); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent="Tu sesión expiró. Ingresa de nuevo."; show("admin"); }
+/* A dónde seguir después de ingresar: {tipo:"editar",uid} | {tipo:"nuevo"} | {tipo:"legado"} | null (= panel). */
+let sesDestino=null;
+function pedirIngreso(destino, msg){ sesDestino=destino||null; show("admin"); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent=msg||""; }
+$("goAdmin").addEventListener("click", async ()=>{ await sesCompletar(); if(adminValido()&&adminSes.rol){ show("admin"); adminMostrarPanel(); } else { adminOlvidarFiltros(); pedirIngreso(null,""); } });
+$("adVolver").addEventListener("click", ()=>{ sesDestino=null; show("home"); });
+$("adSalir").addEventListener("click", ()=>{ sesCerrar(); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent=""; });
 $("adBackLink").addEventListener("click", ()=>adminMostrarPanel());
 $("adEntrar").addEventListener("click", adminLogin);
+$("adPass").addEventListener("keydown", e=>{ if(e.key==="Enter") adminLogin(); });
+$("adNuevo").addEventListener("click", ()=>irAConfig({tipo:"nuevo"}));
+$("adUsuarios").addEventListener("click", ()=>usuariosAbrir());
+$("execPanel").addEventListener("click", async ()=>{ await sesCompletar(); if(adminValido()&&adminSes.rol){ show("admin"); adminMostrarPanel(); } else pedirIngreso(null,"Ingresa de nuevo."); });
 async function adminLogin(){
   const email=$("adEmail").value.trim(), pass=$("adPass").value;
   if(!email||!pass){ $("adMsg").textContent="Escribe correo y contraseña."; return; }
@@ -971,24 +1061,194 @@ async function adminLogin(){
   try{
     const r=await fetch(SB_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({email,password:pass})});
     const d=await r.json();
-    if(r.ok && d.access_token){ adminSes={token:d.access_token, exp:Date.now()+((d.expires_in||3600)*1000)}; saveJSON(NS+"admin_ses",adminSes); $("adPass").value=""; $("adMsg").textContent=""; adminMostrarPanel(); }
-    else { $("adMsg").textContent="No se pudo ingresar: "+((d&&(d.error_description||d.msg||d.message))||"credenciales inválidas"); }
+    if(!(r.ok && d.access_token)){ const t=(d&&(d.error_description||d.msg||d.message))||"";
+      $("adMsg").textContent = /banned/i.test(t) ? "Este usuario está desactivado. Habla con un administrador." : "No se pudo ingresar: "+(t||"credenciales inválidas"); return; }
+    const u=d.user||{};
+    adminSes={token:d.access_token, refresh:d.refresh_token||"", exp:Date.now()+((d.expires_in||3600)*1000), uid:u.id||jwtClaims(d.access_token).sub||"", email:u.email||email};
+    const p=await sesPerfil().catch(()=>undefined);
+    if(p===undefined){ adminSes=null; $("adMsg").textContent="No pude leer tu rol (¿sin señal?). Intenta de nuevo."; return; }
+    if(!p){ adminSes=null; $("adMsg").textContent="Tu usuario no tiene un rol asignado en la app. Pídele a un administrador que te lo asigne."; return; }
+    adminSes.rol=p.rol; adminSes.nombre=p.nombre||""; sesGuardar(); $("adPass").value=""; $("adMsg").textContent="";
+    if(u.user_metadata && u.user_metadata.debe_cambiar){ const ok=await pedirClaveNueva(); if(!ok){ sesCerrar(); $("adMsg").textContent="Debes cambiar la contraseña temporal para continuar."; return; } }
+    const dst=sesDestino; sesDestino=null;
+    if(dst) irAConfig(dst); else adminMostrarPanel();
   }catch(e){ $("adMsg").textContent="Error de conexión."; }
   finally{ $("adEntrar").disabled=false; }
 }
-function adminMostrarPanel(){ $("adLogin").classList.add("hide"); $("adPanel").classList.remove("hide"); $("adBack").classList.add("hide"); $("adTitulo").textContent="Eventos"; adminCargarEventos(); }
+/* Primer ingreso con contraseña temporal (creada por un admin desde «Usuarios»): no se sigue sin cambiarla.
+   Se guarda con PUT /auth/v1/user y se apaga la marca debe_cambiar del usuario. */
+function pedirClaveNueva(){ return new Promise(res=>{
+  const w=document.createElement("div"); w.id="claveNueva";
+  w.style.cssText="position:fixed;inset:0;z-index:9998;background:var(--bg,#f2f4f7);display:flex;align-items:flex-start;justify-content:center;padding:40px 14px;overflow:auto";
+  w.innerHTML=`<div class="card" style="max-width:420px;width:100%">
+    <div class="role">${escAttr(ROL_NOMBRE[adminSes.rol]||"")}</div>
+    <div class="h">Crea tu contraseña</div>
+    <div class="mut" style="margin:0 0 10px">Entraste con una contraseña temporal. Escribe una nueva que solo tú conozcas. Mínimo 8 caracteres.</div>
+    <div class="fld"><label>Contraseña nueva</label><input id="cnP1" type="password" autocomplete="new-password"></div>
+    <div class="fld"><label>Repítela</label><input id="cnP2" type="password" autocomplete="new-password"></div>
+    <div class="mut" id="cnMsg" style="margin-top:8px;min-height:18px"></div>
+    <button class="btn" id="cnOk" style="margin-top:10px">Guardar y continuar</button>
+    <div class="mut" style="margin-top:10px"><a class="lnk" id="cnSalir">Salir</a></div></div>`;
+  document.body.appendChild(w); $("cnP1").focus();
+  const fin=v=>{ w.remove(); res(v); };
+  $("cnSalir").addEventListener("click", ()=>fin(false));
+  $("cnOk").addEventListener("click", async ()=>{
+    const p1=$("cnP1").value, p2=$("cnP2").value, m=$("cnMsg");
+    if(p1.length<8){ m.innerHTML='<span style="color:#b3261e">Mínimo 8 caracteres.</span>'; return; }
+    if(p1!==p2){ m.innerHTML='<span style="color:#b3261e">Las dos contraseñas no coinciden.</span>'; return; }
+    $("cnOk").disabled=true; m.textContent="Guardando…";
+    try{ const r=await fetch(SB_URL+"/auth/v1/user",{method:"PUT",headers:Object.assign({},adminHeaders(),{"Content-Type":"application/json"}),body:JSON.stringify({password:p1,data:{debe_cambiar:false}})});
+      if(r.ok){ toast("Contraseña guardada ✓"); fin(true); return; }
+      let t=""; try{ const j=await r.json(); t=j.msg||j.message||j.error_description||""; }catch(_){}
+      m.innerHTML=`<span style="color:#b3261e">No se pudo guardar${t?": "+escAttr(t):""}.</span>`; $("cnOk").disabled=false;
+    }catch(_){ m.innerHTML='<span style="color:#b3261e">Sin conexión. Intenta de nuevo.</span>'; $("cnOk").disabled=false; }
+  });
+}); }
+/* ---- Capa 11b · panel de configuración: exige sesión. `&rol=ex` ya no da acceso por sí solo. ---- */
+async function esMio(uid){ if(esAdmin()) return true;
+  try{ const r=await fetch(SB_URL+"/rest/v1/rpc/es_evento_mio",{method:"POST",headers:sesHeaders(),body:JSON.stringify({p_uid:uid})}); return r.ok && (await r.json())===true; }catch(_){ return false; } }
+async function irAConfig(dst){
+  await sesCompletar();
+  if(!(adminValido()&&adminSes.rol)){ pedirIngreso(dst, dst.tipo==="editar" ? "Ingresa con tu usuario para editar este evento." : "Ingresa con tu usuario para configurar eventos."); return; }
+  if(dst.tipo==="editar"){
+    if(!(await esMio(dst.uid))){ show("home"); $("homeHint").textContent="Este evento no está a tu nombre. Si necesitas editarlo, pídele a un administrador que te lo asigne."; return; }
+    await editarEvento(dst.uid);
+  } else if(dst.tipo==="legado"){ prefillExec(); show("exec"); cargarEjecutivos(null); }
+  else { nuevoExec(); show("exec"); cargarEjecutivos(null); }
+  $("execRol").textContent=ROL_NOMBRE[adminSes.rol]||"";
+}
+/* Ejecutivo asignado (tabla evento_ejecutivos; hoy uno por evento, abierta a varios). Lo eligen admin y productor.
+   Cuando crea un EJECUTIVO, queda asignado él mismo. */
+let ejActual="";
+async function cargarEjecutivos(uid){
+  const w=$("eEjWrap"), s=$("eEj"); ejActual=""; s.innerHTML='<option value="">— Sin asignar —</option>';
+  const puede = miRol()==="admin" || miRol()==="productor"; w.classList.toggle("hide", !puede); if(!puede) return;
+  try{
+    const r=await fetch(SB_URL+"/rest/v1/rpc/ejecutivos_disponibles",{method:"POST",headers:sesHeaders(),body:"{}"});
+    const lista=r.ok ? await r.json() : [];
+    lista.forEach(x=>{ const o=document.createElement("option"); o.value=x.id; o.textContent=x.nombre||x.id; s.appendChild(o); });
+    if(uid){ const a=await fetch(SB_URL+"/rest/v1/evento_ejecutivos?evento_uid=eq."+encodeURIComponent(uid)+"&select=usuario",{headers:sesHeaders()});
+      const f=a.ok ? await a.json() : []; if(f[0]){ ejActual=f[0].usuario; if(![...s.options].some(o=>o.value===ejActual)){ const o=document.createElement("option"); o.value=ejActual; o.textContent="(usuario sin rol de ejecutivo)"; s.appendChild(o); } s.value=ejActual; } }
+  }catch(_){}
+}
+async function asignarEjecutivo(uid){
+  if(!adminValido()) return;
+  const H=Object.assign({},sesHeaders(),{Prefer:"resolution=ignore-duplicates,return=minimal"});
+  try{
+    if(miRol()==="ejecutivo"){ await fetch(SB_URL+"/rest/v1/evento_ejecutivos",{method:"POST",headers:H,body:JSON.stringify({evento_uid:uid,usuario:adminSes.uid})}); return; }
+    if($("eEjWrap").classList.contains("hide")) return;
+    const sel=$("eEj").value; if(sel===ejActual) return;
+    const d=await fetch(SB_URL+"/rest/v1/evento_ejecutivos?evento_uid=eq."+encodeURIComponent(uid),{method:"DELETE",headers:sesHeaders()});
+    let ok=d.ok;
+    if(ok && sel){ const r=await fetch(SB_URL+"/rest/v1/evento_ejecutivos",{method:"POST",headers:H,body:JSON.stringify({evento_uid:uid,usuario:sel})}); ok=r.ok; }
+    if(ok) ejActual=sel; else toast("⚠ No se pudo guardar el ejecutivo asignado");
+  }catch(_){ toast("⚠ No se pudo guardar el ejecutivo asignado"); }
+}
+/* Eventos que le tocan a quien ingresó: admin = todos; productor/ejecutivo = los que creó o tiene asignados.
+   Tras la Capa 11c el servidor ya devuelve solo esos; este filtro deja la beta mostrando lo mismo desde antes. */
+async function filtrarMios(arr){
+  if(!Array.isArray(arr) || esAdmin()) return arr;
+  let asig=new Set();
+  try{ const r=await fetch(SB_URL+"/rest/v1/evento_ejecutivos?usuario=eq."+encodeURIComponent(adminSes.uid)+"&select=evento_uid",{headers:sesHeaders()}); if(r.ok) asig=new Set((await r.json()).map(x=>x.evento_uid)); }catch(_){}
+  return arr.filter(e=>e.creado_por===adminSes.uid || asig.has(e.uid));
+}
+function adminMostrarPanel(){ $("adLogin").classList.add("hide"); $("adPanel").classList.remove("hide"); $("adBack").classList.add("hide"); $("adTitulo").textContent="Eventos";
+  $("adRol").textContent=ROL_NOMBRE[miRol()]||""; $("adAcciones").classList.remove("hide"); $("adUsuarios").classList.toggle("hide", !esAdmin());
+  adminCargarEventos(); }
+/* ---- Capa 11b · USUARIOS (solo admin): crear, cambiar rol, desactivar y dar contraseña temporal.
+   Crear usuarios exige la llave de servicio, que NUNCA va en la página: lo hace la Edge Function «usuarios» en Supabase,
+   que verifica que quien llama sea admin. La contraseña temporal la genera el servidor, se muestra UNA vez para
+   compartirla por WhatsApp y el usuario debe cambiarla en su primer ingreso. ---- */
+async function fnUsuarios(accion, datos){
+  await sesRenovar();
+  const r=await fetch(SB_URL+"/functions/v1/usuarios",{method:"POST",headers:Object.assign({},adminHeaders(),{"Content-Type":"application/json"}),body:JSON.stringify(Object.assign({accion},datos||{}))});
+  let j={}; try{ j=await r.json(); }catch(_){}
+  if(r.status===401){ adminSesExpirada(); throw new Error("Sesión vencida"); }
+  if(!r.ok) throw new Error(j.error||("HTTP "+r.status));
+  return j;
+}
+function usuariosMsgClave(u, clave){
+  return `Hola ${u.nombre||""}. Ya tienes usuario en la app de evidencias de Estrella.\n\nEntra a: ${PROD}\nToca «Ingresar» y usa:\nCorreo: ${u.email}\nContraseña temporal: ${clave}\n\nAl entrar te pedirá crear tu propia contraseña.`;
+}
+function usuariosMostrarClave(u, clave){
+  const c=$("usClave"); if(!c) return;
+  c.classList.remove("hide");
+  c.innerHTML=`<div class="guia neutro"><b>Contraseña temporal de ${escAttr(u.email)}</b><div style="font:700 18px/1.4 ui-monospace,monospace;margin:6px 0;letter-spacing:.5px">${escAttr(clave)}</div>
+    Se muestra <b>solo esta vez</b>. Compártela por WhatsApp; al entrar, la app le pedirá crear la suya.
+    <div style="margin-top:8px"><button class="btn sec" id="usCopiarMsg">Copiar mensaje para WhatsApp</button></div></div>`;
+  $("usCopiarMsg").addEventListener("click", ()=>copiarAlPortapapeles(usuariosMsgClave(u, clave), "Mensaje"));
+  c.scrollIntoView({block:"nearest"});
+}
+async function usuariosAbrir(){
+  if(!esAdmin()){ toast("Solo un administrador"); return; }
+  $("adBack").classList.remove("hide"); $("adAcciones").classList.add("hide"); $("adTitulo").textContent="Usuarios";
+  const l=$("adLista");
+  l.innerHTML=`<div class="guia neutro" style="margin-bottom:10px"><b>Productor</b>: crea eventos y asigna ejecutivo; ve solo los que creó. <b>Ejecutivo</b>: ve y administra solo los eventos asignados. <b>Administrador</b>: ve todo y es el único que borra.</div>
+    <div class="fld"><label>Correo</label><input id="usEmail" type="email" autocomplete="off"></div>
+    <div class="fld"><label>Nombre</label><input id="usNombre" type="text" autocomplete="off"></div>
+    <div class="fld"><label>Rol</label><select id="usRol"><option value="productor">Productor</option><option value="ejecutivo">Ejecutivo</option><option value="admin">Administrador</option></select></div>
+    <button class="btn" id="usCrear" style="margin-top:6px">Crear usuario</button>
+    <div class="mut" id="usMsg" style="margin-top:8px;min-height:18px"></div>
+    <div id="usClave" class="hide" style="margin-top:6px"></div>
+    <div class="h" style="margin-top:16px">Usuarios</div>
+    <div id="usLista" class="list"><div class="mut">Cargando…</div></div>`;
+  $("usCrear").addEventListener("click", usuariosCrear);
+  usuariosListar();
+}
+async function usuariosCrear(){
+  const email=$("usEmail").value.trim().toLowerCase(), nombre=$("usNombre").value.trim(), rol=$("usRol").value, m=$("usMsg");
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ m.innerHTML='<span style="color:#b3261e">Escribe un correo válido.</span>'; return; }
+  if(!nombre){ m.innerHTML='<span style="color:#b3261e">Escribe el nombre.</span>'; return; }
+  if(rol==="admin" && !confirm("Un ADMINISTRADOR ve todos los eventos, todas las fotos y puede borrar.\n\n¿Crear "+email+" como administrador?")) return;
+  $("usCrear").disabled=true; m.textContent="Creando…";
+  try{ const j=await fnUsuarios("crear",{email,nombre,rol});
+    m.innerHTML='<span style="color:#1a9e56;font-weight:700">✅ Usuario creado.</span>'; $("usEmail").value=""; $("usNombre").value="";
+    usuariosMostrarClave({email,nombre}, j.clave); usuariosListar();
+  }catch(e){ m.innerHTML=`<span style="color:#b3261e">No se pudo crear: ${escAttr(e.message)}</span>`; }
+  finally{ $("usCrear").disabled=false; }
+}
+let usuariosCache=[];
+async function usuariosListar(){
+  const l=$("usLista"); if(!l) return;
+  try{ const j=await fnUsuarios("listar"); usuariosCache=j.usuarios||[]; }
+  catch(e){ l.innerHTML=`<div class="mut">No se pudo cargar la lista: ${escAttr(e.message)}</div>`; return; }
+  if(!usuariosCache.length){ l.innerHTML='<div class="mut">Aún no hay usuarios.</div>'; return; }
+  l.innerHTML=usuariosCache.map((u,k)=>{ const yo=u.id===adminSes.uid;
+    return `<div class="ev"><div class="in"><b>${escAttr(u.nombre||u.email)}</b>${yo?' <span class="mut" style="margin:0">(tú)</span>':""}${u.activo?"":' <span style="color:#b3261e;font-weight:700">· desactivado</span>'}
+      <div class="mut" style="margin:2px 0 0">${escAttr(u.email)} · ${escAttr(ROL_NOMBRE[u.rol]||"sin rol")}${u.ultimo?" · último ingreso "+escAttr(fmtFecha(u.ultimo)):" · nunca ha ingresado"}</div>
+      ${yo?"":`<div class="ac" style="margin-top:6px;align-items:center"><select data-k="${k}" class="usRolSel">${["productor","ejecutivo","admin"].map(r=>`<option value="${r}"${u.rol===r?" selected":""}>${ROL_NOMBRE[r]}</option>`).join("")}</select>
+        <a class="lnk" data-k="${k}" data-acc="clave">nueva contraseña temporal</a>
+        <a class="lnk" data-k="${k}" data-acc="activo" style="color:${u.activo?"#b3261e":"var(--azul)"}">${u.activo?"desactivar":"reactivar"}</a></div>`}
+    </div></div>`; }).join("");
+  l.querySelectorAll(".usRolSel").forEach(sel=>sel.addEventListener("change", ()=>usuariosCambiarRol(+sel.dataset.k, sel.value, sel)));
+  l.querySelectorAll("a[data-acc]").forEach(a=>a.addEventListener("click", ()=>a.dataset.acc==="clave" ? usuariosClave(+a.dataset.k) : usuariosActivo(+a.dataset.k)));
+}
+async function usuariosCambiarRol(k, rol, sel){ const u=usuariosCache[k]; if(!u) return;
+  if(rol==="admin" && !confirm("Un ADMINISTRADOR ve todo y puede borrar.\n\n¿Dar rol de administrador a "+u.email+"?")){ sel.value=u.rol; return; }
+  try{ await fnUsuarios("rol",{id:u.id,rol}); toast("Rol actualizado ✓"); usuariosListar(); }
+  catch(e){ sel.value=u.rol; alert("No se pudo cambiar el rol: "+e.message); } }
+async function usuariosClave(k){ const u=usuariosCache[k]; if(!u) return;
+  if(!confirm("Se crea una contraseña temporal NUEVA para "+u.email+" y la actual deja de servir.\n\n¿Continuar?")) return;
+  try{ const j=await fnUsuarios("clave",{id:u.id}); usuariosMostrarClave(u, j.clave); }
+  catch(e){ alert("No se pudo: "+e.message); } }
+async function usuariosActivo(k){ const u=usuariosCache[k]; if(!u) return; const activar=!u.activo;
+  if(!activar && !confirm("¿Desactivar a "+u.email+"?\n\nNo podrá volver a ingresar hasta que lo reactives. Sus eventos y fotos no se borran.")) return;
+  try{ await fnUsuarios("activo",{id:u.id,activo:activar}); toast(activar?"Usuario reactivado ✓":"Usuario desactivado ✓"); usuariosListar(); }
+  catch(e){ alert("No se pudo: "+e.message); } }
 let adminDatos=null, adminSeg=loadJSON(NS+"admin_seg",{})||{};
 const SEG_KEYS=["cl","ev","mes","desde","hasta","estado","prov","cat"];
 async function adminCargarEventos(){
   const l=$("adLista"); l.innerHTML='<div class="mut">Cargando…</div>';
   try{
-    const [rEv,rEvi]=await Promise.all([
-      fetch(SB_URL+"/rest/v1/eventos?select=uid,consec,cl,ev,fe,config,short_oper,short_exec&order=consec.desc",{headers:adminHeaders()}),
-      fetch(SB_URL+"/rest/v1/evidencias?select=evento_uid,item,item_id,categoria,adicional,fecha,tipo,proveedor",{headers:adminHeaders()})
+    let [rEv,rEvi]=await Promise.all([
+      fetch(SB_URL+"/rest/v1/eventos?select=uid,consec,cl,ev,fe,config,short_oper,short_exec,creado_por&order=consec.desc",{headers:adminHeaders()}),
+      fetch(SB_URL+"/rest/v1/evidencias?select=evento_uid,item,item_id,categoria,adicional,fecha,tipo,proveedor,requerimiento,hora,lat,lugar,fecha_origen,declarado_por,operador_nombre,operador_celular,creado",{headers:adminHeaders()})
     ]);
+    if(!rEvi.ok && rEvi.status!==401) rEvi=await fetch(SB_URL+"/rest/v1/evidencias?select=evento_uid,item,item_id,categoria,adicional,fecha,tipo,proveedor",{headers:adminHeaders()});   /* v42: sin columnas nuevas = tablero de siempre */
     if(rEv.status===401||rEvi.status===401){ adminSesExpirada(); return; }
-    adminEventos=await rEv.json();
-    const evis = rEvi.ok ? await rEvi.json() : [];
+    adminEventos=await filtrarMios(await rEv.json());   // Capa 11b: productor/ejecutivo ven solo los suyos
+    const misUid=new Set(adminEventos.map(e=>e.uid));
+    const evis = (rEvi.ok ? await rEvi.json() : []).filter(x=>misUid.has(x.evento_uid));
     if(!adminEventos.length){ l.innerHTML='<div class="mut">Aún no hay eventos.</div>'; return; }
     adminEventos.forEach(e=>{ e._items=anotarIids((e.config&&e.config.it)||[]); e._ff=(e.config&&e.config.ff)||e.fe||""; });
     adminDatos={evis};
@@ -1039,7 +1299,7 @@ function adminRenderDash(){
   Object.values(evisF).flat().forEach(x=>{ const k = x.item_id || (x.evento_uid+"|"+iidDe(x.item,x.categoria,1)); porItem[k]=(porItem[k]||0)+1;
     if((x.tipo||"foto")!=="video" && x.fecha) adminPorItemDia[k+"@"+x.fecha]=(adminPorItemDia[k+"@"+x.fecha]||0)+1;   // Capa 12
     if(x.adicional){ (extrasPorEvento[x.evento_uid]=extrasPorEvento[x.evento_uid]||new Set()).add(k); } });
-  let gReq=0,gComp=0,gEvi=0,gExtra=0,gReqTot=0; adminMetricas=[]; const visibles=[];
+  let gReq=0,gComp=0,gEvi=0,gExtra=0,gReqTot=0,gInc=0; adminMetricas=[]; const visibles=[];
   adminEventos.forEach((e,i)=>{ if(!segPasaEvento(e, evisPorEv[e.uid])) return;
     const items=e._items.filter(segPasaItem); const reg=evisF[e.uid].length;
     if((s.prov||s.cat) && !items.length && !reg) return;   // el evento no tiene nada de esa empresa/categoría: no estorba
@@ -1050,21 +1310,25 @@ function adminRenderDash(){
     const pend=items.length-comp, av=items.length?Math.round(comp/items.length*100):0;
     const extras=(extrasPorEvento[e.uid]||new Set()).size;   // adicionales creados en sitio, no están en el config
     gReq+=items.length; gComp+=comp; gEvi+=reg; gExtra+=extras;
-    adminMetricas[i]={n:items.length,tot:e._items.length,reg,conEvi,comp,pend,av,extras,pd:pdm}; });
+    const inc=evisF[e.uid].filter(x=>eviFaltantes(x).length); gInc+=inc.length;   /* v42 */
+    adminMetricas[i]={n:items.length,tot:e._items.length,reg,conEvi,comp,pend,av,extras,pd:pdm,inc}; });
   const gAv=gReq?Math.round(gComp/gReq*100):0;
-  const kpi=(v,t)=>`<div style="flex:1;min-width:70px;text-align:center;border:1px solid var(--bd,#e3e3e3);border-radius:10px;padding:8px 4px"><div style="font-size:20px;font-weight:800;color:var(--azul)">${v}</div><div class="mut" style="margin:2px 0 0;font-size:11px">${t}</div></div>`;
-  const bar=av=>`<div style="height:7px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0 2px"><div style="height:100%;width:${av}%;background:${av>=100?'#1a9e56':(av>0?'var(--azul)':'#e9e9ee')}"></div></div>`;
-  const dash=`<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">`
-    +kpi(visibles.length+(visibles.length!==adminEventos.length?`<span class="mut" style="margin:0;font-size:12px">/${adminEventos.length}</span>`:""),"Eventos")
-    +kpi(gReq+(gReq!==gReqTot?`<span class="mut" style="margin:0;font-size:12px">/${gReqTot}</span>`:""),"Requerimientos")
-    +kpi(gEvi,"Evidencias")+kpi(gComp+"/"+gReq,"Completos")+kpi(gAv+"%","Avance")+kpi(gExtra,"Extras en sitio")+`</div>`;
+  const kpi=(v,t)=>`<div class="kpi"><b>${v}</b><span>${t}</span></div>`;
+  const bar=av=>`<div style="height:8px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0 2px"><div style="height:100%;width:${av}%;background:${av>=100?'#1a9e56':(av>0?'var(--azul)':'#e9e9ee')}"></div></div>`;
+  const dash=`<div class="kpis">`
+    +kpi(visibles.length+(visibles.length!==adminEventos.length?`<small>/${adminEventos.length}</small>`:""),"Eventos")
+    +kpi(gReq+(gReq!==gReqTot?`<small>/${gReqTot}</small>`:""),"Requerimientos")
+    +kpi(gEvi.toLocaleString("es-CO"),"Evidencias")+kpi(`${gComp}<small>/${gReq}</small>`,"Completos")+kpi(gAv+"%","Avance")+kpi(gExtra,"Extras en sitio")+(gInc?kpi(`<span style="color:#b3261e">${gInc}</span>`,"Fotos incompletas"):"")+`</div>`;
   l.innerHTML=seg+dash+(visibles.length?visibles.map(i=>{
       const e=adminEventos[i], m=adminMetricas[i];
-      return `<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe}${e.config&&e.config.ff&&e.config.ff!==e.fe?" → "+e.config.ff:""})</span>`:""}${e.config&&e.config.pd?` <span class="mut" style="margin:0;color:var(--azul)">· por día</span>`:""}`
-        +bar(m.av)
-        +`<div class="mut" style="margin:2px 0 0">Requerimientos: <b>${m.n}</b>${m.n!==m.tot?` <span class="mut" style="margin:0">(de ${m.tot})</span>`:""} · Con evidencia: <b>${m.conEvi}</b> · Completos: <b>${m.comp}</b> · Pendientes: <b>${m.pend}</b> · Evidencias: <b>${m.reg}</b> · Avance: <b>${m.av}%</b>${m.extras?` · <span style="color:var(--oro-d)">Extras en sitio: <b>${m.extras}</b></span>`:""}</div>`
-        +(m.pd.n?`<div class="mut" style="margin:3px 0 0">📅 Por día: <b>${m.pd.n}</b> req · días cubiertos <b>${m.pd.diasCub}/${m.pd.diasReq}</b> · hoy <b>${m.pd.hoyOk}/${m.pd.hoyTotal}</b>${m.pd.atras?` · <span style="color:#b3261e">⚠ ${m.pd.atras} con días atrasados</span>`:""}</div><div id="adHoy${i}" class="hide"></div>`:"")
-        +`<div class="ac">${m.pd.n?`<a class="lnk" style="font-weight:700" onclick="adminHoy(${i})">hoy por proveedor</a>`:""}<a class="lnk" onclick="adminCopiar(${i},'oper')">link proveedor</a><a class="lnk" onclick="adminCopiar(${i},'exec')">link productor</a><a class="lnk" onclick="adminAbrir(${i})">ver evidencias →</a><a class="lnk" onclick="adminCargar(${i})">📤 carga de administrador</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvento(${i})">borrar evento</a></div></div></div>`;
+      const est=(v,t,c)=>`<div${c?` class="${c}"`:""}><b>${v}</b><span>${t}</span></div>`;
+      return `<div class="ev adEv"><div class="t1"><b>${evConsecTag(e.consec)}</b> · ${escAttr(e.cl)}${e.fe?` · ${e.fe}${e.config&&e.config.ff&&e.config.ff!==e.fe?" → "+e.config.ff:""}`:""}${e.config&&e.config.pd?` · <span style="color:var(--azul);font-weight:600">por día</span>`:""}</div>`
+        +`<div class="t2">${escAttr(e.ev)}</div>`
+        +`<div class="av">${bar(m.av)}<b style="color:${m.av>=100?'#1a9e56':'var(--azul)'}">${m.av}%</b></div>`
+        +`<div class="st">${est(m.n+(m.n!==m.tot?`<small class="mut" style="margin:0;font-weight:500"> de ${m.tot}</small>`:""),"Requerimientos")}${est(m.conEvi,"Con evidencia")}${est(m.comp,"Completos")}${est(m.pend,"Pendientes",m.pend?"pend":"")}${est(m.reg.toLocaleString("es-CO"),"Evidencias")}${est(m.extras,"Extras en sitio",m.extras?"ext":"")}</div>`
+        +(m.pd.n?`<div class="pdl">📅 Por día: <b>${m.pd.n}</b> req · días cubiertos <b>${m.pd.diasCub}/${m.pd.diasReq}</b> · hoy <b>${m.pd.hoyOk}/${m.pd.hoyTotal}</b>${m.pd.atras?`<br><span style="color:#b3261e;font-weight:600">⚠ ${m.pd.atras} con días atrasados</span>`:""}</div><div id="adHoy${i}" class="hide"></div>`:"")
+        +(m.inc.length?incResumen(m.inc)+`<div id="adInc${i}" class="hide"></div>`:"")
+        +`<div class="acc"><a class="chip pri" onclick="adminAbrir(${i})">Ver evidencias →</a>${m.pd.n?`<a class="chip" onclick="adminHoy(${i})">Hoy por proveedor</a>`:""}${m.inc.length?`<a class="chip alerta" onclick="adminIncompletas(${i})">Incompletas por persona</a>`:""}<a class="chip" onclick="adminCopiar(${i},'oper')">🔗 Link proveedor</a><a class="chip" onclick="adminEditar(${i})">✏️ Editar evento</a>${esAdmin()?`<a class="chip" onclick="adminCargar(${i})">📤 Carga de administrador</a><a class="chip pel" onclick="adminBorrarEvento(${i})">Borrar evento</a>`:""}</div></div>`;
     }).join(""):'<div class="mut">Ningún evento coincide con el filtro. <a class="lnk" id="segTodo2">Ver todo</a></div>');
   const info=$("segInfo"); if(info) info.textContent = activos.length ? `${visibles.length} de ${adminEventos.length} eventos` : `${adminEventos.length} evento(s)`;
   const bind=(id,k)=>{ const el=$(id); if(!el) return; el.addEventListener("change",()=>{ adminSeg[k]=el.value; if(k==="cl") adminSeg.ev=""; if(k==="mes"&&el.value){ adminSeg.desde=""; adminSeg.hasta=""; } if((k==="desde"||k==="hasta")&&el.value) adminSeg.mes=""; saveJSON(NS+"admin_seg",adminSeg); adminRenderDash(); }); };
@@ -1083,6 +1347,40 @@ function adminPorDia(e, items){
     out.mapa[it.iid]={fechas:fs,cubiertos:cub,atrasados:atras,hoyReq,hoyOk,completo:cub.length===fs.length,idx:fs.indexOf(out.hoy)+1,it}; });
   return out;
 }
+/* ---- v42 · FOTOS INCOMPLETAS (reunión con Kevin 29-sep, Montería): el cliente no recibe una foto sin fecha, hora y lugar.
+   Qué le falta a cada evidencia; lo que el admin ya resolvió en su carga (fecha_origen admin*, declarado_por) no cuenta.
+   Si el select vino sin las columnas nuevas (Capa 13/15 sin correr) no se marca nada. ---- */
+function eviFaltantes(x){ if(!x || (x.tipo||"foto")==="video" || !("hora" in x)) return [];
+  if(x.declarado_por || /^admin/.test(x.fecha_origen||"")) return [];
+  const f=[], fo=x.fecha_origen||"";
+  if(!x.fecha || fo==="carga" || fo==="declarada") f.push("fecha original");
+  if(!x.hora) f.push("hora");
+  if(!esNum(x.lat) && !String(x.lugar||"").trim()) f.push("ubicación");
+  return f; }
+function isoLocal(ts){ const d=new Date(ts); return isNaN(d)?"":`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
+function incConteo(L){ const c={}; L.forEach(x=>eviFaltantes(x).forEach(k=>{ c[k]=(c[k]||0)+1; })); return ["hora","ubicación","fecha original"].filter(k=>c[k]).map(k=>`sin ${k} ${c[k]}`).join(" · "); }
+function incResumen(L){ const hoy=isoHoy(), h=L.filter(x=>isoLocal(x.creado)===hoy).length;
+  return `<div class="mut" style="margin:3px 0 0;color:#b3261e">⚠ Fotos incompletas: <b>${L.length}</b>${h?` · hoy <b>${h}</b>`:""} (${incConteo(L)})</div>`; }
+function incGrupos(L){ const g={}; L.forEach(x=>{ const k=(x.operador_nombre||"").trim().toUpperCase()+"|"+String(x.operador_celular||"").replace(/\D/g,"");
+    (g[k]=g[k]||{nombre:(x.operador_nombre||"").trim()||"Sin nombre", cel:String(x.operador_celular||"").replace(/\D/g,""), provs:new Set(), L:[]}); g[k].L.push(x); if(x.proveedor) g[k].provs.add(String(x.proveedor).trim()); });
+  return Object.values(g).sort((a,b)=>b.L.length-a.L.length); }
+function waNumero(cel){ const d=String(cel||"").replace(/\D/g,""); return d.length===10 && d[0]==="3" ? "57"+d : (d.length>=11 ? d : ""); }
+function incMensaje(e, g){ const c=incConteo(g.L).replace(/ \d+/g,"").replace(/ · /g,", ");
+  const ej=g.L.slice(0,3).map(x=>`• ${x.item||""} ${String(x.requerimiento||"").slice(0,40)}`.trim());
+  return [`Hola ${g.nombre.split(" ")[0]}, sobre el evento ${e.ev||""} (${e.cl||""}):`,
+    `llegaron ${g.L.length} foto${g.L.length===1?"":"s"} sin datos completos (${c}). Así el cliente no nos recibe el informe.`, ...ej,
+    "Eso pasa cuando la foto se envía por WhatsApp o correo, o se toma con otra app, antes de subirla.",
+    `Por favor tómalas en el sitio desde la app con «Capturar foto», con la ubicación activada, y súbelas tú mismo: ${linkOper(e.uid)}`, "Gracias."].join("\n"); }
+window.adminIncompletas=(i)=>{ const e=adminEventos[i], m=adminMetricas[i], box=$("adInc"+i); if(!e||!m||!box) return;
+  if(!box.classList.contains("hide")){ box.classList.add("hide"); return; }
+  const G=incGrupos(m.inc); m.incG=G; const hoy=isoHoy();
+  box.innerHTML=`<div style="margin:6px 0 2px;font-weight:700">Fotos incompletas por persona</div>`+G.map((g,k)=>{ const h=g.L.filter(x=>isoLocal(x.creado)===hoy).length, wa=waNumero(g.cel);
+    const ult=g.L.map(x=>x.creado||"").sort().pop();
+    return `<div style="border-top:1px solid var(--line);padding:6px 0"><div><b>${escAttr(g.nombre)}</b>${g.cel?` · ${escAttr(g.cel)}`:""}${g.provs.size?` <span class="mut" style="margin:0">(${escAttr([...g.provs].join(", "))})</span>`:""}</div>`
+      +`<div class="mut" style="margin:2px 0 0;color:#b3261e">${g.L.length} foto${g.L.length===1?"":"s"}${h?` · hoy ${h}`:""} · ${escAttr(incConteo(g.L))}${ult?` · última ${escAttr(fmtFecha(ult))}`:""}</div>`
+      +`<div class="ac">${wa?`<a class="lnk" style="font-weight:700" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${encodeURIComponent(incMensaje(e,g))}">escribir por WhatsApp</a>`:""}<a class="lnk" onclick="adminIncCopiar(${i},${k})">copiar mensaje</a></div></div>`; }).join("");
+  box.classList.remove("hide"); };
+window.adminIncCopiar=(i,k)=>{ const e=adminEventos[i], m=adminMetricas[i]; const g=m&&m.incG&&m.incG[k]; if(!e||!g) return; copiarAlPortapapeles(incMensaje(e,g), "Mensaje para "+g.nombre); };
 /* Vista "Hoy por proveedor": semáforo de quién subió lo del día y quién no, con recordatorio listo para WhatsApp. */
 window.adminHoy=(i)=>{ const e=adminEventos[i], m=adminMetricas[i], box=$("adHoy"+i); if(!e||!m||!box) return;
   if(!box.classList.contains("hide")){ box.classList.add("hide"); return; }
@@ -1104,8 +1402,8 @@ window.adminRecordatorio=(i,prov)=>{ const e=adminEventos[i], m=adminMetricas[i]
   if(atr.length){ T.push("Días anteriores sin foto:"); atr.forEach(x=>T.push(`• ${x.it.codigo} ${x.it.req||""}: ${x.atrasados.map(fmtDia).join(", ")}`)); }
   T.push(`Súbelas desde la app: ${linkOper(e.uid)}`); T.push("Gracias.");
   copiarAlPortapapeles(T.join("\n"), "Recordatorio para "+prov); };
-window.adminCopiar=(i,tipo)=>{ const e=adminEventos[i]; if(!e) return; const u=tipo==="exec"?linkExec(e.uid):linkOper(e.uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace del productor":"Enlace del proveedor")); };   // siempre el enlace directo ?ev= (nunca tinyurl viejo)
-window.adminBorrarEvento=async(i)=>{
+window.adminCopiar=(i,tipo)=>{ const e=adminEventos[i]; if(!e) return; const u=tipo==="exec"?linkExec(e.uid):linkOper(e.uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace para editar":"Enlace del proveedor")); };   // siempre el enlace directo ?ev= (nunca tinyurl viejo)
+window.adminBorrarEvento=async(i)=>{ if(!esAdmin()){ toast("Solo un administrador puede borrar"); return; }
   const ev=adminEventos[i]; if(!ev) return;
   if(!confirm(`⚠️ BORRAR EVENTO ${evConsecTag(ev.consec)}\n\n${ev.cl||""} — ${ev.ev||""}\n\nEsto elimina el evento Y TODAS sus evidencias y fotos. Es una acción DELICADA que NO se puede deshacer.\n\n¿Continuar?`)) return;
   if(!confirm(`Confirma OTRA VEZ: se borrará ${evConsecTag(ev.consec)} y todo su contenido de forma permanente.\n\n¿Seguro?`)) return;
@@ -1114,7 +1412,7 @@ window.adminBorrarEvento=async(i)=>{
     const r=await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid)+"&select=storage_path",{headers:adminHeaders()});
     if(r.status===401){ adminSesExpirada(); return; }
     const evs = r.ok ? await r.json() : [];
-    for(const e of evs){ if(e.storage_path){ try{ const p=e.storage_path.replace(/^evidencias\//,"").split("/").map(encodeURIComponent).join("/"); await fetch(SB_URL+"/storage/v1/object/evidencias/"+p,{method:"DELETE",headers:adminHeaders()}); }catch(_){} } }
+    for(const e of evs){ if(e.storage_path){ try{ const p=e.storage_path.replace(/^evidencias\//,"").split("/").map(encodeURIComponent).join("/"); await fetch(SB_URL+"/storage/v1/object/evidencias/"+p,{method:"DELETE",headers:adminHeaders()}); for(const pre of ["thumbs/","orig/","prev/"]) await fetch(SB_URL+"/storage/v1/object/evidencias/"+pre+p,{method:"DELETE",headers:adminHeaders()}); }catch(_){} } }
     await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid),{method:"DELETE",headers:Object.assign({},adminHeaders(),{Prefer:"return=representation",Accept:"application/json"})});
     const de=await fetch(SB_URL+"/rest/v1/eventos?uid=eq."+encodeURIComponent(ev.uid),{method:"DELETE",headers:Object.assign({},adminHeaders(),{Prefer:"return=representation",Accept:"application/json"})});
     if(!de.ok){ alert("No se pudo borrar el evento (HTTP "+de.status+").\n\nCorre las Capas 5 y 6 en Supabase y reintenta."); return; }
@@ -1128,7 +1426,7 @@ let adminFotoURLs={}, adminEvidencias=[], lbActual=null, adminEventoActual=null;
 function fmtFecha(iso){ try{ const d=new Date(iso); if(isNaN(d)) return iso||""; return `${z(d.getDate())}/${z(d.getMonth()+1)}/${d.getFullYear()} ${z(d.getHours())}:${z(d.getMinutes())}`; }catch(_){ return iso||""; } }
 window.adminAbrir=async(i)=>{
   const ev=adminEventos[i]; if(!ev) return; adminEventoActual=i;
-  $("adBack").classList.remove("hide"); $("adTitulo").textContent=`${ev.cl||""} — ${ev.ev||""}`;
+  $("adBack").classList.remove("hide"); $("adAcciones").classList.add("hide"); $("adTitulo").textContent=`${ev.cl||""} — ${ev.ev||""}`;
   const l=$("adLista"); l.innerHTML='<div class="mut">Cargando evidencias…</div>'; adminColaReset(); adminEvidencias=[]; adminOrig=new Map();
   try{
     const r=await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid)+"&select=*&order=creado.asc",{headers:adminHeaders()});
@@ -1149,11 +1447,19 @@ window.adminAbrir=async(i)=>{
         +`<div class="row" style="margin-top:8px"><div><label>Proveedor</label><select id="adFltProv">${opt(provs,"Todos")}</select></div><div><label>Quién capturó</label><select id="adFltOper">${opt(opers,"Todos")}</select></div></div>`
         +`<div class="fld" style="margin-top:8px"><label>Escenario / categoría</label><select id="adFltCat">${opt(cats,"Todos")}</select></div>`
         +`<div class="fld" style="margin-top:8px"><label>Requerimiento</label><select id="adFltReq">${opt(reqs,"Todos")}</select></div>`
+        +`<div class="fld" style="margin-top:8px"><label>Datos de la foto</label><select id="adFltInc">${opt([["inc","Incompletas (les falta algún dato)"],["ubicación","Sin ubicación"],["hora","Sin hora"],["fecha original","Sin fecha original"]],"Todas")}</select></div>`
         +`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span class="mut" id="adFltInfo"></span><a class="lnk" id="adFltLimpiar" style="font-size:13px">Limpiar filtros</a></div>`
-      +`</div><div id="adEviList" class="list"></div>`;
-    l.innerHTML=cab;
-    ["adFltBuscar","adFltProv","adFltOper","adFltCat","adFltReq"].forEach(id=>{ const el=$(id); if(el) el.addEventListener(id==="adFltBuscar"?"input":"change", renderAdminEvidencias); });
-    if($("adFltLimpiar")) $("adFltLimpiar").addEventListener("click", ()=>{ ["adFltBuscar","adFltProv","adFltOper","adFltCat","adFltReq"].forEach(id=>{ if($(id)) $(id).value=""; }); renderAdminEvidencias(); });
+      +`</div>`
+      +(esAdmin()?`<div id="adCorr" class="xbox" style="margin-bottom:10px"><div class="xt">🔐 Corregir datos de fotos</div>`
+        +`<div class="mut" style="margin:0 0 6px;font-size:12px">Marca las fotos (o «seleccionar las filtradas») y escribe lo que falta. A cada foto solo se le completa lo que le falta; sus datos reales no se tocan. El sello se rehace con «_» y la versión anterior queda de respaldo.</div>`
+        +`<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px;margin-bottom:6px;align-items:baseline"><a class="lnk" id="adSelTodas">seleccionar las filtradas</a><a class="lnk" id="adSelNinguna">quitar selección</a><b id="adSelN">0 seleccionadas</b></div>`
+        +`<div class="fld"><label>Lugar (para las que no tienen ubicación)</label><input id="adCorrLugar" type="text" autocomplete="off" placeholder="Dirección, barrio, ciudad"></div>`
+        +`<div class="row fechas" style="margin-top:8px"><div><label>Fecha (sin fecha original)</label><input id="adCorrFecha" type="date"></div><div><label>Hora (sin hora)</label><input id="adCorrHora" type="time"></div></div>`
+        +`<button class="btn sec" id="adCorrAplicar" style="margin-top:10px">Aplicar a las seleccionadas</button><div class="mut" id="adCorrMsg" style="margin:6px 0 0;font-size:12px"></div></div>`:"")
+      +`<div id="adEviList" class="list"></div>`;
+    l.innerHTML=cab; adminCorrBind();
+    ["adFltBuscar","adFltProv","adFltOper","adFltCat","adFltReq","adFltInc"].forEach(id=>{ const el=$(id); if(el) el.addEventListener(id==="adFltBuscar"?"input":"change", renderAdminEvidencias); });
+    if($("adFltLimpiar")) $("adFltLimpiar").addEventListener("click", ()=>{ ["adFltBuscar","adFltProv","adFltOper","adFltCat","adFltReq","adFltInc"].forEach(id=>{ if($(id)) $(id).value=""; }); renderAdminEvidencias(); });
     renderAdminEvidencias();
   }catch(_){ l.innerHTML='<div class="mut">Error al cargar evidencias.</div>'; }
 };
@@ -1211,15 +1517,128 @@ let adminVis=[], adminMostrados=0, adminCola=[], adminEnCurso=0, adminGen=0, adm
 function thumbPath(e){ return e.storage_path ? e.storage_path.replace(/^evidencias\//,"evidencias/thumbs/") : ""; }
 function adminUrlObjeto(storagePath){ return SB_URL+"/storage/v1/object/authenticated/"+storagePath.split("/").map(encodeURIComponent).join("/"); }
 function adminColaReset(){ adminGen++; adminCola=[]; adminEnCurso=0; if(adminIO){ adminIO.disconnect(); adminIO=null; } Object.values(adminFotoURLs).forEach(f=>{ try{ URL.revokeObjectURL(f.url); }catch(_){} }); adminFotoURLs={}; adminCacheOrden=[]; }
+/* ===== v43 · CORRECCIÓN MASIVA DEL ADMIN (pedido de Daniel 29-sep, caso Montería) =====
+   En «ver evidencias»: filtrar por lo que falta, marcar fotos y completar lugar, fecha y/u hora. Solo se completa lo que
+   le falta a cada foto (lo real nunca se toca). La foto se vuelve a sellar con «_»: si existe la original sin sello
+   (orig/, se guarda desde v43) sale limpia; si no, se ubica el sello viejo de la app y el nuevo lo tapa en el mismo
+   sitio con fondo más oscuro. La versión anterior queda en prev/. Fila: fecha_origen=admin + declarado_por.
+   Orden: primero la fila (si la base no deja editar, la foto no se toca); si la foto falla, la fila se devuelve. Capa 16. */
+let adminSel=new Set();
+function eviRel(e){ return String((e&&e.storage_path)||"").replace(/^evidencias\//,""); }
+function sbObj(rel){ return SB_URL+"/storage/v1/object/evidencias/"+rel.split("/").map(encodeURIComponent).join("/"); }
+async function adminBajarRel(rel){ try{ const r=await fetchTO(adminUrlObjeto("evidencias/"+rel),{headers:adminHeaders()},60000); if(r.ok){ const b=await r.blob(); return b.size?b:null; } }catch(_){} return null; }
+async function adminSubirRel(rel, blob, reemplazar){
+  const H=Object.assign({}, adminHeaders(), {"Content-Type":"image/jpeg"}); if(reemplazar) H["x-upsert"]="true";
+  let r=await fetchTO(sbObj(rel), {method:"POST", headers:H, body:blob}, 60000);
+  if(r.ok) return true;
+  if(!reemplazar){ try{ const t=await r.json(); if(t&&(t.statusCode==="409"||t.error==="Duplicate"||t.code==="KeyAlreadyExists")) return true; }catch(_){} return false; }   /* prev/ ya existe = se conserva la primera versión */
+  const d=await fetchTO(sbObj(rel), {method:"DELETE", headers:adminHeaders()}, 30000); if(!d.ok) return false;   /* sin permiso de reemplazo: borrar y subir (el respaldo ya está en prev/) */
+  delete H["x-upsert"]; r=await fetchTO(sbObj(rel), {method:"POST", headers:H, body:blob}, 60000); return r.ok; }
+function hexRGB(h){ const m=String(h||"").replace("#",""); return [0,2,4].map(i=>parseInt(m.substr(i,2),16)); }
+/* Ubica el sello de la app en una foto ya sellada, con la misma geometría de dibujar(): la barra de color marca el
+   borde y el alto; el ancho es el salto de luz donde termina el fondo oscurecido. null = la foto no trae sello de la app. */
+function selloViejo(bmp, mk){
+  const W=bmp.width, H=bmp.height; const cv=document.createElement("canvas"); cv.width=W; cv.height=H; const cx=cv.getContext("2d"); cx.drawImage(bmp,0,0);
+  let D; try{ D=cx.getImageData(0,0,W,H).data; }catch(_){ cv.width=cv.height=1; return null; } cv.width=cv.height=1;
+  const cols=Object.values(BRANDS).map(b=>hexRGB(b.stamp));
+  const esBarra=(x,y)=>{ if(x<0||y<0||x>=W||y>=H) return false; const i=(y*W+x)*4; return cols.some(c=>Math.abs(c[0]-D[i])<55&&Math.abs(c[1]-D[i+1])<55&&Math.abs(c[2]-D[i+2])<55); };
+  const lum=(x,y)=>{ const i=(y*W+x)*4; return 0.299*D[i]+0.587*D[i+1]+0.114*D[i+2]; };
+  const escs=[mk&&mk.esc,"3.4","2.6","4.4","5.6"].filter((v,i,a)=>v&&a.indexOf(v)===i), poss=[mk&&mk.pos,"bl","br","tl","tr"].filter((v,i,a)=>v&&a.indexOf(v)===i);
+  let mejor=null;   /* se prueban todos los tamaños y posiciones y gana el que mejor calza con los bordes medidos de la barra */
+  for(const esc of escs){ const fpx=Math.max(14,Math.round(H*parseFloat(esc)/100)), pad=Math.round(fpx*0.5), mg=Math.round(fpx*0.6), lh=Math.round(fpx*1.32), bar=Math.max(4,pad/2);
+    for(const pos of poss){ const abajo=pos==="bl"||pos==="br", izq=pos==="bl"||pos==="tl"; const y0=abajo?H-mg-2:mg+1;
+      let x=-1, xc=-1, err=0;
+      if(izq){ xc=mg+Math.floor(bar/2); if(!esBarra(xc,y0)||!esBarra(xc,abajo?y0-3:y0+3)) continue; let l=xc; while(l-1>=0&&esBarra(l-1,y0)) l--; err+=Math.abs(l-mg); x=mg; }
+      else { for(let c=W-mg-1; c>W*0.2; c--){ if(esBarra(c,y0)&&esBarra(c-1,y0)&&esBarra(c,abajo?y0-3:y0+3)){ xc=c-Math.floor(bar/2); x=c-Math.ceil(bar)+1; break; } } if(xc<0) continue; }
+      let a=y0, b=y0; while(a-1>=0&&esBarra(xc,a-1)) a--; while(b+1<H&&esBarra(xc,b+1)) b++;
+      err += abajo ? Math.abs(b-(H-mg-1)) : Math.abs(a-mg);
+      if(abajo) b=H-mg-1; else a=mg;
+      const bh=b-a+1, n=Math.round((bh-2*pad)/lh); if(n<1||n>8) continue;
+      err += Math.abs(n*lh+2*pad-bh);
+      if(err>8 || (mejor && err>=mejor.err)) continue;
+      let bw;
+      if(izq){ const r0=a+pad, r1=b-pad, x0=x+Math.ceil(bar)+2*pad, colL=new Float32Array(W);
+        for(let c=Math.max(0,x0-4); c<W-mg; c++){ let s2=0,k=0; for(let yy=r0; yy<=r1; yy+=2){ const L=lum(c,yy); if(L<200){ s2+=L; k++; } } colL[c]=k?s2/k:0; }
+        let best=0, bx=-1; for(let c=x0; c<W-mg-4; c++){ const Lm=(colL[c-3]+colL[c-2]+colL[c-1])/3, Rm=(colL[c+1]+colL[c+2]+colL[c+3])/3, q=(Rm+4)/(Lm+4); if(q>best){ best=q; bx=c; } }
+        bw = best>1.5 ? bx-x+1 : Math.round(W*0.6); }
+      else bw=(W-mg)-x;
+      let tr=0,tg=0,tb=0,tk=0; for(let yy=a+2; yy<b-1; yy+=3) for(let c=x+Math.ceil(bar)+1; c<Math.min(W,x+bw)-1; c+=3){ const i=(yy*W+c)*4; if(0.299*D[i]+0.587*D[i+1]+0.114*D[i+2]<150){ tr+=D[i]; tg+=D[i+1]; tb+=D[i+2]; tk++; } }
+      const tono = tk ? `rgb(${Math.round(tr/tk)},${Math.round(tg/tk)},${Math.round(tb/tk)})` : "rgb(20,20,20)";   /* color promedio del fondo viejo sin letras: la tapa sólida se ve como el recuadro de siempre */
+      mejor={x, y:a, bw, bh, pos, esc, n, err, tono}; } }
+  return mejor; }
+/* v43.1: el nombre de descarga (columna archivo) se actualiza con la fecha y hora corregidas, para que coincida con la
+   etiqueta y con el informe. El archivo NO se mueve en el almacenamiento (storage_path igual). En ítems por día también
+   se recalcula el token _DndeN_ con las fechas del requerimiento en el evento. Nombre con otro formato = se deja igual. */
+function nombreCorregido(e, nv){ const a=String(e.archivo||""); const m=a.match(/^(.*?)(_D\d+de\d+)?_\d{4}-\d{2}-\d{2}(?:_\d{4})?_(\d{3,})\.(\w+)$/);
+  if(!m||!nv.fecha) return {archivo:a, dia:null};
+  let tok="", dia=null;
+  if(m[2]){ const ev=adminEventos[adminEventoActual]||{}, c=ev.config||{}; const it=(ev._items||[]).find(x=>(ev.uid+"|"+x.iid)===e.item_id);
+    if(it){ const fs=fechasDeItem(it, c.fe||""); const idx=fs.indexOf(nv.fecha)+1; tok=`_D${idx}de${fs.length}`; dia={dia_evento:idx, dias_evento:fs.length}; } else tok=m[2]; }
+  const hr=String(nv.hora||"").replace(/:/g,"").slice(0,4);
+  return {archivo:`${m[1]}${tok}_${nv.fecha}${hr?"_"+hr:""}_${m[3]}.${m[4]}`, dia}; }
+async function adminCorregir(j, P, correo){
+  const e=adminEvidencias[j]; if(!e||(e.tipo||"foto")==="video") return "video";
+  const F=eviFaltantes(e); if(!F.length) return "completa";
+  const nv={fecha:e.fecha||"", hora:e.hora||"", lugar:e.lugar||""}; let cambia=false;
+  if(F.includes("fecha original")&&P.fecha){ nv.fecha=P.fecha; cambia=true; }
+  if(F.includes("hora")&&P.hora){ nv.hora=P.hora; cambia=true; }
+  if(F.includes("ubicación")&&P.lugar){ nv.lugar=P.lugar; cambia=true; }
+  if(!cambia) return "nada";
+  const rel=eviRel(e); if(!rel||e.id==null) return "error: evidencia sin ruta";
+  const actual=await adminOriginal(j); if(!actual) return "error: no se pudo descargar la foto";
+  const HJ=Object.assign({},adminHeaders(),{"Content-Type":"application/json",Prefer:"return=representation",Accept:"application/json"});
+  const patch=(body)=>fetchTO(SB_URL+"/rest/v1/evidencias?id=eq."+encodeURIComponent(e.id),{method:"PATCH",headers:HJ,body:JSON.stringify(body)},20000);
+  const antes={fecha:e.fecha==null?null:e.fecha, hora:e.hora==null?null:e.hora, lugar:e.lugar==null?null:e.lugar, fecha_origen:e.fecha_origen||null, declarado_por:e.declarado_por||null, archivo:e.archivo==null?null:e.archivo};
+  const cambios={fecha:nv.fecha, hora:nv.hora, lugar:nv.lugar, fecha_origen:"admin", declarado_por:correo||"admin"};
+  const nc=nombreCorregido(e, nv); if(nc.archivo && nc.archivo!==e.archivo) cambios.archivo=nc.archivo;
+  if(nc.dia && ("dia_evento" in e)){ Object.assign(cambios, nc.dia); antes.dia_evento=e.dia_evento==null?null:e.dia_evento; antes.dias_evento=e.dias_evento==null?null:e.dias_evento; }
+  const pr=await patch(cambios); if(pr.status===401){ adminSesExpirada(); return "error: sesión vencida"; }
+  let filas=[]; try{ filas=await pr.json(); }catch(_){}
+  if(!pr.ok||!Array.isArray(filas)||!filas.length) return "error: la base no dejó editar (falta correr la Capa 16)";
+  try{
+    const mk=(((adminEventos[adminEventoActual]||{}).config)||{}).marca||{};
+    const d={fecha:nv.fecha, hora:nv.hora, lugar:nv.lugar, lugLin:nv.lugar?nv.lugar.split(",").map(x=>x.trim()).filter(Boolean):[], lat:num(e.lat), lon:num(e.lon)};
+    const L=textoMarca(d).split("\n"); L[0]+="_"; const texto=L.join("\n");
+    const ob=await adminBajarRel("orig/"+rel); let src, op;
+    if(ob){ src=await createImageBitmap(ob); op={esc:mk.esc||"3.4", pos:mk.pos||"bl"}; }
+    else { src=await createImageBitmap(actual); const v=selloViejo(src, mk); op=v?{esc:v.esc, pos:v.pos, minW:v.bw, minH:v.bh, fondo:v.tono}:{esc:mk.esc||"3.4", pos:mk.pos||"bl"}; }
+    const out=await dibujar(src, texto, true, op);
+    if(out.vacio) throw new Error("la foto salió en negro");
+    if(!await adminSubirRel("prev/"+rel, actual, false)) throw new Error("no se pudo guardar el respaldo");
+    if(!await adminSubirRel(rel, out.blob, true)) throw new Error("no se pudo reemplazar la foto");
+    try{ const mini=await miniatura(out.blob,220); if(mini) await adminSubirRel("thumbs/"+rel, mini, true); }catch(_){}
+    Object.assign(e, cambios); adminOrig.delete(j); if(adminFotoURLs[j]){ try{ URL.revokeObjectURL(adminFotoURLs[j].url); }catch(_){} delete adminFotoURLs[j]; }
+    return "ok";
+  }catch(err){ try{ await patch(antes); }catch(_){} return "error: "+((err&&err.message)||err); } }
+window.adminSelToggle=(j,v)=>{ if(v) adminSel.add(j); else adminSel.delete(j); adminSelPintar(); };
+function adminSelPintar(){ const n=$("adSelN"); if(n) n.textContent=adminSel.size+" seleccionada"+(adminSel.size===1?"":"s"); document.querySelectorAll(".adSel").forEach(c=>{ c.checked=adminSel.has(+c.dataset.j); }); }
+function adminCorrBind(){ adminSel=new Set(); if(!$("adCorr")) return;
+  $("adCorrFecha").max=isoHoy();
+  $("adSelTodas").addEventListener("click",()=>{ adminVis.forEach(j=>{ const e=adminEvidencias[j]; if(e&&(e.tipo||"foto")!=="video"&&eviFaltantes(e).length) adminSel.add(j); }); adminSelPintar(); });
+  $("adSelNinguna").addEventListener("click",()=>{ adminSel.clear(); adminSelPintar(); });
+  $("adCorrAplicar").addEventListener("click", async()=>{ const P={lugar:$("adCorrLugar").value.trim(), fecha:$("adCorrFecha").value, hora:$("adCorrHora").value}, msg=$("adCorrMsg");
+    if(!adminValido()){ adminSesExpirada(); return; } if(!esAdmin()){ msg.textContent="Solo un administrador."; return; }
+    if(!P.lugar&&!P.fecha&&!P.hora){ msg.textContent="Escribe el lugar, la fecha y/o la hora que quieres completar."; return; }
+    if(P.fecha&&P.fecha>isoHoy()){ msg.textContent="La fecha no puede ser futura."; return; }
+    const L=[...adminSel]; if(!L.length){ msg.textContent="Marca primero las fotos (o «seleccionar las filtradas»)."; return; }
+    if(!confirm(`Se completarán los datos que les faltan a ${L.length} foto${L.length===1?"":"s"} y se volverán a sellar con «_».\n\nLa versión anterior de cada foto queda de respaldo. ¿Continuar?`)) return;
+    const btn=$("adCorrAplicar"); btn.disabled=true; await sesRenovar(); const correo=admCorreo(); const res={ok:0,nada:0,err:[]};
+    for(let k=0;k<L.length;k++){ msg.textContent=`Corrigiendo ${k+1} de ${L.length}…`; const r=await adminCorregir(L[k], P, correo);
+      if(r==="ok"){ res.ok++; adminSel.delete(L[k]); } else if(r==="nada"||r==="completa"||r==="video") res.nada++; else res.err.push(((adminEvidencias[L[k]]||{}).archivo||"foto")+": "+r.replace(/^error: /,""));
+      if(/Capa 16|sesión vencida/.test(r)) break; }
+    btn.disabled=false;
+    msg.innerHTML=`<b>${res.ok}</b> corregida${res.ok===1?"":"s"}`+(res.nada?` · ${res.nada} sin cambios (ya tenían esos datos o faltaba otro dato)`:"")+(res.err.length?`<br><span style="color:#b3261e">${res.err.length} con error: ${res.err.slice(0,3).map(escAttr).join(" · ")}</span>`:"");
+    renderAdminEvidencias(); adminSelPintar(); }); }
 function renderAdminEvidencias(){
   const cont=$("adEviList"); if(!cont) return;
-  const q=fnorm($("adFltBuscar")&&$("adFltBuscar").value), fp=($("adFltProv")&&$("adFltProv").value)||"", fo=($("adFltOper")&&$("adFltOper").value)||"", fc=($("adFltCat")&&$("adFltCat").value)||"", fr=($("adFltReq")&&$("adFltReq").value)||"";
+  const q=fnorm($("adFltBuscar")&&$("adFltBuscar").value), fp=($("adFltProv")&&$("adFltProv").value)||"", fo=($("adFltOper")&&$("adFltOper").value)||"", fc=($("adFltCat")&&$("adFltCat").value)||"", fr=($("adFltReq")&&$("adFltReq").value)||"", fi=($("adFltInc")&&$("adFltInc").value)||"";
   adminVis=[];
   adminEvidencias.forEach((e,j)=>{
     if(fp && (e.proveedor||"").trim()!==fp) return;
     if(fo && (e.operador_nombre||"").trim()!==fo) return;
     if(fc && (e.categoria||"").trim()!==fc) return;
     if(fr && eviKey(e)!==fr) return;
+    if(fi && !(fi==="inc" ? eviFaltantes(e).length : eviFaltantes(e).includes(fi))) return;
     if(q && !fnorm([e.item,e.requerimiento,e.proveedor,e.proveedor_nit,e.operador_nombre,e.operador_cedula,e.archivo,e.radicado,e.categoria].join(" ")).includes(q)) return;
     adminVis.push(j);
   });
@@ -1227,9 +1646,9 @@ function renderAdminEvidencias(){
   if(adminIO) adminIO.disconnect();
   adminIO=new IntersectionObserver(ents=>{ ents.forEach(en=>{ if(en.isIntersecting){ adminIO.unobserve(en.target); adminEncolar(+en.target.dataset.j); } }); },{rootMargin:"400px"});
   if(!adminVis.length) cont.innerHTML='<div class="mut" style="padding:8px 2px">Ninguna evidencia coincide con el filtro.</div>'; else adminMostrarMas();
-  if($("adFltInfo")){ const f=q||fp||fo||fc||fr; $("adFltInfo").textContent = f ? `Mostrando ${adminVis.length} de ${adminEvidencias.length}` : `${adminEvidencias.length} evidencia(s)`; }
+  if($("adFltInfo")){ const f=q||fp||fo||fc||fr||fi; $("adFltInfo").textContent = f ? `Mostrando ${adminVis.length} de ${adminEvidencias.length}` : `${adminEvidencias.length} evidencia(s)`; }
 }
-function adminFilaHTML(e,j){ return `<div class="ev"><div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})">${(e.tipo||"foto")==="video"?`<div style="width:66px;height:66px;border-radius:7px;background:#e9eef5;display:flex;align-items:center;justify-content:center;font-size:24px">🎬</div>`:`<img id="adimg${j}" data-j="${j}" alt="" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5">`}</div><div class="in">${e.categoria?`<span class="cchip">${escAttr(e.categoria)}</span> `:""}<b>${e.item||""}</b> · ${(e.requerimiento||"").slice(0,38)}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${e.operador_nombre||""}${e.operador_cedula?" · "+e.operador_cedula:""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+e.radicado:""}</div><div class="fn" style="margin-top:3px">${e.archivo||""}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${(e.lugar||"").slice(0,60)}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a><a class="lnk" style="color:#b3261e" onclick="adminBorrarEvidencia(${j})">borrar</a></div></div></div>`; }
+function adminFilaHTML(e,j){ return `<div class="ev">${(esAdmin()&&$("adCorr")&&(e.tipo||"foto")!=="video"&&eviFaltantes(e).length)?`<input type="checkbox" class="adSel" data-j="${j}" ${adminSel.has(j)?"checked":""} onchange="adminSelToggle(${j},this.checked)" style="width:auto;margin:0 4px 0 0;flex:none;align-self:center" aria-label="Seleccionar para corregir">`:""}<div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})">${(e.tipo||"foto")==="video"?`<div style="width:66px;height:66px;border-radius:7px;background:#e9eef5;display:flex;align-items:center;justify-content:center;font-size:24px">🎬</div>`:`<img id="adimg${j}" data-j="${j}" alt="" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5">`}</div><div class="in">${e.categoria?`<span class="cchip">${escAttr(e.categoria)}</span> `:""}<b>${escAttr(e.item||"")}</b> · ${escAttr((e.requerimiento||"").slice(0,38))}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${escAttr(e.operador_nombre||"")}${e.operador_cedula?" · "+escAttr(e.operador_cedula):""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+escAttr(e.radicado):""}</div><div class="fn" style="margin-top:3px">${escAttr(e.archivo||"")}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${escAttr((e.lugar||"").slice(0,60))}</div>`:""}${eviFaltantes(e).length?`<div class="mut" style="margin:2px 0 0;color:#b3261e">⚠ sin ${eviFaltantes(e).join(" · sin ")}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a>${esAdmin()?`<a class="lnk" style="color:#b3261e" onclick="adminBorrarEvidencia(${j})">borrar</a>`:""}</div></div></div>`; }
 function adminMostrarMas(){
   const cont=$("adEviList"); if(!cont) return; const btn=$("adMas"); if(btn) btn.remove();
   const fin=Math.min(adminVis.length, adminMostrados+AD_PAGINA); let html="";
@@ -1261,7 +1680,7 @@ window.adminVerFoto=async(j)=>{ const e=adminEvidencias[j]; if(!e) return; if((e
   lbActual=j; $("lbName").textContent=e.archivo||""; const f=adminFotoURLs[j]; $("lbImg").src=f?f.url:""; $("lightbox").classList.remove("hide");
   const b=await adminOriginal(j); if(b && lbActual===j && !$("lightbox").classList.contains("hide")){ const u=URL.createObjectURL(b); $("lbImg").src=u; setTimeout(()=>URL.revokeObjectURL(u),60000); } };
 window.descargarFoto=async(j)=>{ const e=adminEvidencias[j]; if(!e) return; toast("Descargando…"); const b=await adminOriginal(j); if(!b){ toast("No se pudo descargar, reintenta"); return; } bajar(b, e.archivo||"evidencia.jpg"); };
-window.adminBorrarEvidencia=async(j)=>{
+window.adminBorrarEvidencia=async(j)=>{ if(!esAdmin()){ toast("Solo un administrador puede borrar"); return; }
   const e=adminEvidencias[j]; if(!e) return;
   if(!confirm(`¿Borrar esta evidencia?\n\n${e.item||""} · ${(e.requerimiento||"").slice(0,40)}\n${e.archivo||""}\n\nElimina la foto y su registro. No se puede deshacer.`)) return;
   try{
@@ -1272,7 +1691,8 @@ window.adminBorrarEvidencia=async(j)=>{
     if(!Array.isArray(borradas)||!borradas.length){ alert("La evidencia NO se borró (el servidor no eliminó ninguna fila).\n\nEsto pasa cuando el permiso de borrado no está activo: corre la Capa5 en Supabase (SQL Editor) y reintenta."); return; }   // 200 con 0 filas = RLS bloqueó
     if(e.storage_path){ try{ const p=e.storage_path.replace(/^evidencias\//,"").split("/").map(encodeURIComponent).join("/");
       await fetch(SB_URL+"/storage/v1/object/evidencias/"+p, {method:"DELETE", headers:adminHeaders()});
-      await fetch(SB_URL+"/storage/v1/object/evidencias/thumbs/"+p, {method:"DELETE", headers:adminHeaders()}); }catch(_){} }   // Capa 14: miniatura
+      await fetch(SB_URL+"/storage/v1/object/evidencias/thumbs/"+p, {method:"DELETE", headers:adminHeaders()});
+      for(const pre of ["orig/","prev/"]) await fetch(SB_URL+"/storage/v1/object/evidencias/"+pre+p, {method:"DELETE", headers:adminHeaders()}); }catch(_){} }   // Capa 14: miniatura · v43: original y respaldo
     toast("Evidencia borrada ✓");
     if(adminEventoActual!=null) adminAbrir(adminEventoActual);   // refresca la vista del evento
   }catch(_){ toast("Error al borrar"); }
@@ -1620,9 +2040,10 @@ function agregar(fileList, meta, metaResp){
     batch.push(e); nuevos.push(e); ps.push(procesar(e)); });
   renderLista();
   Promise.all(ps).then(()=>{   /* v34: avisos del lote — fotos rechazadas por fecha y galería sin metadatos */
-    const rech=nuevos.filter(e=>e.rechazo), sm=meta?[]:nuevos.filter(e=>!e.rechazo && e.sinMeta); const msg=[];
+    const rech=nuevos.filter(e=>e.rechazo && !e.rechazoMeta), rechM=nuevos.filter(e=>e.rechazoMeta), sm=meta?[]:nuevos.filter(e=>!e.rechazo && e.sinMeta); const msg=[];
+    if(rechM.length) msg.push((rechM.length===1?"Esta foto NO se cargó: ":"Estas "+rechM.length+" fotos NO se cargaron:\n• ")+rechM.map(e=>e.rechazo).join("\n• ")+".\n\nEste evento solo acepta fotos con sus datos originales. Se pierden cuando la foto se envía por WhatsApp o correo, o se toma con otra app.\n\nTómala en el sitio con «Capturar foto».");   /* v42 */
     if(rech.length) msg.push((rech.length===1?"Esta foto NO se cargó: ":"Estas "+rech.length+" fotos NO se cargaron:\n• ")+rech.map(e=>e.rechazo).join("\n• ")+".\n\nSolo se aceptan fotos tomadas el día de la línea que elegiste.");
-    if(sm.length && admCargaActiva()) msg.push((sm.length===1?"Esta foto no trae":"Estas "+sm.length+" fotos no traen")+" la fecha ni la ubicación originales.\n\nComo administrador: si ya traen marca de agua, usa «No aplicar marca configurada»; si no, «Completar ubicación y fecha de las fotos sin datos» (sin hora).");   /* v39 */
+    if(sm.length && admCargaActiva()) msg.push((sm.length===1?"Esta foto no trae":"Estas "+sm.length+" fotos no traen")+" la fecha ni la ubicación originales.\n\nComo administrador: si ya traen marca de agua, usa «No aplicar marca configurada»; si no, «Completar ubicación, fecha y hora de las fotos sin datos».");   /* v39 */
     else if(sm.length) msg.push((sm.length===1?"Esta foto no trae":"Estas "+sm.length+" fotos no traen")+" la fecha ni la ubicación originales. Seguro pasaron por WhatsApp o por una app de marca de agua.\n\nQuedan marcadas «sin ubicación» y no sirven bien como prueba.\n\nSi puedes, quítalas y tómalas de nuevo con «Capturar foto».");
     if(msg.length) alert(msg.join("\n\n— — —\n\n")); });
 }
@@ -1666,6 +2087,12 @@ function fotoDelDia(fecha){ if(!fecha) return true;
   return isFinite(t) && (Date.now()-t) < 36*3600*1000; }
 /* v34: la fecha real de la foto (cámara o metadatos) tiene que ser la del día elegido; sin línea por día, dentro de las
    fechas del evento. Devuelve el motivo del rechazo o "". Las declaradas/de carga no traen fecha real: no aplica. */
+/* v42 (reunión con Kevin 29-sep): el productor o el admin decide en el evento si una foto de la galería sin sus datos
+   originales se acepta (y queda marcada en el tablero) o no se carga. Solo mira el EXIF: la posición del teléfono no cuenta
+   como ubicación original. No aplica a «Capturar foto» ni a la carga de administrador. */
+function faltaMeta(entry, ex){ const mm=cfg&&cfg.mm; if(!mm || entry.meta || entry.tipo==="video" || admCargaActiva()) return "";
+  const f=[]; if(entry.fechaOrigen!=="metadatos") f.push("fecha y hora"); if(mm==="fhu" && !esNum(ex.lat)) f.push("ubicación");
+  return f.length ? ((entry.file&&entry.file.name)?entry.file.name+": ":"")+"no trae "+f.join(" ni ")+" originales" : ""; }
 function fechaNoCorresponde(e, f){ if(!f || e.fechaOrigen==="declarada" || e.fechaOrigen==="carga") return "";
   const hoy=isoHoy();
   if(f>hoy) return `tiene fecha ${fmtDia(f)}, que todavía no llega`;
@@ -1695,6 +2122,7 @@ async function procesar(entry){
       else if(esPorDia(itemById(entry.itemCodigo))){ entry.fechaOrigen="declarada"; if(entry.fechaSel){ entry.fechaDecl=entry.fechaSel; } if(entry.fechaDecl){ ex.fecha=entry.fechaDecl; } }
       else entry.fechaOrigen="carga";
       try{ const g=await exifr.gps(entry.file); if(g&&esNum(g.latitude)&&esNum(g.longitude)){ ex.lat=+g.latitude; ex.lon=+g.longitude; } }catch(_){}
+      { const mot=faltaMeta(entry, ex); if(mot){ entry.rechazo=mot; entry.rechazoMeta=true; batch=batch.filter(x=>x!==entry); renderLista(); return; } }   /* v42: el evento no acepta fotos sin metadatos */
       /* v34: sin fecha NI ubicación originales = la foto pasó por WhatsApp, una app de marca de agua o un editor.
          No se le pone la posición ni la hora de ahora (serían inventadas): se sella a la vista como tal y se avisa. */
       entry.sinMeta = entry.fechaOrigen!=="metadatos" && ex.lat==null;
@@ -1707,8 +2135,8 @@ async function procesar(entry){
     let lugar="",lugLin=[]; if(ex.lat!=null&&ex.lon!=null){ const d=await geocodeThrottled(ex.lat,ex.lon); if(d){ lugar=d.txt; lugLin=d.lineas; } }
     entry.datos={fecha:ex.fecha,hora:ex.hora,lugar,lugLin,lat:ex.lat,lon:ex.lon,sinMeta:!!entry.sinMeta,origen:entry.fechaOrigen||"",fcarga:(entry.cargada&&entry.cargada.fecha)||""};
     const sl=selloDe(entry);
-    const out=await dibujar(bitmap,sl.texto,sl.con);
-    entry.blob=out.blob; entry.thumb=out.thumb;
+    const out=await dibujar(bitmap,sl.texto,sl.con,{conOrig:true});
+    entry.blob=out.blob; entry.thumb=out.thumb; entry.origBlob=out.orig||null;
     entry.status = out.vacio ? "⚠ salió en negro — vuelve a tomarla" : "listo";
     if(!lugar && ex.lat!=null) programarCompletado();   // se resella sola en cuanto haya dirección
   }catch(err){ entry.status=(err&&err.message==="no-decode")?"HEIC no decodificable (usa Safari o JPG)":("error: "+(err&&err.message||err)); }
@@ -1890,6 +2318,10 @@ async function miniatura(blob, lado){ try{ const bmp=await createImageBitmap(blo
 let ultimoErr="";
 async function subirEvidencia(e, radicado){
   try{
+    /* Capa 11c: en «Carga de administrador» la fila va con la SESIÓN del admin (el servidor solo acepta
+       fecha_origen = admin | admin-sin-sello de un admin). El proveedor sigue con la llave pública. */
+    const adm=admCargaActiva(); if(adm) await sesRenovar();
+    const HE=Object.assign({}, (adm&&adminValido()) ? sesHeaders() : SB_H, {Prefer:"return=minimal"});
     const path=(cfg.uid||"sinuid")+"/"+e.filename;
     const up=await fetchTO(SB_URL+"/storage/v1/object/evidencias/"+encodeURI(path), {method:"POST",
       headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":(e.tipo==="video"?((e.file&&e.file.type)||"video/mp4"):"image/jpeg")}, body:e.blob}, 20000);
@@ -1898,7 +2330,8 @@ async function subirEvidencia(e, radicado){
       if(!dup){ ultimoErr="subir foto: HTTP "+up.status; return false; }
     }
     if((e.tipo||"foto")!=="video"){ try{ const mini=await miniatura(e.blob,220); if(mini) await fetchTO(SB_URL+"/storage/v1/object/evidencias/thumbs/"+encodeURI(path), {method:"POST",
-      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":"image/jpeg"}, body:mini}, 12000); }catch(_){} }   // Capa 14: miniatura (~6 KB) para el visor del admin; si falla, el visor usa la original
+      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":"image/jpeg"}, body:mini}, 12000); }catch(_){} }
+    if(e.origBlob){ try{ await fetchTO(SB_URL+"/storage/v1/object/evidencias/orig/"+encodeURI(path), {method:"POST", headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":"image/jpeg"}, body:e.origBlob}, 20000); }catch(_){} }   /* v43: original sin sello; si falla no pasa nada */   // Capa 14: miniatura (~6 KB) para el visor del admin; si falla, el visor usa la original
     const ad=itemAdic(e.itemCodigo)||{};
     const row={ radicado:radicado||"", evento_uid:cfg.uid||"", consec:cfg.consec||null, cliente:cfg.cl, evento:cfg.ev,
       categoria:itemCat(e.itemCodigo), item:itemCod(e.itemCodigo), item_id:claveDe(e.itemCodigo), requerimiento:itemReq(e.itemCodigo), proveedor:itemProv(e.itemCodigo), proveedor_nit:itemNit(e.itemCodigo),
@@ -1908,18 +2341,18 @@ async function subirEvidencia(e, radicado){
       fecha:fechaEfectiva(e)||"", hora:e.sinHora?"":(e.datos.hora||""), lugar:e.datos.lugar||"", lat:e.datos.lat, lon:e.datos.lon };
     const dd=diaDeFoto(e); row.fecha_origen=e.fechaOrigen||""; row.dia_evento=dd?dd.idx:null; row.dias_evento=dd?dd.n:null;   // Capa 13
     if(e.declPor) row.declarado_por=e.declPor; if(ad.grupo) row.grupo=ad.grupo;   /* v39 (Capa 15) */
-    let ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row)}, 15000);
+    let ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:HE,body:JSON.stringify(row)}, 15000);
     if(!ins.ok && (row.declarado_por!==undefined || row.grupo!==undefined)){   /* Capa 15 sin correr: soltar SOLO sus columnas */
       delete row.declarado_por; delete row.grupo;
-      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row)}, 15000); }
+      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:HE,body:JSON.stringify(row)}, 15000); }
     if(!ins.ok){   // Capa 13 sin correr: soltar SOLO sus columnas, sin perder item_id
       const row0=Object.assign({},row); delete row0.fecha_origen; delete row0.dia_evento; delete row0.dias_evento;
-      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row0)}, 15000); }
+      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:HE,body:JSON.stringify(row0)}, 15000); }
     if(!ins.ok){   // reintento escalonado: primero soltar SOLO item_id (Capa9 sin correr) para NO perder la categoria
       const row1=Object.assign({},row); delete row1.item_id; delete row1.cantidad; delete row1.fecha_origen; delete row1.dia_evento; delete row1.dias_evento;
-      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row1)}, 15000);
+      ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:HE,body:JSON.stringify(row1)}, 15000);
       if(!ins.ok){ const row2=Object.assign({},row1); delete row2.radicado; delete row2.categoria; delete row2.proveedor_nit;   // último recurso: columnas viejas
-        ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:Object.assign({},SB_H,{Prefer:"return=minimal"}),body:JSON.stringify(row2)}, 15000); } }
+        ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:HE,body:JSON.stringify(row2)}, 15000); } }
     if(!ins.ok) ultimoErr="registrar dato: HTTP "+ins.status;
     return ins.ok;
   }catch(err){ ultimoErr=(err&&err.name==="AbortError")?"tiempo agotado (señal muy lenta)":("red: "+((err&&err.name)||"error")); return false; }
@@ -2187,21 +2620,22 @@ function lienzoPlano(ctx,W,H){
     return (mx-mn)<=2;
   }catch(_){ return false; }                    // ante cualquier fallo, no bloquear el envío
 }
-async function dibujar(src,texto,conMarca){
+async function dibujar(src,texto,conMarca,op){   /* v43: op = {esc,pos,minW,minH,fondo,conOrig} */
   if(src&&typeof src.decode==="function"){ try{ await src.decode(); }catch(_){} }   // nunca estampar sobre una imagen a medio decodificar
   const W0=src.naturalWidth||src.width, H0=src.naturalHeight||src.height;
   const k=(W0*H0>LIM_PX)?Math.sqrt(DEST_PX/(W0*H0)):1;                              // k=1 => no se toca nada
   const W=Math.round(W0*k), H=Math.round(H0*k);
   const cv=document.createElement("canvas"); cv.width=W; cv.height=H; const ctx=cv.getContext("2d"); ctx.drawImage(src,0,0,W,H);
   if(src&&typeof src.src==="string"&&src.src.indexOf("blob:")===0) URL.revokeObjectURL(src.src);
+  let orig=null; if(op&&op.conOrig&&conMarca&&texto) orig=await new Promise(res=>cv.toBlob(res,"image/jpeg",0.8));   /* v43: original sin sello (permite volver a sellar limpio) */
   if(conMarca && texto){
-    const fpx=Math.max(14,Math.round(H*parseFloat($("esc").value)/100)); ctx.font=`700 ${fpx}px Montserrat,-apple-system,sans-serif`;
+    const fpx=Math.max(14,Math.round(H*parseFloat((op&&op.esc)||$("esc").value)/100)); ctx.font=`700 ${fpx}px Montserrat,-apple-system,sans-serif`;
     const pad=Math.round(fpx*0.5),mg=Math.round(fpx*0.6),lh=Math.round(fpx*1.32);
     const lines=[]; String(texto).split("\n").forEach(t=>{ wrap(ctx,t,W-2*mg-2*pad).forEach(l=>lines.push(l)); });
     const tw=Math.max(...lines.map(l=>ctx.measureText(l).width));
-    const bw=tw+2*pad,bh=lines.length*lh+2*pad,pos=$("pos").value;
+    const bw=Math.max(tw+2*pad,(op&&op.minW)||0),bh=Math.max(lines.length*lh+2*pad,(op&&op.minH)||0),pos=(op&&op.pos)||$("pos").value;
     let x=(pos==="br"||pos==="tr")?W-bw-mg:mg, y=(pos==="tl"||pos==="tr")?mg:H-bh-mg;
-    ctx.fillStyle="rgba(0,0,0,0.55)"; ctx.fillRect(x,y,bw,bh); ctx.fillStyle=VERDE; ctx.fillRect(x,y,Math.max(4,pad/2),bh);
+    ctx.fillStyle=(op&&op.fondo)||"rgba(0,0,0,0.55)"; ctx.fillRect(x,y,bw,bh);   /* v43: fondo sólido al tapar un sello viejo */ ctx.fillStyle=VERDE; ctx.fillRect(x,y,Math.max(4,pad/2),bh);
     ctx.fillStyle="#fff"; ctx.textBaseline="top"; lines.forEach((l,i)=>ctx.fillText(l,x+pad,y+pad+i*lh+(lh-fpx)/2));
   }
   const s=Math.min(1,420/Math.max(W,H)); const tc=document.createElement("canvas"); tc.width=Math.round(W*s); tc.height=Math.round(H*s); tc.getContext("2d").drawImage(cv,0,0,tc.width,tc.height);
@@ -2212,7 +2646,7 @@ async function dibujar(src,texto,conMarca){
      de ahí los siguientes salen EN NEGRO sin lanzar error. Es la causa medida de las 6 negras
      del lote del 25-ago (todas de 12,2 MP, por debajo del límite de área). */
   cv.width=cv.height=1; tc.width=tc.height=1;
-  return {blob,thumb,vacio};
+  return {blob,thumb,vacio,orig};
 }
 /* Sello al estilo Timestamp: fecha y hora arriba, y debajo una línea por nivel de la dirección.
    Si el geocoder no respondió pero sí hay GPS, se estampan las coordenadas: nunca una foto muda. */
@@ -2240,8 +2674,12 @@ function textoMarca(d){ if(!d) return "";
    sesión sigue vigente. El enlace del proveedor abre otra pestaña sin bandera → pantalla del proveedor tal cual (v38). */
 function admBandera(){ try{ return sessionStorage.getItem(NS+"adm_carga")||""; }catch(_){ return ""; } }
 function admSalirModo(){ try{ sessionStorage.removeItem(NS+"adm_carga"); }catch(_){} }
-function admCargaActiva(){ try{ return typeof adminValido==="function" && adminValido() && !!cfg && !!cfg.uid && admBandera()===cfg.uid; }catch(_){ return false; } }
-window.adminCargar=(i)=>{ const e=adminEventos[i]; if(!e) return; if(!adminValido()){ adminSesExpirada(); return; }
+function admCargaActiva(){ try{ return typeof esAdmin==="function" && esAdmin() && !!cfg && !!cfg.uid && admBandera()===cfg.uid; }catch(_){ return false; } }
+/* v44.1 · el admin edita desde el panel: abre el evento en la misma pestaña (antes copiaba el enlace del productor) */
+window.adminEditar=(i)=>{ const e=adminEventos[i]; if(!e) return; if(!adminValido()){ adminSesExpirada(); return; }
+  try{ sessionStorage.removeItem(NS+"adm_carga"); }catch(_){}
+  location.href="?ev="+encodeURIComponent(e.uid)+"&rol=ex"; };   /* relativo: se queda en /beta/ */
+window.adminCargar=(i)=>{ const e=adminEventos[i]; if(!e) return; if(!adminValido()){ adminSesExpirada(); return; } if(!esAdmin()){ toast("Solo un administrador"); return; }
   try{ sessionStorage.setItem(NS+"adm_carga", e.uid); }catch(_){}
   location.href="?ev="+encodeURIComponent(e.uid); };   /* relativo: se queda en /beta/ */
 window.admSalir=()=>{ admSalirModo(); renderLista(); };
@@ -2251,6 +2689,12 @@ function admCorreo(){ try{ const p=String((adminSes&&adminSes.token)||"").split(
 function admModoDe(e){ return (e&&e.adm&&e.adm.modo)||""; }
 function admDeclara(e){ const m=admModoDe(e); return m==="sin"||m==="comp"; }
 function admSinGps(e){ const d=(e&&e.orig&&e.orig.datos)||(e&&e.datos)||{}; return !esNum(d.lat); }
+/* v41.2 (reunión con Kevin 29-sep, informe de Montería: el cliente no recibe fotos sin fecha, hora y lugar): el admin
+   también declara la HORA. Revierte la regla v39 «la hora nunca se declara»: la defensa sigue en la base
+   (fecha_origen=admin + declarado_por) y en el «_» del sello. La hora real de la foto nunca se reemplaza. */
+function admHoraReal(e){ const o=(e&&e.orig)||{datos:e&&e.datos,fechaOrigen:e&&e.fechaOrigen};
+  return (o.fechaOrigen==="captura"||o.fechaOrigen==="metadatos") ? ((o.datos&&o.datos.hora)||"") : ""; }
+function admFaltaDato(e){ return admSinGps(e) || !admFechaReal(e) || !admHoraReal(e); }
 function admFechaReal(e){ const o=(e&&e.orig)||{datos:e&&e.datos,fechaOrigen:e&&e.fechaOrigen};
   return (o.fechaOrigen==="captura"||o.fechaOrigen==="metadatos") ? ((o.datos&&o.datos.fecha)||"") : ""; }
 /* Recalcula datos y origen de la foto según su modo. No dibuja. */
@@ -2261,7 +2705,7 @@ function admAplicar(e){ if(!e||!e.datos||e.tipo==="video") return;
   if(!admDeclara(e)) return;
   const real=admFechaReal(e), it=itemById(e.itemCodigo);
   const f = real || ((esPorDia(it)&&e.fechaSel) ? e.fechaSel : ((e.adm&&e.adm.fecha)||""));
-  e.datos.fecha=f; if(!real) e.datos.hora="";      // la hora solo si es la real de la foto
+  e.datos.fecha=f; e.datos.hora = admHoraReal(e) || (m==="comp" ? ((e.adm&&e.adm.hora)||"") : "");   /* v41.2: la real manda; si no hay, la declarada */
   e.datos.sinMeta=false;
   if(m==="comp" && admSinGps(e)){ const lug=String((e.adm&&e.adm.lugar)||"").trim();
     e.datos.lugar=lug; e.datos.lugLin=lug?lug.split(",").map(x=>x.trim()).filter(Boolean):[]; e.datos.lat=null; e.datos.lon=null; }
@@ -2280,14 +2724,19 @@ function admFalta(e){ if(!e||e.status!=="listo"||!e.itemCodigo) return "";
       ? "Foto sin fecha ni ubicación: elige arriba «Completar ubicación y fecha…» o «No aplicar marca configurada»" : ""; }
   if(!(e.datos&&e.datos.fecha)) return "Falta la fecha: elígela en el panel de administrador ↑";
   if(admModoDe(e)==="comp" && admSinGps(e) && !(e.datos&&e.datos.lugar)) return "Falta el lugar: escríbelo en el panel de administrador ↑";
+  if(admModoDe(e)==="comp" && !e.sinHora && !(e.datos&&e.datos.hora)) return "Falta la hora: escríbela en esta foto o en el panel de administrador ↑";
   return ""; }
 function admFila(e){ if(!admCargaActiva() || !e || e.status!=="listo" || e.tipo==="video") return "";
   const m=admModoDe(e), ev=$("marca").checked?"con sello":"sin sello";
   const op=(v,t)=>`<option value="${v}" ${m===v?"selected":""}>${t}</option>`;
-  let h=`<select onchange="admModo(${e.id},this.value)" style="margin-top:4px">${op("","Sello: como el evento ("+ev+")")}${op("app","Sello de la app")}${op("sin","No aplicar marca configurada (ya la trae)")}${admSinGps(e)?op("comp","Completar ubicación y fecha (sin hora)"):""}</select>`;
+  let h=`<select onchange="admModo(${e.id},this.value)" style="margin-top:4px">${op("","Sello: como el evento ("+ev+")")}${op("app","Sello de la app")}${op("sin","No aplicar marca configurada (ya la trae)")}${admFaltaDato(e)?op("comp","Completar ubicación, fecha y hora"):""}</select>`;
   h+=`<label class="mut" style="display:flex;gap:6px;align-items:center;margin:4px 0 0;font-size:12px"><input type="checkbox" style="width:auto;margin:0" ${e.sinHora?"checked":""} onchange="admHora(${e.id},this.checked)"> sin hora</label>`;
   if(admDeclara(e)){ const f=e.datos&&e.datos.fecha;
-    h+=`<div class="mut" style="margin:2px 0 0;font-size:12px">🔐 ${m==="sin"?"Sin sello de la app":"Lugar y fecha declarados"}${m==="comp"&&admSinGps(e)?" · 📍 "+escAttr((e.datos&&e.datos.lugar)||"sin lugar"):""}</div>`; }   /* la fecha ya la muestra etiquetaFecha */
+    if(m==="comp"){ const it=itemById(e.itemCodigo);
+      if(!admFechaReal(e) && !(esPorDia(it)&&e.fechaSel)){ const fs=admFechasPosibles(), cur=(e.adm&&e.adm.fecha)||"";
+        h+=`<select onchange="admFechaFoto(${e.id},this.value)" style="margin-top:4px">${`<option value="">— Fecha de esta foto —</option>`+fs.map(x=>`<option value="${x}" ${x===cur?"selected":""}>${fmtDia(x)}</option>`).join("")}</select>`; }
+      if(!admHoraReal(e) && !e.sinHora) h+=`<label class="mut" style="display:flex;gap:6px;align-items:center;margin:4px 0 0;font-size:12px">Hora de esta foto <input type="time" style="width:auto;margin:0" value="${escAttr((e.adm&&e.adm.hora)||"")}" onchange="admHoraFoto(${e.id},this.value)"></label>`; }
+    h+=`<div class="mut" style="margin:2px 0 0;font-size:12px">🔐 ${m==="sin"?"Sin sello de la app":"Datos declarados"}${m==="comp"&&admSinGps(e)?" · 📍 "+escAttr((e.datos&&e.datos.lugar)||"sin lugar"):""}</div>`; }   /* la fecha ya la muestra etiquetaFecha */
   return h; }
 function admLugaresKey(){ return NS+"adm_lugares_"+((cfg&&cfg.uid)||"x"); }
 function admRecordarLugar(l){ l=String(l||"").trim(); if(!l) return; try{ const a=(loadJSON(admLugaresKey(),[])||[]).filter(x=>x!==l); a.unshift(l); saveJSON(admLugaresKey(),a.slice(0,8)); }catch(_){} }
@@ -2307,17 +2756,20 @@ function admPintarPanel(){ const box=$("admCarga"); if(!box) return;
 function admPanelVisible(){ const box=$("admCarga"); if(box) box.classList.toggle("hide", !admCargaActiva()); }
 async function admResellarVarias(lista){ for(const e of lista){ admAplicar(e); await resellar(e); } renderLista(); }
 window.admModo=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e) return;
-  e.adm = v ? {modo:v, fecha:$("admFecha").value, lugar:$("admLugar").value.trim()} : null;
+  e.adm = v ? {modo:v, fecha:$("admFecha").value, lugar:$("admLugar").value.trim(), hora:$("admHoraIn").value} : null;
   if(v==="comp") admRecordarLugar(e.adm.lugar);
   admResellarVarias([e]); };
+window.admHoraFoto=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e||!e.adm) return; e.adm.hora=v||""; e.adm.horaPropia=!!v; admResellarVarias([e]); };
+window.admFechaFoto=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e||!e.adm) return; e.adm.fecha=v||""; e.adm.fechaPropia=!!v; admResellarVarias([e]); };
 window.admHora=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e) return; e.sinHora=!!v; if(v && !e.declPor) e.declPor=admCorreo()||"admin"; resellar(e).then(renderLista); };
 function admListas(){ return batch.filter(e=>e.status==="listo" && e.tipo!=="video" && e.datos); }
-$("admCompletar").addEventListener("click", ()=>{ const lug=$("admLugar").value.trim(), f=$("admFecha").value;
-  const l=admListas().filter(admSinGps);
-  if(!l.length){ $("admMsg").textContent="No hay fotos sin ubicación en el lote."; return; }
-  if(!lug){ $("admMsg").textContent="Escribe el lugar primero."; return; }
-  l.forEach(e=>{ e.adm={modo:"comp", fecha:f, lugar:lug}; }); admRecordarLugar(lug);
-  $("admMsg").textContent=`${l.length} foto${l.length===1?"":"s"} con lugar y fecha declarados${f?"":" · falta elegir la fecha"}.`;
+$("admCompletar").addEventListener("click", ()=>{ const lug=$("admLugar").value.trim(), f=$("admFecha").value, h=$("admHoraIn").value;
+  const l=admListas().filter(admFaltaDato);
+  if(!l.length){ $("admMsg").textContent="Todas las fotos del lote traen ubicación, fecha y hora."; return; }
+  if(!lug && l.some(admSinGps)){ $("admMsg").textContent="Escribe el lugar primero."; return; }
+  l.forEach(e=>{ e.adm={modo:"comp", fecha:f, lugar:lug, hora:h}; }); if(lug) admRecordarLugar(lug);
+  const falta=[f?"":"la fecha", (h||$("admSinHora").checked)?"":"la hora (en el panel o foto por foto)"].filter(Boolean).join(" y ");
+  $("admMsg").textContent=`${l.length} foto${l.length===1?"":"s"} con datos declarados${falta?" · falta "+falta:""}.`;
   admResellarVarias(l); });
 $("admSinSello").addEventListener("click", ()=>{ const l=admListas(); if(!l.length){ $("admMsg").textContent="Aún no hay fotos en el lote."; return; }
   const f=$("admFecha").value; l.forEach(e=>{ e.adm={modo:"sin", fecha:f, lugar:""}; });
@@ -2327,9 +2779,9 @@ $("admSinHora").addEventListener("change", ()=>{ const v=$("admSinHora").checked
   $("admMsg").textContent = l.length ? `${l.length} foto${l.length===1?"":"s"} ${v?"sin":"con"} hora en el sello.` : (v?"Las fotos que cargues saldrán sin hora.":"");
   (async()=>{ for(const e of l) await resellar(e); renderLista(); })(); });
 /* Cambiar fecha o lugar del panel actualiza las fotos que ya están en modo administrador. */
-["admFecha","admLugar"].forEach(id=>$(id).addEventListener("change", ()=>{ const f=$("admFecha").value, lug=$("admLugar").value.trim();
+["admFecha","admLugar","admHoraIn"].forEach(id=>$(id).addEventListener("change", ()=>{ const f=$("admFecha").value, lug=$("admLugar").value.trim(), h=$("admHoraIn").value;
   const l=batch.filter(e=>admDeclara(e)); if(!l.length) return;
-  l.forEach(e=>{ e.adm.fecha=f; if(e.adm.modo==="comp") e.adm.lugar=lug; }); if(lug) admRecordarLugar(lug);
+  l.forEach(e=>{ if(!e.adm.fechaPropia) e.adm.fecha=f; if(e.adm.modo==="comp"){ e.adm.lugar=lug; if(!e.adm.horaPropia) e.adm.hora=h; } }); if(lug) admRecordarLugar(lug);   /* v41.2: lo ajustado foto por foto no se pisa */
   $("admMsg").textContent=`${l.length} foto${l.length===1?"":"s"} actualizada${l.length===1?"":"s"}${f?"":" · falta elegir la fecha"}.`; admResellarVarias(l); }));
 function geoKey(lat,lon){ return (+lat).toFixed(3)+","+(+lon).toFixed(3); }
 function metrosEntre(la1,lo1,la2,lo2){ const R=111320, dy=(la2-la1)*R, dx=(lo2-lo1)*R*Math.cos(la1*Math.PI/180); return Math.sqrt(dx*dx+dy*dy); }
