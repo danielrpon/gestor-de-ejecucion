@@ -32,6 +32,8 @@
   /* v44.1 · iOS Safari da a date/time un ancho mínimo propio y se salen de su columna: se neutraliza */
   input[type=date],input[type=time]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;min-height:45px;text-align:left}
   input[type=date]::-webkit-date-and-time-value,input[type=time]::-webkit-date-and-time-value{text-align:left}
+  /* v44.2 · aun así el iPhone no encoge la fecha a media pantalla: en celular las fechas van una debajo de la otra */
+  @media(max-width:560px){ .row.fechas{flex-direction:column;gap:10px} }
   .btn{width:100%;max-width:100%;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;font-family:var(--font);background:var(--oro);color:var(--btn-ink);white-space:normal;overflow-wrap:anywhere;line-height:1.25}
   .btn:disabled{opacity:.45;cursor:not-allowed}
   .btn.sec{background:#fff;color:var(--azul);border:1px solid var(--azul);font-weight:700}
@@ -152,7 +154,7 @@
       <div class="guia neutro hide" id="execNuevo" style="margin-bottom:10px">Evento <b>nuevo</b>, en blanco. Para modificar uno que ya existe, ábrelo en <b>▸ Configuración de eventos</b> (al final) o con el enlace del productor.</div>
       <div class="fld"><label>Cliente</label><input id="ecliente" type="text" autocomplete="off"></div>
       <div class="fld"><label>Evento</label><input id="eevento" type="text" autocomplete="off"></div>
-      <div class="row"><div class="fld"><label>Fecha de inicio</label><input id="efecha" type="date"></div><div class="fld"><label>Fecha fin <span style="font-weight:500">(si son varios días)</span></label><input id="efechafin" type="date"></div></div>
+      <div class="row fechas"><div class="fld"><label>Fecha de inicio</label><input id="efecha" type="date"></div><div class="fld"><label>Fecha fin <span style="font-weight:500">(si son varios días)</span></label><input id="efechafin" type="date"></div></div>
       <div class="fld"><label>Ciudad</label><input id="eciudad" type="text" autocomplete="off"></div>
       <div class="fld hide" id="eEjWrap"><label>Productor asignado</label><select id="eEj"><option value="">— Sin asignar —</option></select>
         <div class="mut" style="margin:4px 0 0">El productor ve y administra solo los eventos que tiene asignados.</div></div>
@@ -288,7 +290,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v44.1 · 29sep · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v44.2 · 29sep · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -1453,7 +1455,7 @@ window.adminAbrir=async(i)=>{
         +`<div class="mut" style="margin:0 0 6px;font-size:12px">Marca las fotos (o «seleccionar las filtradas») y escribe lo que falta. A cada foto solo se le completa lo que le falta; sus datos reales no se tocan. El sello se rehace con «_» y la versión anterior queda de respaldo.</div>`
         +`<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px;margin-bottom:6px;align-items:baseline"><a class="lnk" id="adSelTodas">seleccionar las filtradas</a><a class="lnk" id="adSelNinguna">quitar selección</a><b id="adSelN">0 seleccionadas</b></div>`
         +`<div class="fld"><label>Lugar (para las que no tienen ubicación)</label><input id="adCorrLugar" type="text" autocomplete="off" placeholder="Dirección, barrio, ciudad"></div>`
-        +`<div class="row" style="margin-top:8px"><div><label>Fecha (sin fecha original)</label><input id="adCorrFecha" type="date"></div><div><label>Hora (sin hora)</label><input id="adCorrHora" type="time"></div></div>`
+        +`<div class="row fechas" style="margin-top:8px"><div><label>Fecha (sin fecha original)</label><input id="adCorrFecha" type="date"></div><div><label>Hora (sin hora)</label><input id="adCorrHora" type="time"></div></div>`
         +`<button class="btn sec" id="adCorrAplicar" style="margin-top:10px">Aplicar a las seleccionadas</button><div class="mut" id="adCorrMsg" style="margin:6px 0 0;font-size:12px"></div></div>`:"")
       +`<div id="adEviList" class="list"></div>`;
     l.innerHTML=cab; adminCorrBind();
