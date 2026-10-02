@@ -150,13 +150,13 @@
       <div class="role" id="execRol">Productor</div>
       <div class="h">Configurar operación</div>
       <div style="margin:-4px 0 10px"><a class="lnk" id="execPanel">← Volver al panel</a></div>
-      <div class="guia neutro hide" id="execNuevo" style="margin-bottom:10px">Evento <b>nuevo</b>, en blanco. Para modificar uno que ya existe, ábrelo en <b>▸ Configuración de eventos</b> (al final) o con el enlace del productor.</div>
+      <div class="guia neutro hide" id="execNuevo" style="margin-bottom:10px">Evento <b>nuevo</b>, en blanco. Para modificar uno que ya existe, ábrelo desde tu panel con <b>✏️ Editar evento</b>.</div>
       <div class="fld"><label>Cliente</label><input id="ecliente" type="text" autocomplete="off"></div>
       <div class="fld"><label>Evento</label><input id="eevento" type="text" autocomplete="off"></div>
       <div class="row fechas"><div class="fld"><label>Fecha de inicio</label><input id="efecha" type="date"></div><div class="fld"><label>Fecha fin <span style="font-weight:500">(si son varios días)</span></label><input id="efechafin" type="date"></div></div>
       <div class="fld"><label>Ciudad</label><input id="eciudad" type="text" autocomplete="off"></div>
-      <div class="fld hide" id="eEjWrap"><label>Productor asignado</label><select id="eEj"><option value="">— Sin asignar —</option></select>
-        <div class="mut" style="margin:4px 0 0">El productor ve y administra solo los eventos que tiene asignados.</div></div>
+      <div class="fld hide" id="eEjWrap"><label>Ejecutivo asignado</label><select id="eEj"><option value="">— Sin asignar —</option></select>
+        <div class="mut" style="margin:4px 0 0">El ejecutivo ve y administra solo los eventos que tiene asignados.</div></div>
       <div style="height:14px"></div>
       <button class="btn sec" id="ebtnReq">Cargar lista de evidencias (Excel / CSV)</button>
       <input id="efileReq" type="file" accept=".xlsx,.xls,.csv">
@@ -239,7 +239,7 @@
       <div class="fld"><label>Celular</label><input id="lcel" type="text" inputmode="tel" autocomplete="off"></div>
       <div style="height:12px"></div>
       <button class="btn" id="lentrar">Ingresar</button>
-      <div class="mut">Sin contraseña. Se registra para saber quién cargó cada evidencia. <a class="lnk" id="reconfig">Soy el productor</a></div>
+      <div class="mut">Sin contraseña. Se registra para saber quién cargó cada evidencia. <a class="lnk" id="reconfig">Soy productor o ejecutivo</a></div>
     </div>
   </div>
 
@@ -289,7 +289,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v44.2 · 30sep · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v44.3 · 1oct · nombres de roles unificados («Ejecutivo asignado») · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -632,7 +632,7 @@ async function renderHistorial(){
   else arr=Object.values(eventos());                           // respaldo: cache local si no hay señal
   arr=arr.slice().sort((a,b)=>(b.consec||0)-(a.consec||0));
   if(!arr.length){ l.innerHTML='<div class="mut">Aún no hay eventos configurados.</div>'; return; }
-  l.innerHTML=arr.map(e=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.n_items||0} evidencias</div><div class="ac"><a class="lnk" onclick="copiarLinkEv('${e.uid}','oper')">link proveedor</a><a class="lnk" onclick="copiarLinkEv('${e.uid}','exec')">link productor</a><a class="lnk" onclick="editarEventoId('${e.uid}')">editar</a></div></div></div>`).join("");
+  l.innerHTML=arr.map(e=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.n_items||0} evidencias</div><div class="ac"><a class="lnk" onclick="copiarLinkEv('${e.uid}','oper')">link proveedor</a><a class="lnk" onclick="copiarLinkEv('${e.uid}','exec')">link para editar</a><a class="lnk" onclick="editarEventoId('${e.uid}')">editar</a></div></div></div>`).join("");
 }
 window.copiarLinkEv=(uid,tipo)=>{ const u=tipo==="exec"?linkExec(uid):linkOper(uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace para editar":"Enlace del proveedor")); };   // siempre el enlace directo ?ev=
 window.editarEventoId=(uid)=>{ editarEvento(uid); };
@@ -2047,8 +2047,9 @@ function agregar(fileList, meta, metaResp){
     else if(sm.length) msg.push((sm.length===1?"Esta foto no trae":"Estas "+sm.length+" fotos no traen")+" la fecha ni la ubicación originales. Seguro pasaron por WhatsApp o por una app de marca de agua.\n\nQuedan marcadas «sin ubicación» y no sirven bien como prueba.\n\nSi puedes, quítalas y tómalas de nuevo con «Capturar foto».");
     if(msg.length) alert(msg.join("\n\n— — —\n\n")); });
 }
-/* VOCABULARIO: en la interfaz el rol "operador" se llama PROVEEDOR y el "ejecutivo" se llama
-   PRODUCTOR (nomenclatura del cliente). Dentro del código, en las columnas de Supabase
+/* VOCABULARIO: en la interfaz el rol "operador" se llama PROVEEDOR. Desde la Capa 11 (v41) PRODUCTOR y
+   EJECUTIVO son roles DISTINTOS (productor crea eventos; ejecutivo administra los asignados) y la interfaz usa
+   los dos nombres tal cual (v44.3 deshace el «Productor asignado» de la v44.1). Dentro del código, en las columnas de Supabase
    (operador_nombre, operador_cedula…), en las claves de localStorage (est_operador) y en los
    encabezados del CSV se conservan los nombres viejos a propósito: renombrarlos rompería los
    datos ya cargados y las herramientas que consumen el manifiesto. */
