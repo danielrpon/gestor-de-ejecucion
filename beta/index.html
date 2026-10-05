@@ -122,6 +122,7 @@
   .prog .lbl{font-size:12.5px;color:var(--muted);margin-top:6px}
   .prog .lbl b{color:var(--txt);font-weight:800}
   .lnk.dis{opacity:.4;pointer-events:none}
+  .minSel{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#777;margin:0} .minSel select{width:auto;max-width:150px;flex:none;padding:2px 4px;font-size:12px;min-height:0} .minSel.dif{color:var(--azul);font-weight:700}
 </style>
 </head>
 <body>
@@ -290,7 +291,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v44.3 · 1oct · nombres de roles unificados («Ejecutivo asignado») · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v45 · 5oct · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -663,7 +664,7 @@ function nuevoExec(){
   if($("execNuevo")) $("execNuevo").classList.remove("hide");
   window.scrollTo(0,0);
 }
-function prefillExec(){ if(cfg){ epdAuto=true;   /* v38: evento existente = se respeta su cfg.pd guardado; antes se prendía solo al abrir el enlace del productor */ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("efechafin").value=cfg.ff||""; $("epd").checked=!!cfg.pd; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",grupo:i.grupo||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null))})); renderExecItems();
+function prefillExec(){ if(cfg){ epdAuto=true;   /* v38: evento existente = se respeta su cfg.pd guardado; antes se prendía solo al abrir el enlace del productor */ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("efechafin").value=cfg.ff||""; $("epd").checked=!!cfg.pd; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",grupo:i.grupo||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null)),mn:parseMin(i.mn)})); renderExecItems();
     const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; $("emGal").checked=cfg.gal!==false; $("emVf").checked=cfg.vf!==false; $("emMm").value=cfg.mm||""; } if(typeof renderHistorial==="function") renderHistorial();
   editandoId=null; aplicarModoExec(); }   // por defecto: modo NUEVO (los que editan fijan editandoId DESPUÉS y llaman aplicarModoExec)
 /* Modo de la vista ejecutivo: EDITAR (editandoId fijado) muestra solo "Guardar cambios" + "Duplicar";
@@ -675,6 +676,12 @@ function aplicarModoExec(){ const ed=!!editandoId;
   if($("eDuplicar")) $("eDuplicar").style.display=ed?"":"none"; }
 const fnorm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");   // sin acentos, minúsculas
 function llenarSelectFiltro(sel, valores){ if(!sel) return; const prev=sel.value; sel.innerHTML=""; const o0=document.createElement("option"); o0.value=""; o0.textContent=(sel.id==="fltCat"?"Todas las categorías":"Todos los proveedores"); sel.appendChild(o0); valores.forEach(v=>{ const o=document.createElement("option"); o.value=v; o.textContent=v; sel.appendChild(o); }); sel.value=valores.includes(prev)?prev:""; }
+/* v45 · selector del mínimo de evidencias en cada requerimiento del editor. "" = automático (3, o 2 en pagos a terceros). */
+function minSelHTML(it,idx){ const fijo=parseMin(it.mn), au=minAuto(it);
+  const ops=[`<option value=""${fijo?"":" selected"}>auto (${au}${au!==MIN_DEF?" · terceros":""})</option>`]
+    .concat([1,2,3,4,5,6,7,8,9,10].map(k=>`<option value="${k}"${fijo===k?" selected":""}>${k}</option>`)).join("");
+  return `<label class="minSel${minDe(it)!==MIN_DEF?" dif":""}" title="Mínimo de fotos para dar el requerimiento por completo">mín. <select onchange="minExec(${idx},this.value)">${ops}</select></label>`; }
+window.minExec=(idx,v)=>{ const it=execItems[idx]; if(!it) return; it.mn=parseMin(v); renderExecItems(); };
 function renderExecItems(){
   const c=$("execList"); c.innerHTML="";
   // poblar filtros (categorías y proveedores presentes en la lista)
@@ -691,10 +698,11 @@ function renderExecItems(){
     if(q && !fnorm([it.codigo,it.req,it.prov,it.nit,it.cat].join(" ")).includes(q)) return;
     mostrados++;
     const d=document.createElement("div"); d.className="ev";
-    d.innerHTML=`<div class="in"><b style="color:var(--azul)">${it.codigo}</b> · ${it.req||"(sin descripción)"}${it.cant?` &nbsp;<span class="mut" style="margin:0">x${it.cant}</span>`:""}${it.cat?` <span class="mut" style="margin:0">· ${it.cat}</span>`:(editandoId?` <span class="mut" style="margin:0">· <input list="catList" value="${escAttr(it.grupo||"")}" placeholder="categoría (orden)" onchange="grupoExec(${idx},this.value)" style="display:inline-block;width:150px;padding:2px 6px;font-size:12px"></span>`:"")}${it.prov||it.nit?`<div class="mut" style="margin:2px 0 0">${it.prov||""}${it.nit?`${it.prov?" · ":""}NIT ${it.nit}`:""}</div>`:""}<div class="ac"><a class="lnk" onclick="quitarExec(${idx})">quitar</a></div></div>`;
+    d.innerHTML=`<div class="in"><b style="color:var(--azul)">${it.codigo}</b> · ${it.req||"(sin descripción)"}${it.cant?` &nbsp;<span class="mut" style="margin:0">x${it.cant}</span>`:""}${it.cat?` <span class="mut" style="margin:0">· ${it.cat}</span>`:(editandoId?` <span class="mut" style="margin:0">· <input list="catList" value="${escAttr(it.grupo||"")}" placeholder="categoría (orden)" onchange="grupoExec(${idx},this.value)" style="display:inline-block;width:150px;padding:2px 6px;font-size:12px"></span>`:"")}${it.prov||it.nit?`<div class="mut" style="margin:2px 0 0">${it.prov||""}${it.nit?`${it.prov?" · ":""}NIT ${it.nit}`:""}</div>`:""}<div class="ac">${minSelHTML(it,idx)}<a class="lnk" onclick="quitarExec(${idx})">quitar</a></div></div>`;
     c.appendChild(d); });
   const n=execItems.length;
-  if(n) $("ereqInfo").textContent = n+(n===1?" evidencia en la lista.":" evidencias en la lista.");
+  const nMin=execItems.filter(it=>minDe(it)!==MIN_DEF).length;   // v45: cuántos piden un mínimo distinto de 3
+  if(n) $("ereqInfo").textContent = n+(n===1?" evidencia en la lista.":" evidencias en la lista.")+(nMin?` · ${nMin} con mínimo de fotos distinto de ${MIN_DEF}.`:"");
   if($("fltInfo")){ const filtrando=q||fc||fp; $("fltInfo").textContent = filtrando?`Mostrando ${mostrados} de ${n}`:`${n} en total`; }
   if(mostrados===0 && n){ c.innerHTML='<div class="mut" style="padding:8px 2px">Ningún requerimiento coincide con el filtro.</div>'; }
   if($("miCodHint")) $("miCodHint").textContent = "La app asignará el código "+nextCodigo()+" a la próxima evidencia.";
@@ -717,11 +725,11 @@ function renderPorDia(){
   if(on && !$("efechafin").value){ const todas=activos.flatMap(x=>fechasDeItem(x.it,ini)); if(todas.length) $("efechafin").value=todas.sort().slice(-1)[0]; }
   if(!ini && cand.length) inf.innerHTML='<span style="color:#b3261e">Pon la <b>fecha de inicio</b> del evento: de ahí salen los días de cada requerimiento.</span>';
   else if(!cand.length) inf.textContent="Ningún requerimiento viene marcado por día ni trae más de 1 día. Si alguno debe evidenciarse en días concretos, agrégalo abajo o márcalo en la plantilla (columnas días · fechas · por día).";
-  else inf.innerHTML=`<b>${activos.length}</b> de ${cand.length} candidato${cand.length===1?"":"s"} con evidencia por día. ${on?"Cada uno pedirá una foto <b>por cada fecha</b>; los demás requerimientos siguen con 3 fotos en total.":"Con el interruptor general apagado, ninguno exige foto por día (3 fotos en total)."} Fechas: ISO (2026-09-08) o relativas al inicio (D1 = primer día, D1;D2;D4).`
+  else inf.innerHTML=`<b>${activos.length}</b> de ${cand.length} candidato${cand.length===1?"":"s"} con evidencia por día. ${on?"Cada uno pedirá una foto <b>por cada fecha</b>; los demás requerimientos siguen con su mínimo de fotos (3, o el que tengan fijado).":"Con el interruptor general apagado, ninguno exige foto por día (cada uno pide su mínimo de fotos)."} Fechas: ISO (2026-09-08) o relativas al inicio (D1 = primer día, D1;D2;D4).`
     +(cand.length>1?` <a class="lnk" style="font-size:12px" onclick="epdTodos(true)">todos</a> · <a class="lnk" style="font-size:12px" onclick="epdTodos(false)">ninguno</a>`:"");
   l.innerHTML=cand.map(({it,idx})=>{ const fs=fechasDeItem(it,ini); const nd=diasNum(it)||fs.length||1; const off=it.pd===false; const toks=parseFechas(it.fechas||[]);
     return `<div class="ev" style="${off?"opacity:.55":""}"><div class="in"><label class="tgl" style="font-size:14px"><input type="checkbox" ${off?"":"checked"} onchange="epdToggle(${idx},this.checked)"><span><b style="color:var(--azul)">${escAttr(it.codigo)}</b> · ${escAttr(it.req||"")}${it.cat?` <span class="mut" style="margin:0">· ${escAttr(it.cat)}</span>`:""}</span></label>
-      ${off?`<div class="mut" style="margin:3px 0 0">Sin evidencia por día: se comporta como los demás (3 fotos en total).</div>`:`
+      ${off?`<div class="mut" style="margin:3px 0 0">Sin evidencia por día: se comporta como los demás (su mínimo de fotos en total).</div>`:`
       <div class="row" style="margin-top:6px;align-items:flex-end"><div class="fld" style="flex:0 0 78px"><label>Días</label><input type="number" min="1" value="${nd}" onchange="epdDias(${idx},this.value)"></div>
       <div class="fld" style="flex:1"><label>Fechas (${fs.length})</label><input type="text" value="${escAttr(toks.length?toks.join(", "):fs.join(", "))}" placeholder="2026-09-08, D1, D3…" onchange="epdFechas(${idx},this.value)"></div></div>
       <div class="mut" style="margin:3px 0 0">${fs.length?fs.map(fmtDia).join(" · "):"(sin fechas: falta la fecha de inicio)"}</div>`}
@@ -794,7 +802,16 @@ function fotosDeItemDia(iid,f){ return enLoteDeItemDia(iid,f)+enviadasDeItemDia(
 function estadoDia(it){ const fs=fechasDeItem(it), hoy=isoHoy();
   const cub=fs.filter(f=>fotosDeItemDia(it.iid,f)>=1), atras=fs.filter(f=>f<hoy && fotosDeItemDia(it.iid,f)<1);
   return { fechas:fs, cubiertos:cub, hoy, hoyReq:fs.includes(hoy), hoyOk:fotosDeItemDia(it.iid,hoy)>=1, atrasados:atras, completo:fs.length>0&&cub.length===fs.length, idx:fs.indexOf(hoy)+1 }; }
-function itemCompleto(it){ return esPorDia(it) ? estadoDia(it).completo : fotosDeItem(it.iid)>=3; }
+/* v45 · Mínimo de evidencias por requerimiento (campo mn). Vacío = automático: 3, o 2 si es pago a terceros
+   (cuenta de cobro + factura). Se fija desde la columna «evidencias minimas» del Excel o en el editor del evento. */
+const MIN_DEF=3;
+function esPagoTerceros(it){ if(!it) return false; const c=fnorm([it.cat,it.grupo].join(" ")), t=fnorm([it.req,it.car].join(" "));
+  return /\b(terceros|3e?ros)\b/.test(c) || /pagos?\s+a\s+(terceros|3e?ros)\b/.test(t); }
+function minAuto(it){ return esPagoTerceros(it)?2:MIN_DEF; }
+function parseMin(v){ const n=parseInt(String(v==null?"":v).replace(/\D/g,""),10); return n>=1 ? Math.min(10,n) : null; }
+function minDe(it){ if(!it) return MIN_DEF; return parseMin(it.mn) || minAuto(it); }
+function minDeIid(iid){ return minDe(itemById(iid)); }
+function itemCompleto(it){ return esPorDia(it) ? estadoDia(it).completo : fotosDeItem(it.iid)>=minDe(it); }
 /* ---- Capa 13 · de qué día es cada foto ----
    origen: "captura" (cámara de la app, fecha del celular) · "metadatos" (galería con fecha original) ·
    "declarada" (galería sin fecha: el proveedor dice de qué día es) · "carga" (sin fecha y el ítem no es por día). */
@@ -875,7 +892,7 @@ async function parsearPlantilla(file){
       cat:get(r,["categoria","categoría","modulo","módulo","grupo","hoja"]),
       car:get(r,["caracteristicas","características","especificaciones","observaciones","nota"]),
       um:get(r,["unidad de medida","unidad_de_medida","unidad","um","medida"]),
-      dias:get(r,["dias","días","dias_servicio"]), fechas:parseFechas(get(r,["fechas","fechas requeridas","dias especificos","días específicos","fechas_evidencia"])), pd:parseBool(get(r,["por dia","por día","por_dia","evidencia por dia","evidencia por día","evidencia diaria","diaria"])) })).filter(x=>x.req||x.codigo);
+      dias:get(r,["dias","días","dias_servicio"]), fechas:parseFechas(get(r,["fechas","fechas requeridas","dias especificos","días específicos","fechas_evidencia"])), pd:parseBool(get(r,["por dia","por día","por_dia","evidencia por dia","evidencia por día","evidencia diaria","diaria"])), mn:parseMin(get(r,["evidencias minimas","evidencias mínimas","evidencia minima","evidencia mínima","minimo evidencias","mínimo evidencias","min evidencias","evidencias_minimas","min_evidencias","minimo","mínimo","fotos minimas","fotos mínimas"])) })).filter(x=>x.req||x.codigo);
   let mx=0; items.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx)mx=n; });
   items.forEach(it=>{ if(!String(it.codigo).trim()){ mx++; it.codigo=String(mx).padStart(2,"0"); } });   // la app asigna código a los ítems sin código
   return {rows, items, get};
@@ -895,7 +912,7 @@ async function completarFicha(file){
       const m=mapa[it.iid];
       if(!m){ sin++; return; }
       let toco=false;
-      ["car","um","dias","fechas"].forEach(f=>{ if(!String(it[f]||"").trim() && String(m[f]||"").trim()){ it[f]=m[f]; toco=true; } }); if(it.pd==null && m.pd!=null){ it.pd=m.pd; toco=true; }
+      ["car","um","dias","fechas"].forEach(f=>{ if(!String(it[f]||"").trim() && String(m[f]||"").trim()){ it[f]=m[f]; toco=true; } }); if(it.pd==null && m.pd!=null){ it.pd=m.pd; toco=true; } if(!parseMin(it.mn) && parseMin(m.mn)){ it.mn=parseMin(m.mn); toco=true; }
       if(!String(it.cant||"").trim() && String(m.cant||"").trim()){ it.cant=m.cant; toco=true; }
       if(toco) ok++;
     });
@@ -918,7 +935,7 @@ async function cargarReq(file){
     execItems = rows.map(r=>({ codigo:get(r,["item_codigo","codigo","código","item","ítem","id","cod"]), req:get(r,["requerimiento","descripcion","descripción","detalle","concepto"]), cant:get(r,["cantidad","cant","qty","unidades"]), prov:get(r,["nombre proveedores","nombre proveedor","proveedor","provider","prov","proveedor_nombre","empresa","contratista"]), nit:get(r,["nit proveedor","nit","nit_proveedor","identificacion proveedor","identificación proveedor"]), cat:get(r,["categoria","categoría","modulo","módulo","grupo","hoja"]),
       car:get(r,["caracteristicas","características","especificaciones","observaciones","nota"]),
       um:get(r,["unidad de medida","unidad_de_medida","unidad","um","medida"]),
-      dias:get(r,["dias","días","dias_servicio"]), fechas:parseFechas(get(r,["fechas","fechas requeridas","dias especificos","días específicos","fechas_evidencia"])), pd:parseBool(get(r,["por dia","por día","por_dia","evidencia por dia","evidencia por día","evidencia diaria","diaria"])) })).filter(x=>x.req||x.codigo);
+      dias:get(r,["dias","días","dias_servicio"]), fechas:parseFechas(get(r,["fechas","fechas requeridas","dias especificos","días específicos","fechas_evidencia"])), pd:parseBool(get(r,["por dia","por día","por_dia","evidencia por dia","evidencia por día","evidencia diaria","diaria"])), mn:parseMin(get(r,["evidencias minimas","evidencias mínimas","evidencia minima","evidencia mínima","minimo evidencias","mínimo evidencias","min evidencias","evidencias_minimas","min_evidencias","minimo","mínimo","fotos minimas","fotos mínimas"])) })).filter(x=>x.req||x.codigo);
     let mx=0; execItems.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx)mx=n; });
     execItems.forEach(it=>{ if(!String(it.codigo).trim()){ mx++; it.codigo=String(mx).padStart(2,"0"); } });   // la app asigna código a los ítems sin código
     const c=rows.map(r=>get(r,["cliente","client"])).find(Boolean), e=rows.map(r=>get(r,["evento","nombre_evento"])).find(Boolean), ci=rows.map(r=>get(r,["ciudad","municipio"])).find(Boolean);
@@ -933,7 +950,7 @@ function chequearGen(){ $("egen").disabled = !(execItems.length && $("ecliente")
 function saveConfigDesdeExec(){
   const uid=cfg&&cfg.uid, consec=cfg&&cfg.consec;   // preservar identidad del evento si ya existe
   cfg = { cl:$("ecliente").value.trim(), ev:$("eevento").value.trim(), fe:$("efecha").value, ff:$("efechafin").value||"", pd:!!$("epd").checked, ci:$("eciudad").value.trim(),
-          it:execItems.map(i=>Object.assign({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null))}, i.grupo?{grupo:i.grupo}:{})),
+          it:execItems.map(i=>Object.assign({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null)),mn:parseMin(i.mn)}, i.grupo?{grupo:i.grupo}:{})),
           marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked}, gal:$("emGal").checked, vf:$("emVf").checked, mm:$("emMm").value };   /* v42: mm = qué hacer con fotos de galería sin metadatos ("" aceptar y marcar · fh · fhu) */   /* v38: vf=false → no se exige que la foto sea de las fechas del evento */   // marca definida por el ejecutivo, igual para todos
   if(uid) cfg.uid=uid; if(consec) cfg.consec=consec;
   saveJSON(NS+"config", cfg);
@@ -1307,7 +1324,7 @@ function adminRenderDash(){
     visibles.push(i); gReqTot+=e._items.length;
     const conEvi=items.filter(it=>(porItem[e.uid+"|"+it.iid]||0)>=1).length;
     const pdm=adminPorDia(e, items);   // Capa 12: ítems por día se completan con foto en cada fecha
-    const comp=items.filter(it=>pdm.mapa[it.iid]?pdm.mapa[it.iid].completo:(porItem[e.uid+"|"+it.iid]||0)>=3).length;
+    const comp=items.filter(it=>pdm.mapa[it.iid]?pdm.mapa[it.iid].completo:(porItem[e.uid+"|"+it.iid]||0)>=minDe(it)).length;
     const pend=items.length-comp, av=items.length?Math.round(comp/items.length*100):0;
     const extras=(extrasPorEvento[e.uid]||new Set()).size;   // adicionales creados en sitio, no están en el config
     gReq+=items.length; gComp+=comp; gEvi+=reg; gExtra+=extras;
@@ -1778,8 +1795,8 @@ function poblarItemTop(){
   const s=$("item"); const cur=s.value; s.innerHTML="<option value=''>— Elige un requerimiento —</option>";
   const todos=itemsDelOperador(); const hoy=isoHoy(); let valores=[];
   const opcionItem=(it)=>{ const o=document.createElement("option"); o.value=it.iid; valores.push(it.iid);
-    const cta=String(it.cant||"").trim(), umd=String(it.um||"").trim(); const n=fotosDeItem(it.iid); const mark = n>=3?"✓ ":(n>0?"◔ ":"○ ");   // ✓ completo · ◔ en progreso · ○ pendiente
-    o.textContent=(it.adicional?"➕ ":"")+mark+(it.cat?`${it.cat} · `:"")+(it.req?`${it.codigo} · ${it.req}`:it.codigo)+(cta?`  ×${cta}${umd?" "+umd:""}`:"")+((n>0&&n<3)?`  (${n}/3)`:"");
+    const cta=String(it.cant||"").trim(), umd=String(it.um||"").trim(); const n=fotosDeItem(it.iid), mn=minDe(it); const mark = n>=mn?"✓ ":(n>0?"◔ ":"○ ");   // ✓ completo · ◔ en progreso · ○ pendiente
+    o.textContent=(it.adicional?"➕ ":"")+mark+(it.cat?`${it.cat} · `:"")+(it.req?`${it.codigo} · ${it.req}`:it.codigo)+(cta?`  ×${cta}${umd?" "+umd:""}`:"")+((n>0&&n<mn)?`  (${n}/${mn})`:"");
     return o; };
   const opcionLinea=(L)=>{ const it=L.it, n=fotosDeItemDia(it.iid,L.fecha); const o=document.createElement("option"); o.value=L.value; valores.push(L.value);   // Capa 13: una línea por día
     const mark = n>=1?"✓ ":(L.fecha<hoy?"⚠ ":"○ "); const rel = L.fecha===hoy?" · HOY":(L.fecha===sumarDias(hoy,-1)?" · ayer":"");
@@ -1809,7 +1826,7 @@ function irACaptura(){
   cargarLote().then(()=>{ if(batch.length){ renderLista(); actualizarGuia(); } });   // restaura el lote en curso si quedó de una sesión anterior
   sincronizarProgreso(true);   // trae el progreso ya subido a la base (funciona entre dispositivos)
 }
-/* ---- Captura guiada por ítem (mínimo 3 fotos enfocadas) ---- */
+/* ---- Captura guiada por ítem (mínimo de fotos enfocadas: 3 por defecto, minDe) ---- */
 /* Ojo: el campo se sigue llamando "itemCodigo" por compatibilidad con lotes ya guardados en
    IndexedDB, pero desde la v12 guarda el IID (categoria|codigo|ordinal), no el codigo pelado. */
 function enLoteDeItem(cod){ return cod ? batch.filter(e=>e.itemCodigo===cod && e.tipo==="foto").length : 0; }      // en el lote actual (sin enviar)
@@ -1938,12 +1955,12 @@ function actualizarGuia(){
   const g=$("guiaItem"); if(!g) return;
   const cod=selIid(), fSel=selFecha();
   if(!cod){ g.className="guia neutro"; g.innerHTML="Elige un requerimiento arriba para ver la guía y el contador de fotos."; return; }
-  const enLote=enLoteDeItem(cod), enviadas=enviadasDeItem(cod), n=enLote+enviadas, meta=3, ok=n>=meta;
-  const it=itemsDelOperador().find(x=>x.iid===cod)||itemById(cod); const nombre=(it&&it.req)?it.req:cod;
+  const enLote=enLoteDeItem(cod), enviadas=enviadasDeItem(cod), n=enLote+enviadas;
+  const it=itemsDelOperador().find(x=>x.iid===cod)||itemById(cod); const meta=minDe(it), ok=n>=meta; const nombre=(it&&it.req)?it.req:cod;
   g.className="guia "+(ok?"ok":"falta");
   let head;
   if(enviadas>0 && enLote===0) head=`✅ ${nombre.slice(0,44)} — ${enviadas} ya enviada${enviadas===1?"":"s"} · listo`;
-  else{ head=`${ok?"✅":"📸"} ${nombre.slice(0,44)} — ${enLote} en este lote`+(enviadas>0?` (+${enviadas} enviadas)`:"")+(ok?" · meta cumplida":` · faltan ${meta-n} para el mínimo de 3`); }
+  else{ head=`${ok?"✅":"📸"} ${nombre.slice(0,44)} — ${enLote} en este lote`+(enviadas>0?` (+${enviadas} enviadas)`:"")+(ok?" · meta cumplida":` · faltan ${meta-n} para el mínimo de ${meta}`); }
   let linea=""; if(fSel){ const fs=fechasDeItem(it); const k=fs.indexOf(fSel)+1, hoy=isoHoy(); const nd=fotosDeItemDia(cod,fSel);   // Capa 13: línea por día
     linea=`<div class="gcount">📅 Cargando <b>día ${k} de ${fs.length} · ${fmtDia(fSel)}${fSel===hoy?" (hoy)":(fSel===sumarDias(hoy,-1)?" (ayer)":"")}</b> · ${nd?nd+" foto"+(nd===1?"":"s")+" ✓":"sin foto aún"}</div>`
       +(fSel<hoy?`<div class="mut" style="margin:2px 0 0">Día pasado: solo se aceptan fotos de la <b>galería tomadas ese día</b>. Una foto tomada ahora con la cámara pertenece a hoy.</div>`:"")
@@ -1955,11 +1972,11 @@ function actualizarGuia(){
 let itemAnterior="";
 $("item").addEventListener("change", ()=>{
   const nuevo=$("item").value;
-  // Mínimo 3 por requerimiento: no dejar pasar a otro requerimiento si el actual está empezado (<3).
+  // Mínimo por requerimiento (minDe): no dejar pasar a otro requerimiento si el actual está empezado y no lo cumple.
   if(itemAnterior && nuevo && nuevo!==itemAnterior){
-    const iidPrev=selIidDe(itemAnterior); const totalPrev=fotosDeItem(iidPrev);
-    if(!esPorDia(itemById(iidPrev)) && enLoteDeItem(iidPrev)>0 && totalPrev<3){   // Capa 12: por día basta 1 foto
-      alert(`Aún no completas las 3 evidencias de «${itemReqCorto(iidPrev)}» (llevas ${totalPrev}).\n\nCaptura al menos 3 fotos de un requerimiento antes de pasar a otro.`);
+    const iidPrev=selIidDe(itemAnterior); const totalPrev=fotosDeItem(iidPrev), mnPrev=minDeIid(iidPrev);
+    if(!esPorDia(itemById(iidPrev)) && enLoteDeItem(iidPrev)>0 && totalPrev<mnPrev){   // Capa 12: por día basta 1 foto
+      alert(`Aún no completas las ${mnPrev} evidencias de «${itemReqCorto(iidPrev)}» (llevas ${totalPrev}).\n\nCaptura al menos ${mnPrev} fotos de este requerimiento antes de pasar a otro.`);
       $("item").value=itemAnterior; actualizarGuia(); return;
     }
   }
@@ -2267,14 +2284,14 @@ async function empaquetar(accion, saltarMin){   // accion: "supabase" | "compart
   }
   const sinReq=listas.filter(e=>!e.itemCodigo);
   if(sinReq.length){ alert(`Hay ${sinReq.length} evidencia(s) sin requerimiento asignado. Selecciona un requerimiento en cada una (menú ↑) antes de continuar.`); renderLista(); return; }
-  // Mínimo 3 por requerimiento para ENVIAR/COMPARTIR (Descargar ZIP se permite como respaldo sin el mínimo).
+  // Mínimo por requerimiento (minDe) para ENVIAR/COMPARTIR (Descargar ZIP se permite como respaldo sin el mínimo).
   if(accion!=="zip" && !saltarMin){
     const codsLote=[...new Set(listas.filter(e=>e.tipo==="foto"&&e.itemCodigo).map(e=>e.itemCodigo))];
-    const incompletos=codsLote.filter(cod=>fotosDeItem(cod)<3);
+    const incompletos=codsLote.filter(cod=>fotosDeItem(cod)<minDeIid(cod));
     if(incompletos.length){
-      alert("Cada requerimiento necesita MÍNIMO 3 evidencias. Aún faltan:\n\n"+
-        incompletos.map(cod=>`• ${cod} · ${itemReqCorto(cod)} (${fotosDeItem(cod)}/3)`).join("\n")+
-        "\n\nCompleta las 3 fotos, o usa «Descargar ZIP» para respaldo.");
+      alert("Cada requerimiento necesita su mínimo de evidencias. Aún faltan:\n\n"+
+        incompletos.map(cod=>`• ${cod} · ${itemReqCorto(cod)} (${fotosDeItem(cod)}/${minDeIid(cod)})`).join("\n")+
+        "\n\nCompleta las fotos que faltan, o usa «Descargar ZIP» para respaldo.");
       renderLista(); return; }
   }
   enviando=true;
