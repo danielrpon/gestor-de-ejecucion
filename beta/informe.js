@@ -445,8 +445,8 @@ function abrir(ctx){
     <div class="row" style="margin-top:8px"><div><label>Operador</label><input id="infOper" type="text" value="${v("operador","Estrella Grupo Empresarial S.A")}"></div>
       <div><label>Contacto (contraportada)</label><input id="infContacto" type="text" value="${v("contacto","")}" placeholder="Nombre · cargo"></div></div>
     <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:inherit"><input id="infPegar" type="checkbox" style="width:auto;flex:none;margin:0" ${g.hojasPegar===false?"":"checked"}> Soportes comerciales: requerimiento inicial, cotización inicial y cotización final</label>
-    <div id="infSop" style="margin:6px 0 0 24px">${SOPORTES.map(d=>`<div class="fld" style="margin-top:6px"><label>${d.t}</label>${d.valor?`<input type="text" data-sopval="${d.k}" placeholder="Valor (ej.: 573413)" style="margin-bottom:4px">`:""}<input type="file" multiple data-sop="${d.k}" accept="image/*,.heic,.heif,.xlsx,.xlsm,.xls,.csv"><div class="mut" data-sopest="${d.k}" style="margin:2px 0 0">Adjunta ${d.h}. Puedes elegir varias: una lámina por archivo, en el orden en que las elijas.</div></div>`).join("")}
-      <div class="fld" style="margin-top:6px"><label>Observaciones a la cotización</label><textarea id="infObs" rows="2" placeholder="Una por línea. Ej.: Se entrega a satisfacción sin ninguna novedad."></textarea></div>
+    <div id="infSop" style="margin:6px 0 0 24px">${SOPORTES.map(d=>`<div class="fld" style="margin-top:6px"><label>${d.t}</label>${d.valor?`<input type="text" data-sopval="${d.k}" placeholder="Valor (ej.: 573413)" style="margin-bottom:4px">`:""}<button type="button" class="btn sec" data-sopbtn="${d.k}" style="padding:9px;font-size:14px">📎 Agregar archivos · ${d.t.toLowerCase()}</button><input type="file" multiple data-sop="${d.k}" accept="image/*,.heic,.heif,.xlsx,.xlsm,.xls,.csv" style="display:none"><div class="mut" data-sopest="${d.k}" style="margin:2px 0 0">Adjunta ${d.h}. Puedes elegir varias: una lámina por archivo, en el orden en que las elijas.</div></div>`).join("")}
+      <div class="fld" style="margin-top:6px"><label>Observaciones a la cotización</label><textarea id="infObs" rows="3" style="width:100%;box-sizing:border-box" placeholder="Una por línea. Ej.: Se entrega a satisfacción sin ninguna novedad."></textarea></div>
       <div class="mut" style="margin-top:4px">Imágenes o Excel. No se guardan: adjúntalos cada vez que generes. El soporte que falte sale como lámina para pegar.</div></div>
     <label style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:inherit"><input id="infAdic" type="checkbox" style="width:auto;flex:none;margin:0" ${g.adicionales?"checked":""}> Incluir requerimientos adicionales reportados en sitio</label>
     ${filtrado?`<div class="mut" style="color:var(--oro-d)">Se usará el filtro actual del visor: ${ctx.visibles.length} de ${ctx.evidencias.length} evidencias.</div>`:""}
@@ -457,8 +457,12 @@ function abrir(ctx){
   if(g.formato) box.querySelector("#infFmt").value=g.formato; if(g.version) box.querySelector("#infVer").value=g.version; if(g.maxPorGrupo!=null) box.querySelector("#infMax").value=String(g.maxPorGrupo);
   const sop={}, sopPend={};
   const verSop=()=>{ box.querySelector("#infSop").classList.toggle("hide",!box.querySelector("#infPegar").checked); };
+  /* La app oculta todos los input[type=file] (index.html: input[type=file]{display:none}) y los abre con
+     botones propios; aquí igual: el botón abre el selector. */
+  box.querySelectorAll("[data-sopbtn]").forEach(bt=>bt.addEventListener("click",()=>box.querySelector(`input[data-sop="${bt.dataset.sopbtn}"]`).click()));
   box.querySelectorAll("input[data-sop]").forEach(inp=>inp.addEventListener("change",()=>{ const k=inp.dataset.sop, est=box.querySelector(`[data-sopest="${k}"]`), fs=[...(inp.files||[])];
     delete sop[k]; if(!fs.length){ est.textContent="Sin adjuntar."; estimar(); return; }
+    box.querySelector(`[data-sopbtn="${k}"]`).textContent=`📎 Cambiar archivos (${fs.length})`;
     est.textContent=`Leyendo ${fs.length} archivo(s)…`;
     sopPend[k]=Promise.allSettled(fs.map(prepararSoporte)).then(rs=>{
       const ok=[], lin=[];
