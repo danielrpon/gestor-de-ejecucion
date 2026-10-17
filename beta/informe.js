@@ -240,7 +240,8 @@ async function generarPPTX(m, lista, fotos, op, parte){
         }); });
       const obs=String(op.observaciones||"").split(/\n+/).map(x=>x.replace(/^[\s•·\-*]+/,"").trim()).filter(Boolean);
       if(obs.length){ s=pptx.addSlide({masterName:"INF"}); cabecera(s,"Observaciones a la cotización","");
-        s.addText(obs.slice(0,14).map(x=>({text:recorta(x,220),options:{bullet:true,breakLine:true,paraSpaceAfter:8}})),{x:0.7,y:1.4,w:11.9,h:5.3,fontFace:F,fontSize:obs.length>8?14:18,color:"222222",valign:"top",margin:0}); }
+        const tot=obs.reduce((n,x)=>n+x.length,0), fsO=(tot>600||obs.length>8)?14:tot>250?16:18;   /* sin recortar: la letra baja con el largo */
+        s.addText(obs.slice(0,14).map(x=>({text:recorta(x,900),options:{bullet:true,breakLine:true,paraSpaceAfter:8}})),{x:0.7,y:1.4,w:11.9,h:5.3,fontFace:F,fontSize:fsO,color:"222222",valign:"top",margin:0,fit:"shrink"}); }
     }
   }
 
@@ -446,7 +447,7 @@ function abrir(ctx){
       <div><label>Contacto (contraportada)</label><input id="infContacto" type="text" value="${v("contacto","")}" placeholder="Nombre · cargo"></div></div>
     <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:inherit"><input id="infPegar" type="checkbox" style="width:auto;flex:none;margin:0" ${g.hojasPegar===false?"":"checked"}> Soportes comerciales: requerimiento inicial, cotización inicial y cotización final</label>
     <div id="infSop" style="margin:6px 0 0 24px">${SOPORTES.map(d=>`<div class="fld" style="margin-top:6px"><label>${d.t}</label>${d.valor?`<input type="text" data-sopval="${d.k}" placeholder="Valor (ej.: 573413)" style="margin-bottom:4px">`:""}<button type="button" class="btn sec" data-sopbtn="${d.k}" style="padding:9px;font-size:14px">📎 Agregar archivos · ${d.t.toLowerCase()}</button><input type="file" multiple data-sop="${d.k}" accept="image/*,.heic,.heif,.xlsx,.xlsm,.xls,.csv" style="display:none"><div class="mut" data-sopest="${d.k}" style="margin:2px 0 0">Adjunta ${d.h}. Puedes elegir varias: una lámina por archivo, en el orden en que las elijas.</div></div>`).join("")}
-      <div class="fld" style="margin-top:6px"><label>Observaciones a la cotización</label><textarea id="infObs" rows="3" style="width:100%;box-sizing:border-box" placeholder="Una por línea. Ej.: Se entrega a satisfacción sin ninguna novedad."></textarea></div>
+      <div class="fld" style="margin-top:6px"><label>Observaciones a la cotización</label><textarea id="infObs" rows="6" maxlength="1200" placeholder="Una por línea. Ej.: Se entrega a satisfacción sin ninguna novedad." style="display:block;width:100%;box-sizing:border-box;height:152px;resize:none;background:var(--field);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:11px;font-size:15px;line-height:1.45;font-family:var(--font)"></textarea><div class="mut" id="infObsN" style="margin:3px 0 0;text-align:right;font-variant-numeric:tabular-nums">0/250</div></div>
       <div class="mut" style="margin-top:4px">Imágenes o Excel. No se guardan: adjúntalos cada vez que generes. El soporte que falte sale como lámina para pegar.</div></div>
     <label style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:inherit"><input id="infAdic" type="checkbox" style="width:auto;flex:none;margin:0" ${g.adicionales?"checked":""}> Incluir requerimientos adicionales reportados en sitio</label>
     ${filtrado?`<div class="mut" style="color:var(--oro-d)">Se usará el filtro actual del visor: ${ctx.visibles.length} de ${ctx.evidencias.length} evidencias.</div>`:""}
@@ -459,6 +460,10 @@ function abrir(ctx){
   const verSop=()=>{ box.querySelector("#infSop").classList.toggle("hide",!box.querySelector("#infPegar").checked); };
   /* La app oculta todos los input[type=file] (index.html: input[type=file]{display:none}) y los abre con
      botones propios; aquí igual: el botón abre el selector. */
+  /* Observaciones: alto fijo (~250 caracteres a la vista en el celular) y contador suave: pasado 250 avisa, no bloquea. */
+  const obsN=()=>{ const n=box.querySelector("#infObs").value.length, el=box.querySelector("#infObsN");
+    el.textContent=n>250?`${n}/250 · en la lámina la letra saldrá más pequeña`:`${n}/250`; el.style.color=n>250?"#b7791f":""; };
+  box.querySelector("#infObs").addEventListener("input",obsN);
   box.querySelectorAll("[data-sopbtn]").forEach(bt=>bt.addEventListener("click",()=>box.querySelector(`input[data-sop="${bt.dataset.sopbtn}"]`).click()));
   box.querySelectorAll("input[data-sop]").forEach(inp=>inp.addEventListener("change",()=>{ const k=inp.dataset.sop, est=box.querySelector(`[data-sopest="${k}"]`), fs=[...(inp.files||[])];
     delete sop[k]; if(!fs.length){ est.textContent="Sin adjuntar."; estimar(); return; }
