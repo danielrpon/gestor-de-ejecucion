@@ -56,10 +56,15 @@ async function prepararFoto(blob,lado,calidad){
    inicial y final. Se adjuntan en el panel al generar y NO se guardan en Supabase (son documentos comerciales).
    Imagen (captura del correo o de la cotización) → se monta ajustada a la lámina, a 1.800 px para que se lea;
    Excel/CSV → tabla con la primera hoja. El soporte que falte sale como lámina para pegar, como antes. */
+/* v46.1: como el ejemplo de Kevin (informe 548 de Plaza Mayor): varias capturas por soporte (una lámina por
+   cada parte del formato de cotización), el valor en el título y una lámina de observaciones a la cotización. */
 const SOPORTES=[
-  {k:"req",    t:"Requerimiento inicial", h:"correo o captura del requerimiento del cliente"},
-  {k:"cotIni", t:"Cotización inicial",    h:"Excel o captura de la cotización inicial"},
-  {k:"cotFin", t:"Cotización final",      h:"archivo o captura de la cotización final"}];
+  {k:"req",    t:"Requerimiento",          h:"correo o captura(s) del requerimiento del cliente"},
+  {k:"cotIni", t:"Cotización inicial",     h:"captura(s) o Excel de la cotización inicial", valor:true},
+  {k:"cotFin", t:"Valor ejecución final",  h:"captura(s) o archivo de la cotización final", valor:true}];
+function fmtValor(v){ v=String(v||"").trim(); if(!v) return ""; const d=v.replace(/[^\d]/g,"");
+  return /^[\s$.,\d]+$/.test(v)&&d ? "$"+Number(d).toLocaleString("es-CO") : v; }
+function tituloSop(d,op){ const v=d.valor?fmtValor((op.valores||{})[d.k]):""; return d.t+(v?" "+v:""); }
 const SOP_FILAS=60, SOP_COLS=8, SOP_POR_LAMINA=13;
 function esHoja(f){ return /\.(xlsx|xlsm|xls|csv)$/i.test(f.name||""); }
 async function prepararSoporte(file){
@@ -213,25 +218,29 @@ async function generarPPTX(m, lista, fotos, op, parte){
     }
     if(op.hojasPegar){
       const sop=op.soportes||{};
-      SOPORTES.forEach(d=>{ const x=sop[d.k];
+      SOPORTES.forEach(d=>{ const L=sop[d.k]||[], T=tituloSop(d,op);
+        (L.length?L:[null]).forEach((x,ix)=>{ const tt=T+(L.length>1?` (${ix+1}/${L.length})`:"");
         if(x&&x.tipo==="img"){
-          s=pptx.addSlide({masterName:"INF"}); cabecera(s,d.t,x.nombre);
+          s=pptx.addSlide({masterName:"INF"}); cabecera(s,tt,x.nombre);
           const BX=0.5, BY=1.3, BW=12.33, BH=5.55, k=Math.min(BW/x.w,BH/x.h), w=x.w*k, h=x.h*k;
           s.addImage({data:bytesADataURL(x.bytes,"image/jpeg"),x:BX+(BW-w)/2,y:BY+(BH-h)/2,w,h});
         } else if(x&&x.tipo==="tabla"){
           const n=Math.max(1,Math.ceil(x.filas.length/SOP_POR_LAMINA)), fs=x.filas[0].length>6?9:10, nota=notaSoporte(x);
           for(let i=0;i<n;i++){
             s=pptx.addSlide({masterName:"INF"});
-            cabecera(s,d.t+(n>1?` (${i+1}/${n})`:""),x.nombre+(nota&&i===n-1?` · ${nota}: ver el archivo original`:""));
+            cabecera(s,tt+(n>1?` · ${i+1}/${n}`:""),x.nombre+(nota&&i===n-1?` · ${nota}: ver el archivo original`:""));
             const filas=x.filas.slice(i*SOP_POR_LAMINA,(i+1)*SOP_POR_LAMINA).map((f,j)=>f.map(c=>({text:recorta(c,60),options:i===0&&j===0?{bold:true}:{}})));
             s.addTable(filas,{x:0.45,y:1.3,w:12.45,fontFace:F,fontSize:fs,color:"222222",rowH:0.4,valign:"middle",border:{type:"solid",pt:0.5,color:LINEA},fill:{color:"FFFFFF"}});
           }
         } else {
-          s=pptx.addSlide({masterName:"INF"}); cabecera(s,d.t,m.ev.cl||"");
+          s=pptx.addSlide({masterName:"INF"}); cabecera(s,T,m.ev.cl||"");
           s.addShape(pptx.ShapeType.rect,{x:1.2,y:1.4,w:10.9,h:5.4,fill:{color:"FAFAFB"},line:{color:LINEA,width:1.25,dashType:"dash"}});
           s.addText("Pegue aquí: "+d.h,{x:1.2,y:3.8,w:10.9,h:0.6,align:"center",fontFace:F,fontSize:16,color:GRIS});
         }
-      });
+        }); });
+      const obs=String(op.observaciones||"").split(/\n+/).map(x=>x.replace(/^[\s•·\-*]+/,"").trim()).filter(Boolean);
+      if(obs.length){ s=pptx.addSlide({masterName:"INF"}); cabecera(s,"Observaciones a la cotización","");
+        s.addText(obs.slice(0,14).map(x=>({text:recorta(x,220),options:{bullet:true,breakLine:true,paraSpaceAfter:8}})),{x:0.7,y:1.4,w:11.9,h:5.3,fontFace:F,fontSize:obs.length>8?14:18,color:"222222",valign:"top",margin:0}); }
     }
   }
 
@@ -323,8 +332,9 @@ async function generarDOCX(m, lista, fotos, op, parte){
     if(op.hojasPegar){
       const sop=op.soportes||{};
       hijos.push(H1(`${sec++}. Soportes comerciales`));
-      SOPORTES.forEach(d=>{ const x=sop[d.k];
-        hijos.push(H2(d.t));
+      SOPORTES.forEach(d=>{ const L=sop[d.k]||[];
+        hijos.push(H2(tituloSop(d,op)));
+        (L.length?L:[null]).forEach(x=>{
         if(x&&x.tipo==="img"){
           const k=Math.min(620/x.w,780/x.h,1);
           hijos.push(P(x.nombre,{size:16,color:GRIS},{keepNext:true}));
@@ -334,7 +344,9 @@ async function generarDOCX(m, lista, fotos, op, parte){
           hijos.push(P(x.nombre+(nota?` · ${nota}: ver el archivo original`:""),{size:16,color:GRIS},{keepNext:true}));
           hijos.push(tabla(x.filas.map((f,j)=>new TableRow({cantSplit:true,children:f.map((c,q)=>celda(P(c,{size:15,bold:j===0}),{width:{size:an[q],type:WidthType.DXA}}))})),an));
         } else hijos.push(P("Pegue aquí: "+d.h,{size:18,italics:true,color:GRIS}));
-      });
+        }); });
+      const obs=String(op.observaciones||"").split(/\n+/).map(x=>x.replace(/^[\s•·\-*]+/,"").trim()).filter(Boolean);
+      if(obs.length){ hijos.push(H2("Observaciones a la cotización")); obs.forEach(x=>hijos.push(new Paragraph({bullet:{level:0},children:[T(x,{size:20})]}))); }
     }
   }
   hijos.push(H1(`${sec++}. Evidencias por requerimiento`));
@@ -433,8 +445,9 @@ function abrir(ctx){
     <div class="row" style="margin-top:8px"><div><label>Operador</label><input id="infOper" type="text" value="${v("operador","Estrella Grupo Empresarial S.A")}"></div>
       <div><label>Contacto (contraportada)</label><input id="infContacto" type="text" value="${v("contacto","")}" placeholder="Nombre · cargo"></div></div>
     <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:inherit"><input id="infPegar" type="checkbox" style="width:auto;flex:none;margin:0" ${g.hojasPegar===false?"":"checked"}> Soportes comerciales: requerimiento inicial, cotización inicial y cotización final</label>
-    <div id="infSop" style="margin:6px 0 0 24px">${SOPORTES.map(d=>`<div class="fld" style="margin-top:6px"><label>${d.t}</label><input type="file" data-sop="${d.k}" accept="image/*,.heic,.heif,.xlsx,.xlsm,.xls,.csv"><div class="mut" data-sopest="${d.k}" style="margin:2px 0 0">Adjunta ${d.h}.</div></div>`).join("")}
-      <div class="mut" style="margin-top:4px">Imagen o Excel. No se guardan: adjúntalos cada vez que generes. El que falte sale como lámina para pegar.</div></div>
+    <div id="infSop" style="margin:6px 0 0 24px">${SOPORTES.map(d=>`<div class="fld" style="margin-top:6px"><label>${d.t}</label>${d.valor?`<input type="text" data-sopval="${d.k}" placeholder="Valor (ej.: 573413)" style="margin-bottom:4px">`:""}<input type="file" multiple data-sop="${d.k}" accept="image/*,.heic,.heif,.xlsx,.xlsm,.xls,.csv"><div class="mut" data-sopest="${d.k}" style="margin:2px 0 0">Adjunta ${d.h}. Puedes elegir varias: una lámina por archivo, en el orden en que las elijas.</div></div>`).join("")}
+      <div class="fld" style="margin-top:6px"><label>Observaciones a la cotización</label><textarea id="infObs" rows="2" placeholder="Una por línea. Ej.: Se entrega a satisfacción sin ninguna novedad."></textarea></div>
+      <div class="mut" style="margin-top:4px">Imágenes o Excel. No se guardan: adjúntalos cada vez que generes. El soporte que falte sale como lámina para pegar.</div></div>
     <label style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:inherit"><input id="infAdic" type="checkbox" style="width:auto;flex:none;margin:0" ${g.adicionales?"checked":""}> Incluir requerimientos adicionales reportados en sitio</label>
     ${filtrado?`<div class="mut" style="color:var(--oro-d)">Se usará el filtro actual del visor: ${ctx.visibles.length} de ${ctx.evidencias.length} evidencias.</div>`:""}
     <div class="mut" id="infEst" style="margin-top:6px"></div>
@@ -444,17 +457,22 @@ function abrir(ctx){
   if(g.formato) box.querySelector("#infFmt").value=g.formato; if(g.version) box.querySelector("#infVer").value=g.version; if(g.maxPorGrupo!=null) box.querySelector("#infMax").value=String(g.maxPorGrupo);
   const sop={}, sopPend={};
   const verSop=()=>{ box.querySelector("#infSop").classList.toggle("hide",!box.querySelector("#infPegar").checked); };
-  box.querySelectorAll("input[data-sop]").forEach(inp=>inp.addEventListener("change",()=>{ const k=inp.dataset.sop, est=box.querySelector(`[data-sopest="${k}"]`), f=inp.files&&inp.files[0];
-    delete sop[k]; if(!f){ est.textContent="Sin adjuntar."; estimar(); return; }
-    est.textContent="Leyendo "+f.name+"…";
-    sopPend[k]=prepararSoporte(f).then(x=>{ sop[k]=x; est.innerHTML=`<span style="color:#1a9e56">✓</span> ${esc(f.name)}${x.tipo==="tabla"?` · tabla de ${x.filas.length} fila(s)${notaSoporte(x)?" ("+notaSoporte(x)+")":""}`:" · imagen"}`; })
-      .catch(err=>{ inp.value=""; est.innerHTML=`<span style="color:#b3261e">⚠ ${esc(err&&err.message||err)}</span>`; })
+  box.querySelectorAll("input[data-sop]").forEach(inp=>inp.addEventListener("change",()=>{ const k=inp.dataset.sop, est=box.querySelector(`[data-sopest="${k}"]`), fs=[...(inp.files||[])];
+    delete sop[k]; if(!fs.length){ est.textContent="Sin adjuntar."; estimar(); return; }
+    est.textContent=`Leyendo ${fs.length} archivo(s)…`;
+    sopPend[k]=Promise.allSettled(fs.map(prepararSoporte)).then(rs=>{
+      const ok=[], lin=[];
+      rs.forEach((r,i)=>{ const f=fs[i];
+        if(r.status==="fulfilled"){ const x=r.value; ok.push(x); lin.push(`<span style="color:#1a9e56">✓</span> ${esc(f.name)}${x.tipo==="tabla"?` · tabla de ${x.filas.length} fila(s)${notaSoporte(x)?" ("+notaSoporte(x)+")":""}`:" · imagen"}`); }
+        else lin.push(`<span style="color:#b3261e">⚠ ${esc(f.name)}: ${esc(r.reason&&r.reason.message||r.reason)}</span>`); });
+      if(ok.length) sop[k]=ok; est.innerHTML=lin.join("<br>"); })
       .finally(()=>{ delete sopPend[k]; estimar(); }); }));
   const leer=()=>{ const q=s=>box.querySelector(s);
     const ct=q("#infContacto").value.split("·");
     return {formato:q("#infFmt").value, version:q("#infVer").value, maxPorGrupo:+q("#infMax").value, contrato:q("#infContrato").value.trim(),
       nombreEvento:q("#infNombre").value.trim(), lugar:q("#infLugar").value.trim(), operador:q("#infOper").value.trim()||"Estrella Grupo Empresarial S.A",
-      contacto:(ct[0]||"").trim(), cargo:(ct[1]||"").trim(), contactoTxt:q("#infContacto").value, hojasPegar:q("#infPegar").checked, adicionales:q("#infAdic").checked, soportes:Object.assign({},sop)}; };
+      contacto:(ct[0]||"").trim(), cargo:(ct[1]||"").trim(), contactoTxt:q("#infContacto").value, hojasPegar:q("#infPegar").checked, adicionales:q("#infAdic").checked, soportes:Object.assign({},sop),
+      valores:Object.fromEntries([...box.querySelectorAll("[data-sopval]")].map(i=>[i.dataset.sopval,i.value])), observaciones:q("#infObs").value}; };
   const estimar=()=>{ try{ const op=leer(); const m=construirModelo(ctx,op); const partes=partir(m.visibles); const n=fotosDe(m.visibles).length;
       const falta=op.hojasPegar?SOPORTES.filter(d=>!sop[d.k]).map(d=>d.t.toLowerCase()):[];
       box.querySelector("#infEst").textContent=`${m.visibles.length} requerimiento(s) · ${n} foto(s) al informe${partes.length>1?` · saldrá en ${partes.length} archivos (tope ${TOPE_POR_ARCHIVO} fotos c/u)`:""} · ~${Math.max(1,Math.round(n*0.25))} MB`
