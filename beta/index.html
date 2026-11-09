@@ -291,7 +291,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v46.3 · 17oct · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v46.4 · 8nov · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -485,6 +485,7 @@ const z = n => String(n).padStart(2,"0");
 const slug = s => (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "NA";
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 const escAttr = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const uidSeguro = s => String(s==null?"":s).replace(/[^a-z0-9]/gi,"");   /* para meter un uid dentro de un onclick */
 let toastT=null;
 function toast(msg){ const t=$("toast"); if(!t) return; t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2600); }
 function copiarAlPortapapeles(url, etiqueta){ try{ if(navigator.clipboard){ navigator.clipboard.writeText(url); toast(etiqueta+" copiado ✓"); return; } }catch(_){} prompt(etiqueta+" — cópialo:", url); }
@@ -634,7 +635,7 @@ async function renderHistorial(){
   else arr=Object.values(eventos());                           // respaldo: cache local si no hay señal
   arr=arr.slice().sort((a,b)=>(b.consec||0)-(a.consec||0));
   if(!arr.length){ l.innerHTML='<div class="mut">Aún no hay eventos configurados.</div>'; return; }
-  l.innerHTML=arr.map(e=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${e.cl||""} — ${e.ev||""}${e.fe?` <span class="mut" style="margin:0">(${e.fe})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.n_items||0} evidencias</div><div class="ac"><a class="lnk" onclick="copiarLinkEv('${e.uid}','oper')">link proveedor</a><a class="lnk" onclick="copiarLinkEv('${e.uid}','exec')">link para editar</a><a class="lnk" onclick="editarEventoId('${e.uid}')">editar</a></div></div></div>`).join("");
+  l.innerHTML=arr.map(e=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${escAttr(e.cl||"")} — ${escAttr(e.ev||"")}${e.fe?` <span class="mut" style="margin:0">(${escAttr(e.fe)})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.n_items||0} evidencias</div><div class="ac"><a class="lnk" onclick="copiarLinkEv('${uidSeguro(e.uid)}','oper')">link proveedor</a><a class="lnk" onclick="copiarLinkEv('${uidSeguro(e.uid)}','exec')">link para editar</a><a class="lnk" onclick="editarEventoId('${uidSeguro(e.uid)}')">editar</a></div></div></div>`).join("");
 }
 window.copiarLinkEv=(uid,tipo)=>{ const u=tipo==="exec"?linkExec(uid):linkOper(uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace para editar":"Enlace del proveedor")); };   // siempre el enlace directo ?ev=
 window.editarEventoId=(uid)=>{ editarEvento(uid); };
@@ -698,7 +699,7 @@ function renderExecItems(){
     if(q && !fnorm([it.codigo,it.req,it.prov,it.nit,it.cat].join(" ")).includes(q)) return;
     mostrados++;
     const d=document.createElement("div"); d.className="ev";
-    d.innerHTML=`<div class="in"><b style="color:var(--azul)">${it.codigo}</b> · ${it.req||"(sin descripción)"}${it.cant?` &nbsp;<span class="mut" style="margin:0">x${it.cant}</span>`:""}${it.cat?` <span class="mut" style="margin:0">· ${it.cat}</span>`:(editandoId?` <span class="mut" style="margin:0">· <input list="catList" value="${escAttr(it.grupo||"")}" placeholder="categoría (orden)" onchange="grupoExec(${idx},this.value)" style="display:inline-block;width:150px;padding:2px 6px;font-size:12px"></span>`:"")}${it.prov||it.nit?`<div class="mut" style="margin:2px 0 0">${it.prov||""}${it.nit?`${it.prov?" · ":""}NIT ${it.nit}`:""}</div>`:""}<div class="ac">${minSelHTML(it,idx)}<a class="lnk" onclick="quitarExec(${idx})">quitar</a></div></div>`;
+    d.innerHTML=`<div class="in"><b style="color:var(--azul)">${escAttr(it.codigo)}</b> · ${escAttr(it.req||"(sin descripción)")}${it.cant?` &nbsp;<span class="mut" style="margin:0">x${escAttr(it.cant)}</span>`:""}${it.cat?` <span class="mut" style="margin:0">· ${escAttr(it.cat)}</span>`:(editandoId?` <span class="mut" style="margin:0">· <input list="catList" value="${escAttr(it.grupo||"")}" placeholder="categoría (orden)" onchange="grupoExec(${idx},this.value)" style="display:inline-block;width:150px;padding:2px 6px;font-size:12px"></span>`:"")}${it.prov||it.nit?`<div class="mut" style="margin:2px 0 0">${escAttr(it.prov||"")}${it.nit?`${it.prov?" · ":""}NIT ${escAttr(it.nit)}`:""}</div>`:""}<div class="ac">${minSelHTML(it,idx)}<a class="lnk" onclick="quitarExec(${idx})">quitar</a></div></div>`;
     c.appendChild(d); });
   const n=execItems.length;
   const nMin=execItems.filter(it=>minDe(it)!==MIN_DEF).length;   // v45: cuántos piden un mínimo distinto de 3
@@ -1340,7 +1341,7 @@ function adminRenderDash(){
   l.innerHTML=seg+dash+(visibles.length?visibles.map(i=>{
       const e=adminEventos[i], m=adminMetricas[i];
       const est=(v,t,c)=>`<div${c?` class="${c}"`:""}><b>${v}</b><span>${t}</span></div>`;
-      return `<div class="ev adEv"><div class="t1"><b>${evConsecTag(e.consec)}</b> · ${escAttr(e.cl)}${e.fe?` · ${e.fe}${e.config&&e.config.ff&&e.config.ff!==e.fe?" → "+e.config.ff:""}`:""}${e.config&&e.config.pd?` · <span style="color:var(--azul);font-weight:600">por día</span>`:""}</div>`
+      return `<div class="ev adEv"><div class="t1"><b>${evConsecTag(e.consec)}</b> · ${escAttr(e.cl)}${e.fe?` · ${escAttr(e.fe)}${e.config&&e.config.ff&&e.config.ff!==e.fe?" → "+escAttr(e.config.ff):""}`:""}${e.config&&e.config.pd?` · <span style="color:var(--azul);font-weight:600">por día</span>`:""}</div>`
         +`<div class="t2">${escAttr(e.ev)}</div>`
         +`<div class="av">${bar(m.av)}<b style="color:${m.av>=100?'#1a9e56':'var(--azul)'}">${m.av}%</b></div>`
         +`<div class="st">${est(m.n+(m.n!==m.tot?`<small class="mut" style="margin:0;font-weight:500"> de ${m.tot}</small>`:""),"Requerimientos")}${est(m.conEvi,"Con evidencia")}${est(m.comp,"Completos")}${est(m.pend,"Pendientes",m.pend?"pend":"")}${est(m.reg.toLocaleString("es-CO"),"Evidencias")}${est(m.extras,"Extras en sitio",m.extras?"ext":"")}</div>`
@@ -1451,7 +1452,7 @@ window.adminAbrir=async(i)=>{
     if(r.status===401){ adminSesExpirada(); return; }
     const arr=await r.json(); adminEvidencias=arr;
     if(!arr.length){ l.innerHTML='<div class="mut">Este evento aún no tiene evidencias enviadas.</div>'; return; }
-    const opt=(vals,ph)=>`<option value="">${ph}</option>`+vals.map(v=>{const val=Array.isArray(v)?v[0]:v,txt=Array.isArray(v)?v[1]:v;return `<option value="${String(val).replace(/"/g,"&quot;")}">${txt}</option>`;}).join("");
+    const opt=(vals,ph)=>`<option value="">${ph}</option>`+vals.map(v=>{const val=Array.isArray(v)?v[0]:v,txt=Array.isArray(v)?v[1]:v;return `<option value="${escAttr(String(val))}">${escAttr(String(txt))}</option>`;}).join("");
     const provs=[...new Set(arr.map(e=>(e.proveedor||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
     const opers=[...new Set(arr.map(e=>(e.operador_nombre||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
     const cats=[...new Set(arr.map(e=>(e.categoria||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
@@ -2177,7 +2178,7 @@ function renderLista(){
   else if($("sendInfo") && /sin resolver/.test($("sendInfo").textContent)) $("sendInfo").textContent="";
   batch.forEach(e=>{
     const curVal=e.itemCodigo?(e.fechaSel?e.itemCodigo+"@@"+e.fechaSel:e.itemCodigo):"";
-    const opts=`<option value="" ${!e.itemCodigo?"selected":""}>— Selecciona requerimiento —</option>`+itemsDelOperador().flatMap(it=>lineasDe(it).map(L=>`<option value="${escAttr(L.value)}" ${L.value===curVal?"selected":""} ${(L.fecha&&L.fecha>isoHoy())?"disabled":""}>${it.cat?it.cat+" · ":""}${it.codigo}${it.req?" · "+it.req.slice(0,22):""}${L.fecha?` · día ${L.k} · ${fmtDia(L.fecha)}`:""}</option>`)).join("");
+    const opts=`<option value="" ${!e.itemCodigo?"selected":""}>— Selecciona requerimiento —</option>`+itemsDelOperador().flatMap(it=>lineasDe(it).map(L=>`<option value="${escAttr(L.value)}" ${L.value===curVal?"selected":""} ${(L.fecha&&L.fecha>isoHoy())?"disabled":""}>${it.cat?escAttr(it.cat)+" · ":""}${escAttr(it.codigo)}${it.req?" · "+escAttr(it.req.slice(0,22)):""}${L.fecha?` · día ${L.k} · ${fmtDia(L.fecha)}`:""}</option>`)).join("");
     const d=document.createElement("div"); d.className="ev";
     const badge=e.tipo==="video"?`<span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-size:22px;text-shadow:0 1px 4px #000">▶</span>`:"";
     const thumbHtml=e.thumb?`<div style="position:relative;flex:none;width:66px;height:66px"><img src="${e.thumb}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#000">${badge}</div>`
