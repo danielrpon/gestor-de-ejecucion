@@ -1,0 +1,7 @@
+# Claves publicables de Supabase: van en el frontend por diseño; la seguridad la da RLS.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Claves sb_publishable de Supabase"
+regexes = ['''sb_publishable_[A-Za-z0-9_-]+''']
