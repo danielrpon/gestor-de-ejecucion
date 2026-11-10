@@ -37,8 +37,12 @@ function esc(t){ return String(t==null?"":t).replace(/[&<>"']/g,c=>({"&":"&amp;"
 function cap(t){ t=String(t||"").trim(); return t?t.charAt(0).toUpperCase()+t.slice(1):t; }
 function muestrear(arr,n){ if(!n||arr.length<=n) return arr.slice(); if(n===1) return [arr[0]];
   const out=[]; for(let k=0;k<n;k++) out.push(arr[Math.round(k*(arr.length-1)/(n-1))]); return [...new Set(out)]; }
-function cargarScript(src){ return new Promise((ok,ko)=>{ if(document.querySelector(`script[data-inf="${src}"]`)) return ok();
-  const s=document.createElement("script"); s.src=BASE+src; s.dataset.inf=src; s.onload=()=>ok(); s.onerror=()=>ko(new Error("No se pudo cargar "+src)); document.head.appendChild(s); }); }
+/* Una promesa por script: si dos soportes piden pdf.js a la vez, el segundo espera la misma carga (antes resolvía
+   en cuanto veía la etiqueta <script>, sin esperar a que terminara: «no cargó el lector de PDF»). */
+const CARGAS={};
+function cargarScript(src){ if(CARGAS[src]) return CARGAS[src];
+  return CARGAS[src]=new Promise((ok,ko)=>{ const s=document.createElement("script"); s.src=BASE+src; s.dataset.inf=src; s.onload=()=>ok();
+    s.onerror=()=>{ delete CARGAS[src]; s.remove(); ko(new Error("No se pudo cargar "+src)); }; document.head.appendChild(s); }); }
 function bytesADataURL(bytes,mime){ let bin=""; const CH=0x8000; for(let i=0;i<bytes.length;i+=CH) bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+CH)); return `data:${mime};base64,`+btoa(bin); }
 
 /* Reduce la foto en el navegador. La original se suelta apenas se dibuja (lección iOS: encoger el lienzo a 1x1). */
@@ -55,110 +59,61 @@ async function prepararFoto(blob,lado,calidad){
    Pedido de Kevin (16-oct): el informe debe traer la evidencia del requerimiento inicial y de las cotizaciones
    inicial y final. Se adjuntan en el panel al generar y NO se guardan en Supabase (son documentos comerciales).
    Imagen (captura del correo o de la cotización) → se monta ajustada a la lámina, a 1.800 px para que se lea;
-   Excel/CSV → tabla con la primera hoja. El soporte que falte sale como lámina para pegar, como antes. */
+   El soporte que falte sale como lámina para pegar, como antes. (Desde v48.3: solo PDF o imágenes, ver abajo.) */
 /* v46.1: como el ejemplo de Kevin (informe 548 de Plaza Mayor): varias capturas por soporte (una lámina por
    cada parte del formato de cotización), el valor en el título y una lámina de observaciones a la cotización. */
 const SOPORTES=[
   {k:"req",    t:"Requerimiento",          h:"el PDF, correo o captura(s) del requerimiento del cliente"},
-  {k:"cotIni", t:"Cotización inicial",     h:"el PDF, Excel o captura(s) de la cotización inicial", valor:true},
-  {k:"cotFin", t:"Valor ejecución final",  h:"el PDF, Excel o captura(s) de la cotización final", valor:true}];
+  {k:"cotIni", t:"Cotización inicial",     h:"el PDF o captura(s) de la cotización inicial", valor:true},
+  {k:"cotFin", t:"Valor ejecución final",  h:"el PDF o captura(s) de la cotización final", valor:true}];
 function fmtValor(v){ v=String(v||"").trim(); if(!v) return ""; const d=v.replace(/[^\d]/g,"");
   return /^[\s$.,\d]+$/.test(v)&&d ? "$"+Number(d).toLocaleString("es-CO") : v; }
 function tituloSop(d,op){ const v=d.valor?fmtValor((op.valores||{})[d.k]):""; return d.t+(v?" "+v:""); }
-/* v48 (10-nov-2026) · novedades de Kevin al probar v47 en producción:
-   1) «solo deja cargar Excel y la mayoría de requerimientos son PDF» → PDF aceptado en los tres soportes: cada página
-      se dibuja con pdf.js (local, perezoso) a 1.800 px y sale como una lámina, igual que una captura.
-   2) «la cotización no se entiende, no es la misma y no trae el encabezado» → el formato de cotización (ej. SP32/SJUV386)
-      trae de PRIMERA una hoja OCULTA de listas desplegables («Lista»: meses, aforos…), y v46 leía la primera hoja.
-      Ahora: se descartan hojas ocultas y auxiliares, se busca la fila de títulos de la tabla de ítems (descripción,
-      cantidad, precio, total…) y se arma: (a) el ENCABEZADO de la cotización (lo que está arriba de la tabla:
-      requerimiento, dependencia, contrato, evento, fecha, ejecutivo, valor) y (b) la tabla de ítems con las columnas
-      que dicen algo (sin vacías, sin ceros, sin duplicadas), valores en pesos y los subtotales/totales al final. */
-const SOP_FILAS=400, SOP_COLS=7, SOP_POR_LAMINA=11, PDF_PAGS=15;
-function esHoja(f){ return /\.(xlsx|xlsm|xls|csv)$/i.test(f.name||""); }
+/* v48.3 (10-nov-2026) · soportes comerciales = IMAGEN del documento original, nunca transcripción.
+   Kevin (10-nov): el requerimiento llega casi siempre en PDF; y el cliente NO acepta la cotización transcrita a tabla:
+   «deben ser pantallazos de la misma cotización tal cual está, con logos y todo el detalle del archivo original».
+   Un Excel no se puede «fotografiar» en el navegador (los lectores ven datos, no logos ni formato), así que:
+   - PDF → cada página se dibuja con pdf.js (local, perezoso), se le quitan los márgenes blancos y sale como una lámina;
+   - imagen/captura → tal cual (1.800 px);
+   - Excel → se rechaza con la instrucción de guardarlo como PDF desde Excel (sale idéntico, con logos).
+   (v48–v48.2 transcribían el Excel a tabla; se retiró.) */
+const PDF_PAGS=15;
+function esHoja(f){ return /\.(xlsx|xlsm|xls|csv|ods)$/i.test(f.name||""); }
 function esPDF(f){ return /\.pdf$/i.test(f.name||"")||/pdf/i.test(f.type||""); }
-/*<cot>*/
-const HOJA_AUX=/^\s*(listas?|instrucc|tarifa|tari\b|hoja\s*\d*\s*$|base|par[aá]metro|config|datos?\s*$)/i;
-const CLAVE_ENC=/(descrip|requerim|elemento|concepto|producto|servicio|[íi]tem|cant|precio|unitario|valor|total|iva|d[íi]as|caracter)/i;
-const ES_TOTAL=/^(sub\s*-?\s*total|total|gran\s+total|valor\s+total|iva\b|total\s+con|total\s+antes)/i;
-const ES_DINERO=/(precio|valor|total|honorario|costo|unitario|subtotal|tarifa)/i;
-function txtC(c){ return String(c==null?"":c).replace(/\s+/g," ").trim(); }
-function esNum(c){ return typeof c==="number"&&isFinite(c); }
-function fmtNum(n,cab){ if(!esNum(n)) return txtC(n);
-  if(/iva|%|porcent/i.test(cab||"")&&!ES_DINERO.test((cab||"").replace(/iva/ig,""))&&n>0&&n<1) return Math.round(n*1000)/10+"%";
-  if(ES_DINERO.test(cab||"")) return "$"+Math.round(n).toLocaleString("es-CO");
-  if(Number.isInteger(n)&&Math.abs(n)>=1e6&&!ES_DINERO.test(cab||"")) return String(n);   // contrato, celular, NIT: sin puntos
-  return n.toLocaleString("es-CO",{maximumFractionDigits:2}); }
-function hojasUtiles(wb){ const meta=(wb.Workbook&&wb.Workbook.Sheets)||[];
-  return wb.SheetNames.filter((n,i)=>!(meta[i]&&meta[i].Hidden)); }
-function filaTitulos(F){ for(let i=0;i<Math.min(F.length,120);i++){ const r=F[i].map(txtC).filter(Boolean); if(r.length<4) continue;
-    const k=new Set(r.map(c=>((c.match(CLAVE_ENC)||[])[1]||"").toLowerCase().slice(0,4)).filter(Boolean)); if(k.size>=3) return i; } return -1; }
-function leerCotizacion(wb,XL,nombre){
-  const vis=hojasUtiles(wb), cands=[];
-  vis.forEach(h=>{ const F=XL.utils.sheet_to_json(wb.Sheets[h],{header:1,defval:"",raw:true,blankrows:false}); const t=filaTitulos(F); if(t<0) return;
-    const items=F.slice(t+1).filter(r=>r.some(esNum)&&!ES_TOTAL.test(txtC(r.find(c=>txtC(c))))).length; if(!items) return;
-    cands.push({h,F,t,items,pref:/cotiz|detalle|presupuesto|propuesta/i.test(h)?1:0,aux:HOJA_AUX.test(h)?1:0}); });
-  if(!cands.length) return null;
-  cands.sort((a,b)=>(a.aux-b.aux)||(b.pref-a.pref)||(b.items-a.items));
-  const {h,F,t}=cands[0];
-  /* (a) encabezado: filas sobre la tabla. Una celda sola = título de sección (se omite); 2+ = «etiqueta: valor». */
-  const ficha=[];
-  F.slice(0,t).forEach(r=>{ const cs=r.map((c,j)=>({c,j})).filter(o=>txtC(o.c)); if(cs.length<2) return;
-    const et=txtC(cs[0].c).replace(/\s*:\s*$/,""); const val=cs.slice(1).map(o=>fmtNum(o.c,et)).join(" · ");
-    if(et&&val&&ficha.length<16) ficha.push([et,val]); });
-  /* (b) tabla de ítems */
-  const tit=F[t].map(txtC), cuerpo=[], tots=[];
-  F.slice(t+1).forEach(r=>{ const pri=txtC(r.find(c=>txtC(c))); if(!pri) return;
-    if(ES_TOTAL.test(pri)){ const nums=r.filter(esNum); if(nums.length) tots.push([pri.replace(/\s*:\s*$/,""),nums[nums.length-1]]); return; }
-    if(!r.some(esNum)) return; cuerpo.push(r); });
-  /* v48.1 (Kevin, 10-nov): «mejor que tenga todas las columnas de la cotización» → van TODAS las columnas con título,
-     en el orden del formato (también las vacías o en $0, como en el original); solo se quitan las ocultas en Excel. */
-  const oc=(wb.Sheets[h]["!cols"])||[];
-  const cols=tit.map((c,j)=>j).filter(j=>tit[j]&&!(oc[j]&&oc[j].hidden)), totCols=cols.length;
-  const filas=cuerpo.slice(0,SOP_FILAS).map(r=>cols.map((j,q)=>fmtNum(r[j],tit[j])));
-  const num=cols.map(j=>{ const v=cuerpo.filter(r=>txtC(r[j])); return v.length>0&&v.every(r=>esNum(r[j])); });
-  const largo=cols.map((j,q)=>num[q]?(ES_DINERO.test(tit[j])?1.5:0.8):Math.min(5,Math.max(1.1,Math.sqrt(filas.reduce((a,f)=>a+f[q].length,0)/Math.max(1,filas.length))/3.2)));
-  return {tipo:"cot", nombre, hoja:h, ficha, cab:cols.map(j=>tit[j]), filas, num, pesos:largo,
-    tots:tots.map(([e,v])=>[e,"$"+Math.round(v).toLocaleString("es-CO")]), recortadas:Math.max(0,cuerpo.length-SOP_FILAS), colsFuera:totCols-cols.length};
+/* Recorta el blanco alrededor de lo impreso (los PDF de Excel traen márgenes grandes) y deja 1.800 px de lado mayor. */
+function sinMargenes(c){
+  const W=c.width, H=c.height, d=c.getContext("2d").getImageData(0,0,W,H).data, tinta=i=>d[i]<235||d[i+1]<235||d[i+2]<235;
+  let x0=W, y0=H, x1=-1, y1=-1;
+  for(let y=0;y<H;y+=2) for(let x=0;x<W;x+=2){ if(tinta((y*W+x)*4)){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } }
+  if(x1<0) return c;   // página en blanco: tal cual
+  const pad=Math.round(Math.max(W,H)*0.012); x0=Math.max(0,x0-pad); y0=Math.max(0,y0-pad); x1=Math.min(W,x1+pad); y1=Math.min(H,y1+pad);
+  const w=x1-x0, h=y1-y0, k=Math.min(1,1800/Math.max(w,h)), o=document.createElement("canvas");
+  o.width=Math.max(1,Math.round(w*k)); o.height=Math.max(1,Math.round(h*k));
+  const g=o.getContext("2d"); g.fillStyle="#fff"; g.fillRect(0,0,o.width,o.height); g.drawImage(c,x0,y0,w,h,0,0,o.width,o.height); return o;
 }
-/*</cot>*/
 async function pdfAImagenes(file){
   await cargarScript("pdf.min.js"); const L=window.pdfjsLib; if(!L) throw new Error("no cargó el lector de PDF");
   L.GlobalWorkerOptions.workerSrc=BASE+"pdf.worker.min.js";
   const doc=await L.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise, N=doc.numPages, out=[];
   for(let p=1;p<=Math.min(N,PDF_PAGS);p++){ const pg=await doc.getPage(p), v1=pg.getViewport({scale:1});
-    const vp=pg.getViewport({scale:Math.min(3,1800/Math.max(v1.width,v1.height))}), c=document.createElement("canvas");
+    const vp=pg.getViewport({scale:Math.min(4,2600/Math.max(v1.width,v1.height))}), c=document.createElement("canvas");   // más resolución: luego se recorta
     c.width=Math.round(vp.width); c.height=Math.round(vp.height); const g=c.getContext("2d"); g.fillStyle="#fff"; g.fillRect(0,0,c.width,c.height);
-    await pg.render({canvasContext:g,viewport:vp}).promise;
-    const b=await new Promise(r=>c.toBlob(r,"image/jpeg",0.85)); const w=c.width,h=c.height; c.width=1; c.height=1; pg.cleanup();
+    await pg.render({canvasContext:g,viewport:vp}).promise; pg.cleanup();
+    const r=sinMargenes(c), b=await new Promise(ok=>r.toBlob(ok,"image/jpeg",0.88)), w=r.width, h=r.height; c.width=1; c.height=1; r.width=1; r.height=1;
     if(!b) throw new Error("no se pudo dibujar la página "+p);
     out.push({tipo:"img", nombre:file.name+(N>1?` · pág. ${p} de ${N}`:""), w, h, bytes:new Uint8Array(await b.arrayBuffer()), pdf:true}); }
   await doc.destroy(); if(N>PDF_PAGS) out.omitidas=N-PDF_PAGS; return out;
 }
 async function prepararSoporte(file){
   if(esPDF(file)) return pdfAImagenes(file);
-  if(esHoja(file)){
-    if(!window.XLSX) throw new Error("no cargó el lector de Excel");
-    const wb=window.XLSX.read(await file.arrayBuffer(),{type:"array",cellStyles:true});
-    const cot=leerCotizacion(wb,window.XLSX,file.name); if(cot) return cot;
-    const vis=hojasUtiles(wb), h=vis.find(n=>!HOJA_AUX.test(n))||vis[0]||wb.SheetNames[0];   // sin tabla de ítems: la primera hoja visible
-    let filas=window.XLSX.utils.sheet_to_json(wb.Sheets[h],{header:1,defval:"",raw:false,blankrows:false})
-      .map(f=>f.map(txtC)).filter(f=>f.some(c=>c));
-    const ancho=filas.reduce((a,f)=>Math.max(a,f.length),0);
-    const vivas=[...Array(ancho).keys()].filter(j=>filas.some(f=>f[j])).slice(0,8);
-    filas=filas.map(f=>vivas.map(j=>f[j]||""));
-    if(!filas.length) throw new Error("la hoja «"+h+"» está vacía");
-    return {tipo:"tabla", nombre:file.name, hoja:h, filas:filas.slice(0,60), recortadas:Math.max(0,filas.length-60), colsFuera:Math.max(0,ancho-vivas.length)};
-  }
+  if(esHoja(file)) throw new Error("el Excel no se puede poner tal cual (con logos y formato). Ábrelo en Excel → Archivo → Guardar como → PDF, y adjunta ese PDF.");
   let blob=file;
   if(/\.(heic|heif)$/i.test(file.name||"")||/hei[cf]/i.test(file.type||"")){
     if(typeof window.heic2any!=="function") throw new Error("no se pudo leer la foto HEIC");
     blob=await window.heic2any({blob:file,toType:"image/jpeg",quality:0.9}); if(Array.isArray(blob)) blob=blob[0];
-  } else if(!/^image\//.test(file.type||"")) throw new Error("formato no soportado: adjunta un PDF, una imagen (captura) o un Excel");
+  } else if(!/^image\//.test(file.type||"")) throw new Error("formato no soportado: adjunta un PDF o una imagen (captura)");
   return Object.assign({tipo:"img", nombre:file.name}, await prepararFoto(blob,1800,0.85));
 }
-function notaSoporte(x){ if(!x||(x.tipo!=="tabla"&&x.tipo!=="cot")) return "";
-  return [x.recortadas?`se omitieron ${x.recortadas} fila(s)`:"", x.colsFuera?`se omitieron ${x.colsFuera} columna(s)`:""].filter(Boolean).join(" y "); }
 
 /* ---------- MODELO: requerimientos del config + evidencias → qué va en el informe ---------- */
 function construirModelo(ctx, op){
@@ -258,19 +213,6 @@ async function generarPPTX(m, lista, fotos, op, parte){
     s.addText(tt,{x:0.5,y:0.16,w:12.33,h:0.52,fontFace:F,fontSize:fs,bold:true,color:TINTA,valign:"middle",margin:0});
     if(sub) s.addText(recorta(sub,150),{x:0.5,y:0.70,w:12.33,h:0.3,fontFace:F,fontSize:13,color:GRIS,valign:"top",margin:0});
     s.addShape(pptx.ShapeType.line,{x:0.5,y:1.04,w:12.33,h:0,line:{color:LINEA,width:1}}); };
-  /* Alto estimado de una fila (pulgadas): Arial ≈ 0,5 em por carácter; cada celda en tantas líneas como pida su ancho. */
-  const altoFila=(fila,colW,fs,mg)=>{ let L=1; fila.forEach((c,q)=>{ const cpl=Math.max(4,Math.floor((colW[q]*72-2*mg)/(fs*0.47)));
-      const t=String(c&&c.text!=null?c.text:c||""); const l=t.split("\n").reduce((a,p)=>a+Math.max(1,Math.ceil(p.length/cpl)),0); if(l>L) L=l; });
-    return Math.max(0.28,(L*fs*1.17+2*mg)/72+0.04); };
-  /* Tabla repartida en las láminas que haga falta, sin recortar texto. Título «· i/n» si son varias; la cabecera se repite. */
-  const tablaPaginada=(titulo,sub,notaFin,cab,filas,colW,fs,mg)=>{
-    const DISP=5.55, hCab=cab?altoFila(cab,colW,fs,mg):0, grupos=[]; let g=[], h=hCab;
-    filas.forEach(f=>{ const a=altoFila(f,colW,fs,mg); if(g.length&&h+a>DISP){ grupos.push(g); g=[]; h=hCab; } g.push({f,a}); h+=a; });
-    if(g.length||!grupos.length) grupos.push(g);
-    grupos.forEach((G,i)=>{ const s=pptx.addSlide({masterName:"INF"}), n=grupos.length;
-      cabecera(s,titulo+(n>1?` · ${i+1}/${n}`:""),sub+(i===n-1?notaFin:""));
-      const rows=(cab?[cab]:[]).concat(G.map(o=>o.f)), rowH=(cab?[hCab]:[]).concat(G.map(o=>o.a));
-      s.addTable(rows,{x:0.45,y:1.3,w:12.45,colW,rowH,fontFace:F,fontSize:fs,color:"222222",margin:mg,valign:"middle",border:{type:"solid",pt:0.5,color:LINEA},fill:{color:"FFFFFF"},autoPage:false}); }); };
   const nombre=op.nombreEvento||m.ev.ev||"";
   const tituloParte=parte.total>1?` · Parte ${parte.n} de ${parte.total}`:"";
 
@@ -308,21 +250,6 @@ async function generarPPTX(m, lista, fotos, op, parte){
           s=pptx.addSlide({masterName:"INF"}); cabecera(s,tt,x.nombre);
           const BX=0.5, BY=1.3, BW=12.33, BH=5.55, k=Math.min(BW/x.w,BH/x.h), w=x.w*k, h=x.h*k;
           s.addImage({data:bytesADataURL(x.bytes,"image/jpeg"),x:BX+(BW-w)/2,y:BY+(BH-h)/2,w,h});
-        } else if(x&&x.tipo==="cot"){
-          /* v48.2 (Kevin, 10-nov): «me cortó la información de descripción y características» → NADA se recorta: cada
-             celda va completa y la lámina se llena según el alto real del texto (tablaPaginada), no con N filas fijas. */
-          const nota=notaSoporte(x), sub=x.nombre+" · hoja «"+x.hoja+"»";
-          if(x.ficha.length){ const fsF=x.ficha.length>11?10:12;
-            tablaPaginada(tt+" · encabezado",sub,"",null,x.ficha.map(([e,v])=>[{text:e,options:{bold:true,color:GRIS,fill:{color:"F3F4F6"}}},{text:v}]),[3.6,8.85],fsF,5); }
-          const nc=x.cab.length, tot=x.pesos.reduce((a,b)=>a+b,0), colW=x.pesos.map(p=>12.45*p/tot), fs=nc>12?7:nc>9?8:nc>6?9:10;
-          const cabF=x.cab.map((t,q)=>({text:t,options:{bold:true,color:"FFFFFF",fill:{color:TINTA},align:x.num[q]?"right":"left"}}));
-          const filasT=x.filas.map(f=>f.map((c,q)=>({text:c,options:{align:x.num[q]?"right":"left"}})))
-            .concat(x.tots.map(([e,v])=>x.cab.map((_,q)=>({text:q===0?e:q===x.cab.length-1?v:"",options:{bold:true,align:q===0?"left":"right",fill:{color:"F3F4F6"}}}))));
-          tablaPaginada(tt,sub,nota?` · ${nota}: ver el archivo original`:"",cabF,filasT,colW,fs,nc>9?3:5);
-        } else if(x&&x.tipo==="tabla"){
-          const fs=x.filas[0].length>6?9:10, nota=notaSoporte(x), nc=x.filas[0].length;
-          const filas=x.filas.map((f,j)=>f.map(c=>({text:c,options:j===0?{bold:true}:{}})));
-          tablaPaginada(tt,x.nombre,nota?` · ${nota}: ver el archivo original`:"",null,filas,Array(nc).fill(12.45/nc),fs,5);
         } else {
           s=pptx.addSlide({masterName:"INF"}); cabecera(s,T,m.ev.cl||"");
           s.addShape(pptx.ShapeType.rect,{x:1.2,y:1.4,w:10.9,h:5.4,fill:{color:"FAFAFB"},line:{color:LINEA,width:1.25,dashType:"dash"}});
@@ -432,28 +359,6 @@ async function generarDOCX(m, lista, fotos, op, parte){
           const k=Math.min(620/x.w,780/x.h,1);
           hijos.push(P(x.nombre,{size:16,color:GRIS},{keepNext:true}));
           hijos.push(new Paragraph({alignment:AlignmentType.CENTER,children:[img(x,x.w*k,x.h*k)]}));
-        } else if(x&&x.tipo==="cot"){
-          const nota=notaSoporte(x);
-          hijos.push(P(x.nombre+" · hoja «"+x.hoja+"»"+(nota?` · ${nota}: ver el archivo original`:""),{size:16,color:GRIS},{keepNext:true}));
-          if(x.ficha.length){ const an=[2900,ANCHO_UTIL-2900];
-            hijos.push(tabla(x.ficha.map(([e,v])=>new TableRow({cantSplit:true,children:[celda(P(e,{size:16,bold:true,color:GRIS}),{width:{size:an[0],type:WidthType.DXA},shading:{type:ShadingType.CLEAR,fill:"F3F4F6",color:"auto"}}),celda(P(v,{size:16}),{width:{size:an[1],type:WidthType.DXA}})]})),an));
-            hijos.push(P("",{size:8})); }
-          /* Carta vertical: los números con ancho mínimo fijo (dinero 1.250, conteos 700 twips) y el resto se reparte entre los textos. */
-          const ANCHO_H=12960, nc=x.cab.length, tl=nc>10?12:14;   // carta horizontal: 27,9 cm − 2 × 2,54 cm
-          hijos.push({__hoja:"h"});
-          /* Cada columna con su mínimo (texto 800, dinero 850/1.250, conteos 560/700 twips); lo que sobra se reparte entre los textos. */
-          const ancha=nc>10, fijo=q=>x.num[q]?(x.pesos[q]>1?(ancha?850:1250):(ancha?560:700)):800;
-          const libre=Math.max(0,ANCHO_H-x.cab.reduce((a,_,q)=>a+fijo(q),0)), pt=x.pesos.reduce((a,p,q)=>a+(x.num[q]?0:p),0)||1;
-          const an=x.cab.map((_,q)=>fijo(q)+(x.num[q]?0:Math.floor(libre*x.pesos[q]/pt))), mg=ancha?{top:40,bottom:40,left:45,right:45}:{top:60,bottom:60,left:90,right:90}, al=q=>x.num[q]?AlignmentType.RIGHT:AlignmentType.LEFT;
-          const cab=new TableRow({tableHeader:true,children:x.cab.map((t,q)=>celda(P(t,{bold:true,color:"FFFFFF",size:tl},{alignment:al(q)}),{margins:mg,shading:{type:ShadingType.CLEAR,fill:TINTA,color:"auto"},width:{size:an[q],type:WidthType.DXA}}))});
-          const cuerpo=x.filas.map(f=>new TableRow({cantSplit:false,children:f.map((c,q)=>celda(P(c,{size:tl},{alignment:al(q)}),{margins:mg,width:{size:an[q],type:WidthType.DXA}}))}));
-          const tots=x.tots.map(([e,v])=>new TableRow({cantSplit:true,children:x.cab.map((_,q)=>celda(P(q===0?e:q===x.cab.length-1?v:"",{size:tl,bold:true},{alignment:q===0?AlignmentType.LEFT:AlignmentType.RIGHT}),{width:{size:an[q],type:WidthType.DXA},shading:{type:ShadingType.CLEAR,fill:"F3F4F6",color:"auto"}}))}));
-          hijos.push(new Table({width:{size:ANCHO_H,type:WidthType.DXA},columnWidths:an,layout:TableLayoutType.FIXED,rows:[cab].concat(cuerpo,tots)}));
-          hijos.push({__hoja:"v"});
-        } else if(x&&x.tipo==="tabla"){
-          const nota=notaSoporte(x), nc=x.filas[0].length, an=Array(nc).fill(Math.floor(ANCHO_UTIL/nc));
-          hijos.push(P(x.nombre+(nota?` · ${nota}: ver el archivo original`:""),{size:16,color:GRIS},{keepNext:true}));
-          hijos.push(tabla(x.filas.map((f,j)=>new TableRow({cantSplit:true,children:f.map((c,q)=>celda(P(c,{size:15,bold:j===0}),{width:{size:an[q],type:WidthType.DXA}}))})),an));
         } else hijos.push(P("Pegue aquí: "+d.h,{size:18,italics:true,color:GRIS}));
         }); });
       const obs=String(op.observaciones||"").split(/\n+/).map(x=>x.replace(/^[\s•·\-*]+/,"").trim()).filter(Boolean);
@@ -495,13 +400,11 @@ async function generarDOCX(m, lista, fotos, op, parte){
     const fir=["Elaboró","Revisó","Aprobó"];
     hijos.push(tabla([new TableRow({children:fir.map(t=>celda([P(" ",{size:20},{spacing:{before:700}}),P("______________________________",{size:18},{alignment:AlignmentType.CENTER}),P(t,{bold:true,color:TINTA,size:19},{alignment:AlignmentType.CENTER})],{borders:sinBorde,width:{size:3120,type:WidthType.DXA}}))})],[3120,3120,3120]));
   }
-  /* Secciones: la tabla de ítems de la cotización va en hoja horizontal (marcas {__hoja:"h"|"v"}); lo demás vertical. */
-  const tramos=[{h:false,c:[]}]; hijos.forEach(x=>{ if(x&&x.__hoja){ const h=x.__hoja==="h"; if(tramos[tramos.length-1].h!==h) tramos.push({h,c:[]}); } else tramos[tramos.length-1].c.push(x); });
   const doc=new Document({creator:op.operador,title:`Informe · ${nombre}`,styles:{default:{document:{run:{font:F,size:20}}}},
-    sections:tramos.filter(t=>t.c.length).map(t=>({properties:{page:{size:t.h?{width:12240,height:15840,orientation:X.PageOrientation.LANDSCAPE}:{width:12240,height:15840},margin:{top:1080,bottom:1000,left:1440,right:1440}}},
+    sections:[{properties:{page:{size:{width:12240,height:15840},margin:{top:1080,bottom:1000,left:1440,right:1440}}},
       headers:{default:new Header({children:[new Paragraph({children:[T("Informe técnico de ejecución · "+recorta(nombre,60),{size:16,color:GRIS})]})]})},
       footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[T("Página ",{size:16,color:GRIS}),new TextRun({children:[PageNumber.CURRENT],font:F,size:16,color:GRIS})]})]})},
-      children:t.c}))});
+      children:hijos}]});
   return await Packer.toBlob(doc);
 }
 
@@ -558,9 +461,9 @@ function abrir(ctx){
     <div class="row" style="margin-top:8px"><div><label>Operador</label><input id="infOper" type="text" value="${v("operador","Estrella Grupo Empresarial S.A")}"></div>
       <div><label>Contacto (contraportada)</label><input id="infContacto" type="text" value="${v("contacto","")}" placeholder="Nombre · cargo"></div></div>
     <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:inherit"><input id="infPegar" type="checkbox" style="width:auto;flex:none;margin:0" ${g.hojasPegar===false?"":"checked"}> Soportes comerciales: requerimiento inicial, cotización inicial y cotización final</label>
-    <div id="infSop" style="margin:6px 0 0 24px">${SOPORTES.map(d=>`<div class="fld" style="margin-top:6px"><label>${d.t}</label>${d.valor?`<input type="text" data-sopval="${d.k}" placeholder="Valor (ej.: 573413)" style="margin-bottom:4px">`:""}<button type="button" class="btn sec" data-sopbtn="${d.k}" style="padding:9px;font-size:14px">📎 Agregar archivos · ${d.t.toLowerCase()}</button><input type="file" multiple data-sop="${d.k}" accept="application/pdf,.pdf,image/*,.heic,.heif,.xlsx,.xlsm,.xls,.csv" style="display:none"><div class="mut" data-sopest="${d.k}" style="margin:2px 0 0">Adjunta ${d.h}. Puedes elegir varias: una lámina por archivo, en el orden en que las elijas.</div></div>`).join("")}
+    <div id="infSop" style="margin:6px 0 0 24px">${SOPORTES.map(d=>`<div class="fld" style="margin-top:6px"><label>${d.t}</label>${d.valor?`<input type="text" data-sopval="${d.k}" placeholder="Valor (ej.: 573413)" style="margin-bottom:4px">`:""}<button type="button" class="btn sec" data-sopbtn="${d.k}" style="padding:9px;font-size:14px">📎 Agregar archivos · ${d.t.toLowerCase()}</button><input type="file" multiple data-sop="${d.k}" accept="application/pdf,.pdf,image/*,.heic,.heif" style="display:none"><div class="mut" data-sopest="${d.k}" style="margin:2px 0 0">Adjunta ${d.h}. Puedes elegir varias: una lámina por archivo, en el orden en que las elijas.</div></div>`).join("")}
       <div class="fld" style="margin-top:6px"><label>Observaciones a la cotización</label><textarea id="infObs" rows="6" maxlength="1200" placeholder="Una por línea. Ej.: Se entrega a satisfacción sin ninguna novedad." style="display:block;width:100%;box-sizing:border-box;height:152px;resize:none;background:var(--field);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:11px;font-size:15px;line-height:1.45;font-family:var(--font)"></textarea><div class="mut" id="infObsN" style="margin:3px 0 0;text-align:right;font-variant-numeric:tabular-nums">0/250</div></div>
-      <div class="mut" style="margin-top:4px">PDF, imágenes o Excel. Un PDF sale tal cual, una lámina por página (lo más fiel para cotizaciones). No se guardan: adjúntalos cada vez que generes. El soporte que falte sale como lámina para pegar.</div></div>
+      <div class="mut" style="margin-top:4px">PDF o capturas: el documento sale tal cual, con logos (un PDF = una lámina por página). ¿La cotización está en Excel? Guárdala como PDF desde Excel (Archivo → Guardar como → PDF). No se guardan: adjúntalos cada vez que generes. El soporte que falte sale como lámina para pegar.</div></div>
     <label style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:inherit"><input id="infPie" type="checkbox" style="width:auto;flex:none;margin:0" ${g.pieFoto?"checked":""}> Mostrar fecha y hora bajo cada foto (el sello de la foto ya las trae)</label>
     <label style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:inherit"><input id="infAdic" type="checkbox" style="width:auto;flex:none;margin:0" ${g.adicionales?"checked":""}> Incluir requerimientos adicionales reportados en sitio</label>
     ${filtrado?`<div class="mut" style="color:var(--oro-d)">Se usará el filtro actual del visor: ${ctx.visibles.length} de ${ctx.evidencias.length} evidencias.</div>`:""}
@@ -585,9 +488,9 @@ function abrir(ctx){
     sopPend[k]=Promise.allSettled(fs.map(prepararSoporte)).then(rs=>{
       const ok=[], lin=[];
       rs.forEach((r,i)=>{ const f=fs[i];
-        if(r.status==="fulfilled"){ const x=r.value, nt=notaSoporte(Array.isArray(x)?null:x);
+        if(r.status==="fulfilled"){ const x=r.value;
           if(Array.isArray(x)){ ok.push(...x); lin.push(`<span style="color:#1a9e56">✓</span> ${esc(f.name)} · PDF, ${x.length} página(s) = ${x.length} lámina(s)${x.omitidas?` <span style="color:#b7791f">(se omitieron las últimas ${x.omitidas}: máx. ${PDF_PAGS})</span>`:""}`); }
-          else { ok.push(x); lin.push(`<span style="color:#1a9e56">✓</span> ${esc(f.name)}${x.tipo==="cot"?` · hoja «${esc(x.hoja)}»: ${x.ficha.length?"encabezado + ":""}${x.filas.length} ítem(s)${x.tots.length?" + totales":""}${nt?" ("+nt+")":""}`:x.tipo==="tabla"?` · hoja «${esc(x.hoja)}», tabla de ${x.filas.length} fila(s)${nt?" ("+nt+")":""}`:" · imagen"}`); } }
+          else { ok.push(x); lin.push(`<span style="color:#1a9e56">✓</span> ${esc(f.name)} · imagen`); } }
         else lin.push(`<span style="color:#b3261e">⚠ ${esc(f.name)}: ${esc(r.reason&&r.reason.message||r.reason)}</span>`); });
       if(ok.length) sop[k]=ok; est.innerHTML=lin.join("<br>"); })
       .finally(()=>{ delete sopPend[k]; estimar(); }); }));
