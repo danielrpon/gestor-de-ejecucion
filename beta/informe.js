@@ -254,14 +254,15 @@ async function generarPPTX(m, lista, fotos, op, parte){
     cabecera(sl,`Evidencias · ${r.codigo?r.codigo+" ":""}${r.req}`,meta);
     const nota=r.adicional?[r.solicitado?`Solicitado por: ${r.solicitado}`:"",r.justificacion].filter(Boolean).join(" · "):r.car;
     if(nota) sl.addText(recorta(nota,210),{x:0.5,y:1.10,w:12.33,h:0.32,fontFace:F,fontSize:11,italic:true,color:"6B6B6B",margin:0,valign:"top"});
-    const y0=Y0+0.2, boxH=ALTO-0.2-PIE-0.05;
+    /* v47: el pie (fecha · hora) es opcional y sale apagado: el sello de la foto ya trae esos datos (pedido de Kevin, 22-oct). Sin pie, la foto usa ese alto. */
+    const y0=Y0+0.2, boxH=ALTO-0.2-(op.pieFoto?PIE+0.05:0);
     const off=(W-2*MX-(grupo.length*cw+(grupo.length-1)*GAP))/2;
     grupo.forEach((e,c)=>{ const x=MX+off+c*(cw+GAP); const f=fotos.get(e);
       if(!f||f.falla){ sl.addShape(pptx.ShapeType.rect,{x,y:y0,w:cw,h:boxH,fill:{color:"F2F2F2"},line:{color:"CCCCCC",width:0.75}});
         sl.addText("Foto no disponible",{x,y:y0+boxH/2-0.2,w:cw,h:0.4,align:"center",fontFace:F,fontSize:11,color:"888888"}); }
       else { const esc2=Math.min(cw/f.w,boxH/f.h), w=f.w*esc2, h=f.h*esc2;
         sl.addImage({data:bytesADataURL(f.bytes,"image/jpeg"),x:x+(cw-w)/2,y:y0+boxH-h,w,h}); }
-      sl.addText(pie(e),{x,y:y0+boxH+0.04,w:cw,h:PIE,align:"center",fontFace:F,fontSize:10,color:GRIS,fill:{color:"FFFFFF"},margin:0}); });
+      if(op.pieFoto) sl.addText(pie(e),{x,y:y0+boxH+0.04,w:cw,h:PIE,align:"center",fontFace:F,fontSize:10,color:GRIS,fill:{color:"FFFFFF"},margin:0}); });
   };
   const hojaVacia=(r,bloque)=>{ const sl=pptx.addSlide({masterName:"INF"});
     cabecera(sl,`Evidencias · ${r.codigo?r.codigo+" ":""}${r.req}`,[r.cat,bloque?bloque.titulo:""].filter(Boolean).join("  ·  "));
@@ -357,7 +358,7 @@ async function generarDOCX(m, lista, fotos, op, parte){
       const celdas=fila.map(e=>{ const f=fotos.get(e); const h=[];
         if(!f||f.falla) h.push(P("Foto no disponible",{size:16,color:"888888"},{alignment:AlignmentType.CENTER}));
         else { const k=Math.min(ANCHO_FOTO/f.w,ALTO_MAX/f.h); h.push(new Paragraph({alignment:AlignmentType.CENTER,children:[img(f,f.w*k,f.h*k)]})); }
-        h.push(P(pie(e),{size:15,color:GRIS},{alignment:AlignmentType.CENTER}));
+        if(op.pieFoto) h.push(P(pie(e),{size:15,color:GRIS},{alignment:AlignmentType.CENTER}));
         return celda(h,{borders:sinBorde,width:{size:3120,type:WidthType.DXA},verticalAlign:VerticalAlign.BOTTOM}); });
       while(celdas.length<COLS) celdas.push(celda(P(""),{borders:sinBorde,width:{size:3120,type:WidthType.DXA}}));
       filas.push(new TableRow({cantSplit:true,children:celdas})); }
@@ -449,6 +450,7 @@ function abrir(ctx){
     <div id="infSop" style="margin:6px 0 0 24px">${SOPORTES.map(d=>`<div class="fld" style="margin-top:6px"><label>${d.t}</label>${d.valor?`<input type="text" data-sopval="${d.k}" placeholder="Valor (ej.: 573413)" style="margin-bottom:4px">`:""}<button type="button" class="btn sec" data-sopbtn="${d.k}" style="padding:9px;font-size:14px">📎 Agregar archivos · ${d.t.toLowerCase()}</button><input type="file" multiple data-sop="${d.k}" accept="image/*,.heic,.heif,.xlsx,.xlsm,.xls,.csv" style="display:none"><div class="mut" data-sopest="${d.k}" style="margin:2px 0 0">Adjunta ${d.h}. Puedes elegir varias: una lámina por archivo, en el orden en que las elijas.</div></div>`).join("")}
       <div class="fld" style="margin-top:6px"><label>Observaciones a la cotización</label><textarea id="infObs" rows="6" maxlength="1200" placeholder="Una por línea. Ej.: Se entrega a satisfacción sin ninguna novedad." style="display:block;width:100%;box-sizing:border-box;height:152px;resize:none;background:var(--field);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:11px;font-size:15px;line-height:1.45;font-family:var(--font)"></textarea><div class="mut" id="infObsN" style="margin:3px 0 0;text-align:right;font-variant-numeric:tabular-nums">0/250</div></div>
       <div class="mut" style="margin-top:4px">Imágenes o Excel. No se guardan: adjúntalos cada vez que generes. El soporte que falte sale como lámina para pegar.</div></div>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:inherit"><input id="infPie" type="checkbox" style="width:auto;flex:none;margin:0" ${g.pieFoto?"checked":""}> Mostrar fecha y hora bajo cada foto (el sello de la foto ya las trae)</label>
     <label style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:inherit"><input id="infAdic" type="checkbox" style="width:auto;flex:none;margin:0" ${g.adicionales?"checked":""}> Incluir requerimientos adicionales reportados en sitio</label>
     ${filtrado?`<div class="mut" style="color:var(--oro-d)">Se usará el filtro actual del visor: ${ctx.visibles.length} de ${ctx.evidencias.length} evidencias.</div>`:""}
     <div class="mut" id="infEst" style="margin-top:6px"></div>
@@ -480,7 +482,7 @@ function abrir(ctx){
     const ct=q("#infContacto").value.split("·");
     return {formato:q("#infFmt").value, version:q("#infVer").value, maxPorGrupo:+q("#infMax").value, contrato:q("#infContrato").value.trim(),
       nombreEvento:q("#infNombre").value.trim(), lugar:q("#infLugar").value.trim(), operador:q("#infOper").value.trim()||"Estrella Grupo Empresarial S.A",
-      contacto:(ct[0]||"").trim(), cargo:(ct[1]||"").trim(), contactoTxt:q("#infContacto").value, hojasPegar:q("#infPegar").checked, adicionales:q("#infAdic").checked, soportes:Object.assign({},sop),
+      contacto:(ct[0]||"").trim(), cargo:(ct[1]||"").trim(), contactoTxt:q("#infContacto").value, hojasPegar:q("#infPegar").checked, adicionales:q("#infAdic").checked, pieFoto:q("#infPie").checked, soportes:Object.assign({},sop),
       valores:Object.fromEntries([...box.querySelectorAll("[data-sopval]")].map(i=>[i.dataset.sopval,i.value])), observaciones:q("#infObs").value}; };
   const estimar=()=>{ try{ const op=leer(); const m=construirModelo(ctx,op); const partes=partir(m.visibles); const n=fotosDe(m.visibles).length;
       const falta=op.hojasPegar?SOPORTES.filter(d=>!sop[d.k]).map(d=>d.t.toLowerCase()):[];
@@ -493,7 +495,7 @@ function abrir(ctx){
   box.querySelector("#infGo").addEventListener("click",async()=>{
     if(Object.keys(sopPend).length) await Promise.allSettled(Object.values(sopPend));   // un soporte que aún se está leyendo
     const op=leer(); const btn=box.querySelector("#infGo"), pr=box.querySelector("#infProg");
-    D.saveJSON(key,{formato:op.formato,version:op.version,maxPorGrupo:op.maxPorGrupo,contrato:op.contrato,nombreEvento:op.nombreEvento,lugar:op.lugar,operador:op.operador,contacto:op.contactoTxt,hojasPegar:op.hojasPegar,adicionales:op.adicionales});
+    D.saveJSON(key,{formato:op.formato,version:op.version,maxPorGrupo:op.maxPorGrupo,contrato:op.contrato,nombreEvento:op.nombreEvento,lugar:op.lugar,operador:op.operador,contacto:op.contactoTxt,hojasPegar:op.hojasPegar,adicionales:op.adicionales,pieFoto:op.pieFoto});
     btn.disabled=true; cancel=false; pr.classList.remove("hide");
     const ui={cancelado:()=>cancel, progreso:(t,h,n,f)=>{ pr.innerHTML=`<div style="font-weight:700">${esc(t)}</div><div style="height:7px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0"><div style="height:100%;width:${n?Math.round(h/n*100):0}%;background:var(--azul)"></div></div><div class="mut" style="margin:0">${h}/${n} foto(s)${f?` · <span style="color:#b3261e">no disponibles ${f}</span>`:""} · <a class="lnk" id="infCancel">cancelar</a></div>`;
       const c=pr.querySelector("#infCancel"); if(c) c.onclick=()=>{ cancel=true; }; }};
