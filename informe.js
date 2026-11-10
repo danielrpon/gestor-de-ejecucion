@@ -42,14 +42,52 @@ function cargarScript(src){ return new Promise((ok,ko)=>{ if(document.querySelec
 function bytesADataURL(bytes,mime){ let bin=""; const CH=0x8000; for(let i=0;i<bytes.length;i+=CH) bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+CH)); return `data:${mime};base64,`+btoa(bin); }
 
 /* Reduce la foto en el navegador. La original se suelta apenas se dibuja (lección iOS: encoger el lienzo a 1x1). */
-async function prepararFoto(blob){
+async function prepararFoto(blob,lado,calidad){
   const bmp=await createImageBitmap(blob,{imageOrientation:"from-image"});
-  const s=Math.min(1,LADO_PX/Math.max(bmp.width,bmp.height)); const w=Math.max(1,Math.round(bmp.width*s)), h=Math.max(1,Math.round(bmp.height*s));
+  const s=Math.min(1,(lado||LADO_PX)/Math.max(bmp.width,bmp.height)); const w=Math.max(1,Math.round(bmp.width*s)), h=Math.max(1,Math.round(bmp.height*s));
   const c=document.createElement("canvas"); c.width=w; c.height=h; c.getContext("2d").drawImage(bmp,0,0,w,h); bmp.close();
-  const out=await new Promise(r=>c.toBlob(r,"image/jpeg",CALIDAD)); c.width=1; c.height=1;
+  const out=await new Promise(r=>c.toBlob(r,"image/jpeg",calidad||CALIDAD)); c.width=1; c.height=1;
   if(!out) throw new Error("toBlob vacío");
   return {w,h,bytes:new Uint8Array(await out.arrayBuffer())};
 }
+
+/* ---------- SOPORTES COMERCIALES (beta v46, 17-oct-2026) ----------
+   Pedido de Kevin (16-oct): el informe debe traer la evidencia del requerimiento inicial y de las cotizaciones
+   inicial y final. Se adjuntan en el panel al generar y NO se guardan en Supabase (son documentos comerciales).
+   Imagen (captura del correo o de la cotización) → se monta ajustada a la lámina, a 1.800 px para que se lea;
+   Excel/CSV → tabla con la primera hoja. El soporte que falte sale como lámina para pegar, como antes. */
+/* v46.1: como el ejemplo de Kevin (informe 548 de Plaza Mayor): varias capturas por soporte (una lámina por
+   cada parte del formato de cotización), el valor en el título y una lámina de observaciones a la cotización. */
+const SOPORTES=[
+  {k:"req",    t:"Requerimiento",          h:"correo o captura(s) del requerimiento del cliente"},
+  {k:"cotIni", t:"Cotización inicial",     h:"captura(s) o Excel de la cotización inicial", valor:true},
+  {k:"cotFin", t:"Valor ejecución final",  h:"captura(s) o archivo de la cotización final", valor:true}];
+function fmtValor(v){ v=String(v||"").trim(); if(!v) return ""; const d=v.replace(/[^\d]/g,"");
+  return /^[\s$.,\d]+$/.test(v)&&d ? "$"+Number(d).toLocaleString("es-CO") : v; }
+function tituloSop(d,op){ const v=d.valor?fmtValor((op.valores||{})[d.k]):""; return d.t+(v?" "+v:""); }
+const SOP_FILAS=60, SOP_COLS=8, SOP_POR_LAMINA=13;
+function esHoja(f){ return /\.(xlsx|xlsm|xls|csv)$/i.test(f.name||""); }
+async function prepararSoporte(file){
+  if(esHoja(file)){
+    if(!window.XLSX) throw new Error("no cargó el lector de Excel");
+    const wb=window.XLSX.read(await file.arrayBuffer(),{type:"array"});
+    let filas=window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:"",raw:false,blankrows:false})
+      .map(f=>f.map(c=>String(c==null?"":c).replace(/\s+/g," ").trim())).filter(f=>f.some(c=>c));
+    const ancho=filas.reduce((a,f)=>Math.max(a,f.length),0);
+    const vivas=[...Array(ancho).keys()].filter(j=>filas.some(f=>f[j])).slice(0,SOP_COLS);   // fuera columnas vacías
+    filas=filas.map(f=>vivas.map(j=>f[j]||""));
+    if(!filas.length) throw new Error("la primera hoja está vacía");
+    return {tipo:"tabla", nombre:file.name, filas:filas.slice(0,SOP_FILAS), recortadas:Math.max(0,filas.length-SOP_FILAS), colsFuera:Math.max(0,ancho-vivas.length)};
+  }
+  let blob=file;
+  if(/\.(heic|heif)$/i.test(file.name||"")||/hei[cf]/i.test(file.type||"")){
+    if(typeof window.heic2any!=="function") throw new Error("no se pudo leer la foto HEIC");
+    blob=await window.heic2any({blob:file,toType:"image/jpeg",quality:0.9}); if(Array.isArray(blob)) blob=blob[0];
+  } else if(!/^image\//.test(file.type||"")) throw new Error("formato no soportado: adjunta una imagen (captura) o un Excel");
+  return Object.assign({tipo:"img", nombre:file.name}, await prepararFoto(blob,1800,0.85));
+}
+function notaSoporte(x){ if(!x||x.tipo!=="tabla") return "";
+  return [x.recortadas?`se omitieron ${x.recortadas} fila(s)`:"", x.colsFuera?`se omitieron ${x.colsFuera} columna(s)`:""].filter(Boolean).join(" y "); }
 
 /* ---------- MODELO: requerimientos del config + evidencias → qué va en el informe ---------- */
 function construirModelo(ctx, op){
@@ -179,10 +217,31 @@ async function generarPPTX(m, lista, fotos, op, parte){
       s.addTable([head].concat(rows),{x:0.45,y:1.35,w:12.45,colW:[0.7,5.3,2.2,1.4,0.85,2.0],fontFace:F,fontSize:11,color:"222222",rowH:0.46,valign:"middle",border:{type:"solid",pt:0.5,color:LINEA},fill:{color:"FFFFFF"}});
     }
     if(op.hojasPegar){
-      [["Requerimiento "+(m.ev.cl||"del cliente"),"Pegue aquí la imagen del requerimiento del cliente"],["Cotización operador","Pegue aquí la imagen de la cotización"]].forEach(([t,h])=>{
-        s=pptx.addSlide({masterName:"INF"}); cabecera(s,t,"");
-        s.addShape(pptx.ShapeType.rect,{x:1.2,y:1.4,w:10.9,h:5.4,fill:{color:"FAFAFB"},line:{color:LINEA,width:1.25,dashType:"dash"}});
-        s.addText(h,{x:1.2,y:3.8,w:10.9,h:0.6,align:"center",fontFace:F,fontSize:16,color:GRIS}); });
+      const sop=op.soportes||{};
+      SOPORTES.forEach(d=>{ const L=sop[d.k]||[], T=tituloSop(d,op);
+        (L.length?L:[null]).forEach((x,ix)=>{ const tt=T+(L.length>1?` (${ix+1}/${L.length})`:"");
+        if(x&&x.tipo==="img"){
+          s=pptx.addSlide({masterName:"INF"}); cabecera(s,tt,x.nombre);
+          const BX=0.5, BY=1.3, BW=12.33, BH=5.55, k=Math.min(BW/x.w,BH/x.h), w=x.w*k, h=x.h*k;
+          s.addImage({data:bytesADataURL(x.bytes,"image/jpeg"),x:BX+(BW-w)/2,y:BY+(BH-h)/2,w,h});
+        } else if(x&&x.tipo==="tabla"){
+          const n=Math.max(1,Math.ceil(x.filas.length/SOP_POR_LAMINA)), fs=x.filas[0].length>6?9:10, nota=notaSoporte(x);
+          for(let i=0;i<n;i++){
+            s=pptx.addSlide({masterName:"INF"});
+            cabecera(s,tt+(n>1?` · ${i+1}/${n}`:""),x.nombre+(nota&&i===n-1?` · ${nota}: ver el archivo original`:""));
+            const filas=x.filas.slice(i*SOP_POR_LAMINA,(i+1)*SOP_POR_LAMINA).map((f,j)=>f.map(c=>({text:recorta(c,60),options:i===0&&j===0?{bold:true}:{}})));
+            s.addTable(filas,{x:0.45,y:1.3,w:12.45,fontFace:F,fontSize:fs,color:"222222",rowH:0.4,valign:"middle",border:{type:"solid",pt:0.5,color:LINEA},fill:{color:"FFFFFF"}});
+          }
+        } else {
+          s=pptx.addSlide({masterName:"INF"}); cabecera(s,T,m.ev.cl||"");
+          s.addShape(pptx.ShapeType.rect,{x:1.2,y:1.4,w:10.9,h:5.4,fill:{color:"FAFAFB"},line:{color:LINEA,width:1.25,dashType:"dash"}});
+          s.addText("Pegue aquí: "+d.h,{x:1.2,y:3.8,w:10.9,h:0.6,align:"center",fontFace:F,fontSize:16,color:GRIS});
+        }
+        }); });
+      const obs=String(op.observaciones||"").split(/\n+/).map(x=>x.replace(/^[\s•·\-*]+/,"").trim()).filter(Boolean);
+      if(obs.length){ s=pptx.addSlide({masterName:"INF"}); cabecera(s,"Observaciones a la cotización","");
+        const tot=obs.reduce((n,x)=>n+x.length,0), fsO=(tot>600||obs.length>8)?14:tot>250?16:18;   /* sin recortar: la letra baja con el largo */
+        s.addText(obs.slice(0,14).map(x=>({text:recorta(x,900),options:{bullet:true,breakLine:true,paraSpaceAfter:8}})),{x:0.7,y:1.4,w:11.9,h:5.3,fontFace:F,fontSize:fsO,color:"222222",valign:"top",margin:0,fit:"shrink"}); }
     }
   }
 
@@ -195,14 +254,15 @@ async function generarPPTX(m, lista, fotos, op, parte){
     cabecera(sl,`Evidencias · ${r.codigo?r.codigo+" ":""}${r.req}`,meta);
     const nota=r.adicional?[r.solicitado?`Solicitado por: ${r.solicitado}`:"",r.justificacion].filter(Boolean).join(" · "):r.car;
     if(nota) sl.addText(recorta(nota,210),{x:0.5,y:1.10,w:12.33,h:0.32,fontFace:F,fontSize:11,italic:true,color:"6B6B6B",margin:0,valign:"top"});
-    const y0=Y0+0.2, boxH=ALTO-0.2-PIE-0.05;
+    /* v47: el pie (fecha · hora) es opcional y sale apagado: el sello de la foto ya trae esos datos (pedido de Kevin, 22-oct). Sin pie, la foto usa ese alto. */
+    const y0=Y0+0.2, boxH=ALTO-0.2-(op.pieFoto?PIE+0.05:0);
     const off=(W-2*MX-(grupo.length*cw+(grupo.length-1)*GAP))/2;
     grupo.forEach((e,c)=>{ const x=MX+off+c*(cw+GAP); const f=fotos.get(e);
       if(!f||f.falla){ sl.addShape(pptx.ShapeType.rect,{x,y:y0,w:cw,h:boxH,fill:{color:"F2F2F2"},line:{color:"CCCCCC",width:0.75}});
         sl.addText("Foto no disponible",{x,y:y0+boxH/2-0.2,w:cw,h:0.4,align:"center",fontFace:F,fontSize:11,color:"888888"}); }
       else { const esc2=Math.min(cw/f.w,boxH/f.h), w=f.w*esc2, h=f.h*esc2;
         sl.addImage({data:bytesADataURL(f.bytes,"image/jpeg"),x:x+(cw-w)/2,y:y0+boxH-h,w,h}); }
-      sl.addText(pie(e),{x,y:y0+boxH+0.04,w:cw,h:PIE,align:"center",fontFace:F,fontSize:10,color:GRIS,fill:{color:"FFFFFF"},margin:0}); });
+      if(op.pieFoto) sl.addText(pie(e),{x,y:y0+boxH+0.04,w:cw,h:PIE,align:"center",fontFace:F,fontSize:10,color:GRIS,fill:{color:"FFFFFF"},margin:0}); });
   };
   const hojaVacia=(r,bloque)=>{ const sl=pptx.addSlide({masterName:"INF"});
     cabecera(sl,`Evidencias · ${r.codigo?r.codigo+" ":""}${r.req}`,[r.cat,bloque?bloque.titulo:""].filter(Boolean).join("  ·  "));
@@ -271,6 +331,25 @@ async function generarDOCX(m, lista, fotos, op, parte){
     const anch=[600,3400,1700,1100,660,1900];
     const cab=new TableRow({tableHeader:true,children:["Cód.","Requerimiento","Categoría","Cant.","Fotos","Estado"].map((t,k)=>celda(P(t,{bold:true,color:"FFFFFF",size:17}),{shading:{type:ShadingType.CLEAR,fill:TINTA,color:"auto"},width:{size:anch[k],type:WidthType.DXA}}))});
     hijos.push(tabla([cab].concat(lista.map(r=>new TableRow({cantSplit:true,children:[r.codigo,r.req,r.cat,`${r.cant}${r.um?" "+String(r.um).toLowerCase():""}`,String(r.total),r.estado].map((t,k)=>celda(P(t,k===5?{bold:true,color:r.color,size:16}:{size:17}),{width:{size:anch[k],type:WidthType.DXA}}))}))),anch));
+    if(op.hojasPegar){
+      const sop=op.soportes||{};
+      hijos.push(H1(`${sec++}. Soportes comerciales`));
+      SOPORTES.forEach(d=>{ const L=sop[d.k]||[];
+        hijos.push(H2(tituloSop(d,op)));
+        (L.length?L:[null]).forEach(x=>{
+        if(x&&x.tipo==="img"){
+          const k=Math.min(620/x.w,780/x.h,1);
+          hijos.push(P(x.nombre,{size:16,color:GRIS},{keepNext:true}));
+          hijos.push(new Paragraph({alignment:AlignmentType.CENTER,children:[img(x,x.w*k,x.h*k)]}));
+        } else if(x&&x.tipo==="tabla"){
+          const nota=notaSoporte(x), nc=x.filas[0].length, an=Array(nc).fill(Math.floor(ANCHO_UTIL/nc));
+          hijos.push(P(x.nombre+(nota?` · ${nota}: ver el archivo original`:""),{size:16,color:GRIS},{keepNext:true}));
+          hijos.push(tabla(x.filas.map((f,j)=>new TableRow({cantSplit:true,children:f.map((c,q)=>celda(P(c,{size:15,bold:j===0}),{width:{size:an[q],type:WidthType.DXA}}))})),an));
+        } else hijos.push(P("Pegue aquí: "+d.h,{size:18,italics:true,color:GRIS}));
+        }); });
+      const obs=String(op.observaciones||"").split(/\n+/).map(x=>x.replace(/^[\s•·\-*]+/,"").trim()).filter(Boolean);
+      if(obs.length){ hijos.push(H2("Observaciones a la cotización")); obs.forEach(x=>hijos.push(new Paragraph({bullet:{level:0},children:[T(x,{size:20})]}))); }
+    }
   }
   hijos.push(H1(`${sec++}. Evidencias por requerimiento`));
   const COLS=3, ANCHO_FOTO=196, ALTO_MAX=250; // px a 96 dpi ≈ 5,2 × 6,6 cm
@@ -279,7 +358,7 @@ async function generarDOCX(m, lista, fotos, op, parte){
       const celdas=fila.map(e=>{ const f=fotos.get(e); const h=[];
         if(!f||f.falla) h.push(P("Foto no disponible",{size:16,color:"888888"},{alignment:AlignmentType.CENTER}));
         else { const k=Math.min(ANCHO_FOTO/f.w,ALTO_MAX/f.h); h.push(new Paragraph({alignment:AlignmentType.CENTER,children:[img(f,f.w*k,f.h*k)]})); }
-        h.push(P(pie(e),{size:15,color:GRIS},{alignment:AlignmentType.CENTER}));
+        if(op.pieFoto) h.push(P(pie(e),{size:15,color:GRIS},{alignment:AlignmentType.CENTER}));
         return celda(h,{borders:sinBorde,width:{size:3120,type:WidthType.DXA},verticalAlign:VerticalAlign.BOTTOM}); });
       while(celdas.length<COLS) celdas.push(celda(P(""),{borders:sinBorde,width:{size:3120,type:WidthType.DXA}}));
       filas.push(new TableRow({cantSplit:true,children:celdas})); }
@@ -367,7 +446,11 @@ function abrir(ctx){
     <div class="fld" style="margin-top:8px"><label>Lugar</label><input id="infLugar" type="text" value="${v("lugar",lugarFrecuente(ctx.evidencias)||(ctx.ev.config&&ctx.ev.config.ci)||"")}"></div>
     <div class="row" style="margin-top:8px"><div><label>Operador</label><input id="infOper" type="text" value="${v("operador","Estrella Grupo Empresarial S.A")}"></div>
       <div><label>Contacto (contraportada)</label><input id="infContacto" type="text" value="${v("contacto","")}" placeholder="Nombre · cargo"></div></div>
-    <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:inherit"><input id="infPegar" type="checkbox" style="width:auto;flex:none;margin:0" ${g.hojasPegar===false?"":"checked"}> Láminas para pegar requerimiento del cliente y cotización</label>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:inherit"><input id="infPegar" type="checkbox" style="width:auto;flex:none;margin:0" ${g.hojasPegar===false?"":"checked"}> Soportes comerciales: requerimiento inicial, cotización inicial y cotización final</label>
+    <div id="infSop" style="margin:6px 0 0 24px">${SOPORTES.map(d=>`<div class="fld" style="margin-top:6px"><label>${d.t}</label>${d.valor?`<input type="text" data-sopval="${d.k}" placeholder="Valor (ej.: 573413)" style="margin-bottom:4px">`:""}<button type="button" class="btn sec" data-sopbtn="${d.k}" style="padding:9px;font-size:14px">📎 Agregar archivos · ${d.t.toLowerCase()}</button><input type="file" multiple data-sop="${d.k}" accept="image/*,.heic,.heif,.xlsx,.xlsm,.xls,.csv" style="display:none"><div class="mut" data-sopest="${d.k}" style="margin:2px 0 0">Adjunta ${d.h}. Puedes elegir varias: una lámina por archivo, en el orden en que las elijas.</div></div>`).join("")}
+      <div class="fld" style="margin-top:6px"><label>Observaciones a la cotización</label><textarea id="infObs" rows="6" maxlength="1200" placeholder="Una por línea. Ej.: Se entrega a satisfacción sin ninguna novedad." style="display:block;width:100%;box-sizing:border-box;height:152px;resize:none;background:var(--field);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:11px;font-size:15px;line-height:1.45;font-family:var(--font)"></textarea><div class="mut" id="infObsN" style="margin:3px 0 0;text-align:right;font-variant-numeric:tabular-nums">0/250</div></div>
+      <div class="mut" style="margin-top:4px">Imágenes o Excel. No se guardan: adjúntalos cada vez que generes. El soporte que falte sale como lámina para pegar.</div></div>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:inherit"><input id="infPie" type="checkbox" style="width:auto;flex:none;margin:0" ${g.pieFoto?"checked":""}> Mostrar fecha y hora bajo cada foto (el sello de la foto ya las trae)</label>
     <label style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:inherit"><input id="infAdic" type="checkbox" style="width:auto;flex:none;margin:0" ${g.adicionales?"checked":""}> Incluir requerimientos adicionales reportados en sitio</label>
     ${filtrado?`<div class="mut" style="color:var(--oro-d)">Se usará el filtro actual del visor: ${ctx.visibles.length} de ${ctx.evidencias.length} evidencias.</div>`:""}
     <div class="mut" id="infEst" style="margin-top:6px"></div>
@@ -375,19 +458,44 @@ function abrir(ctx){
     <div id="infProg" class="hide" style="margin-top:8px"></div>`;
   box.classList.remove("hide");
   if(g.formato) box.querySelector("#infFmt").value=g.formato; if(g.version) box.querySelector("#infVer").value=g.version; if(g.maxPorGrupo!=null) box.querySelector("#infMax").value=String(g.maxPorGrupo);
+  const sop={}, sopPend={};
+  const verSop=()=>{ box.querySelector("#infSop").classList.toggle("hide",!box.querySelector("#infPegar").checked); };
+  /* La app oculta todos los input[type=file] (index.html: input[type=file]{display:none}) y los abre con
+     botones propios; aquí igual: el botón abre el selector. */
+  /* Observaciones: alto fijo (~250 caracteres a la vista en el celular) y contador suave: pasado 250 avisa, no bloquea. */
+  const obsN=()=>{ const n=box.querySelector("#infObs").value.length, el=box.querySelector("#infObsN");
+    el.textContent=n>250?`${n}/250 · en la lámina la letra saldrá más pequeña`:`${n}/250`; el.style.color=n>250?"#b7791f":""; };
+  box.querySelector("#infObs").addEventListener("input",obsN);
+  box.querySelectorAll("[data-sopbtn]").forEach(bt=>bt.addEventListener("click",()=>box.querySelector(`input[data-sop="${bt.dataset.sopbtn}"]`).click()));
+  box.querySelectorAll("input[data-sop]").forEach(inp=>inp.addEventListener("change",()=>{ const k=inp.dataset.sop, est=box.querySelector(`[data-sopest="${k}"]`), fs=[...(inp.files||[])];
+    delete sop[k]; if(!fs.length){ est.textContent="Sin adjuntar."; estimar(); return; }
+    box.querySelector(`[data-sopbtn="${k}"]`).textContent=`📎 Cambiar archivos (${fs.length})`;
+    est.textContent=`Leyendo ${fs.length} archivo(s)…`;
+    sopPend[k]=Promise.allSettled(fs.map(prepararSoporte)).then(rs=>{
+      const ok=[], lin=[];
+      rs.forEach((r,i)=>{ const f=fs[i];
+        if(r.status==="fulfilled"){ const x=r.value; ok.push(x); lin.push(`<span style="color:#1a9e56">✓</span> ${esc(f.name)}${x.tipo==="tabla"?` · tabla de ${x.filas.length} fila(s)${notaSoporte(x)?" ("+notaSoporte(x)+")":""}`:" · imagen"}`); }
+        else lin.push(`<span style="color:#b3261e">⚠ ${esc(f.name)}: ${esc(r.reason&&r.reason.message||r.reason)}</span>`); });
+      if(ok.length) sop[k]=ok; est.innerHTML=lin.join("<br>"); })
+      .finally(()=>{ delete sopPend[k]; estimar(); }); }));
   const leer=()=>{ const q=s=>box.querySelector(s);
     const ct=q("#infContacto").value.split("·");
     return {formato:q("#infFmt").value, version:q("#infVer").value, maxPorGrupo:+q("#infMax").value, contrato:q("#infContrato").value.trim(),
       nombreEvento:q("#infNombre").value.trim(), lugar:q("#infLugar").value.trim(), operador:q("#infOper").value.trim()||"Estrella Grupo Empresarial S.A",
-      contacto:(ct[0]||"").trim(), cargo:(ct[1]||"").trim(), contactoTxt:q("#infContacto").value, hojasPegar:q("#infPegar").checked, adicionales:q("#infAdic").checked}; };
+      contacto:(ct[0]||"").trim(), cargo:(ct[1]||"").trim(), contactoTxt:q("#infContacto").value, hojasPegar:q("#infPegar").checked, adicionales:q("#infAdic").checked, pieFoto:q("#infPie").checked, soportes:Object.assign({},sop),
+      valores:Object.fromEntries([...box.querySelectorAll("[data-sopval]")].map(i=>[i.dataset.sopval,i.value])), observaciones:q("#infObs").value}; };
   const estimar=()=>{ try{ const op=leer(); const m=construirModelo(ctx,op); const partes=partir(m.visibles); const n=fotosDe(m.visibles).length;
-      box.querySelector("#infEst").textContent=`${m.visibles.length} requerimiento(s) · ${n} foto(s) al informe${partes.length>1?` · saldrá en ${partes.length} archivos (tope ${TOPE_POR_ARCHIVO} fotos c/u)`:""} · ~${Math.max(1,Math.round(n*0.25))} MB`;
+      const falta=op.hojasPegar?SOPORTES.filter(d=>!sop[d.k]).map(d=>d.t.toLowerCase()):[];
+      box.querySelector("#infEst").textContent=`${m.visibles.length} requerimiento(s) · ${n} foto(s) al informe${partes.length>1?` · saldrá en ${partes.length} archivos (tope ${TOPE_POR_ARCHIVO} fotos c/u)`:""} · ~${Math.max(1,Math.round(n*0.25))} MB`
+        +(falta.length?` · Falta: ${falta.join(", ")} (saldrá como lámina para pegar)`:"");
     }catch(err){ box.querySelector("#infEst").textContent="⚠ "+err.message; } };
-  ["#infFmt","#infVer","#infMax","#infAdic"].forEach(s=>box.querySelector(s).addEventListener("change",estimar)); estimar();
+  ["#infFmt","#infVer","#infMax","#infAdic","#infPegar"].forEach(s=>box.querySelector(s).addEventListener("change",estimar));
+  box.querySelector("#infPegar").addEventListener("change",verSop); verSop(); estimar();
   let cancel=false;
   box.querySelector("#infGo").addEventListener("click",async()=>{
+    if(Object.keys(sopPend).length) await Promise.allSettled(Object.values(sopPend));   // un soporte que aún se está leyendo
     const op=leer(); const btn=box.querySelector("#infGo"), pr=box.querySelector("#infProg");
-    D.saveJSON(key,{formato:op.formato,version:op.version,maxPorGrupo:op.maxPorGrupo,contrato:op.contrato,nombreEvento:op.nombreEvento,lugar:op.lugar,operador:op.operador,contacto:op.contactoTxt,hojasPegar:op.hojasPegar,adicionales:op.adicionales});
+    D.saveJSON(key,{formato:op.formato,version:op.version,maxPorGrupo:op.maxPorGrupo,contrato:op.contrato,nombreEvento:op.nombreEvento,lugar:op.lugar,operador:op.operador,contacto:op.contactoTxt,hojasPegar:op.hojasPegar,adicionales:op.adicionales,pieFoto:op.pieFoto});
     btn.disabled=true; cancel=false; pr.classList.remove("hide");
     const ui={cancelado:()=>cancel, progreso:(t,h,n,f)=>{ pr.innerHTML=`<div style="font-weight:700">${esc(t)}</div><div style="height:7px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0"><div style="height:100%;width:${n?Math.round(h/n*100):0}%;background:var(--azul)"></div></div><div class="mut" style="margin:0">${h}/${n} foto(s)${f?` · <span style="color:#b3261e">no disponibles ${f}</span>`:""} · <a class="lnk" id="infCancel">cancelar</a></div>`;
       const c=pr.querySelector("#infCancel"); if(c) c.onclick=()=>{ cancel=true; }; }};
