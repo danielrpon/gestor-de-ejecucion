@@ -74,7 +74,7 @@ function tituloSop(d,op){ const v=d.valor?fmtValor((op.valores||{})[d.k]):""; re
       cantidad, precio, total…) y se arma: (a) el ENCABEZADO de la cotización (lo que está arriba de la tabla:
       requerimiento, dependencia, contrato, evento, fecha, ejecutivo, valor) y (b) la tabla de ítems con las columnas
       que dicen algo (sin vacías, sin ceros, sin duplicadas), valores en pesos y los subtotales/totales al final. */
-const SOP_FILAS=150, SOP_COLS=7, SOP_POR_LAMINA=11, PDF_PAGS=15;
+const SOP_FILAS=400, SOP_COLS=7, SOP_POR_LAMINA=11, PDF_PAGS=15;
 function esHoja(f){ return /\.(xlsx|xlsm|xls|csv)$/i.test(f.name||""); }
 function esPDF(f){ return /\.pdf$/i.test(f.name||"")||/pdf/i.test(f.type||""); }
 /*<cot>*/
@@ -117,7 +117,7 @@ function leerCotizacion(wb,XL,nombre){
   const cols=tit.map((c,j)=>j).filter(j=>tit[j]&&!(oc[j]&&oc[j].hidden)), totCols=cols.length;
   const filas=cuerpo.slice(0,SOP_FILAS).map(r=>cols.map((j,q)=>fmtNum(r[j],tit[j])));
   const num=cols.map(j=>{ const v=cuerpo.filter(r=>txtC(r[j])); return v.length>0&&v.every(r=>esNum(r[j])); });
-  const largo=cols.map((j,q)=>num[q]?(ES_DINERO.test(tit[j])?1.5:0.8):Math.min(4,Math.max(1.1,filas.reduce((a,f)=>a+Math.min(70,f[q].length),0)/Math.max(1,filas.length)/14)));
+  const largo=cols.map((j,q)=>num[q]?(ES_DINERO.test(tit[j])?1.5:0.8):Math.min(5,Math.max(1.1,Math.sqrt(filas.reduce((a,f)=>a+f[q].length,0)/Math.max(1,filas.length))/3.2)));
   return {tipo:"cot", nombre, hoja:h, ficha, cab:cols.map(j=>tit[j]), filas, num, pesos:largo,
     tots:tots.map(([e,v])=>[e,"$"+Math.round(v).toLocaleString("es-CO")]), recortadas:Math.max(0,cuerpo.length-SOP_FILAS), colsFuera:totCols-cols.length};
 }
@@ -258,6 +258,19 @@ async function generarPPTX(m, lista, fotos, op, parte){
     s.addText(tt,{x:0.5,y:0.16,w:12.33,h:0.52,fontFace:F,fontSize:fs,bold:true,color:TINTA,valign:"middle",margin:0});
     if(sub) s.addText(recorta(sub,150),{x:0.5,y:0.70,w:12.33,h:0.3,fontFace:F,fontSize:13,color:GRIS,valign:"top",margin:0});
     s.addShape(pptx.ShapeType.line,{x:0.5,y:1.04,w:12.33,h:0,line:{color:LINEA,width:1}}); };
+  /* Alto estimado de una fila (pulgadas): Arial ≈ 0,5 em por carácter; cada celda en tantas líneas como pida su ancho. */
+  const altoFila=(fila,colW,fs,mg)=>{ let L=1; fila.forEach((c,q)=>{ const cpl=Math.max(4,Math.floor((colW[q]*72-2*mg)/(fs*0.47)));
+      const t=String(c&&c.text!=null?c.text:c||""); const l=t.split("\n").reduce((a,p)=>a+Math.max(1,Math.ceil(p.length/cpl)),0); if(l>L) L=l; });
+    return Math.max(0.28,(L*fs*1.17+2*mg)/72+0.04); };
+  /* Tabla repartida en las láminas que haga falta, sin recortar texto. Título «· i/n» si son varias; la cabecera se repite. */
+  const tablaPaginada=(titulo,sub,notaFin,cab,filas,colW,fs,mg)=>{
+    const DISP=5.55, hCab=cab?altoFila(cab,colW,fs,mg):0, grupos=[]; let g=[], h=hCab;
+    filas.forEach(f=>{ const a=altoFila(f,colW,fs,mg); if(g.length&&h+a>DISP){ grupos.push(g); g=[]; h=hCab; } g.push({f,a}); h+=a; });
+    if(g.length||!grupos.length) grupos.push(g);
+    grupos.forEach((G,i)=>{ const s=pptx.addSlide({masterName:"INF"}), n=grupos.length;
+      cabecera(s,titulo+(n>1?` · ${i+1}/${n}`:""),sub+(i===n-1?notaFin:""));
+      const rows=(cab?[cab]:[]).concat(G.map(o=>o.f)), rowH=(cab?[hCab]:[]).concat(G.map(o=>o.a));
+      s.addTable(rows,{x:0.45,y:1.3,w:12.45,colW,rowH,fontFace:F,fontSize:fs,color:"222222",margin:mg,valign:"middle",border:{type:"solid",pt:0.5,color:LINEA},fill:{color:"FFFFFF"},autoPage:false}); }); };
   const nombre=op.nombreEvento||m.ev.ev||"";
   const tituloParte=parte.total>1?` · Parte ${parte.n} de ${parte.total}`:"";
 
@@ -296,27 +309,20 @@ async function generarPPTX(m, lista, fotos, op, parte){
           const BX=0.5, BY=1.3, BW=12.33, BH=5.55, k=Math.min(BW/x.w,BH/x.h), w=x.w*k, h=x.h*k;
           s.addImage({data:bytesADataURL(x.bytes,"image/jpeg"),x:BX+(BW-w)/2,y:BY+(BH-h)/2,w,h});
         } else if(x&&x.tipo==="cot"){
+          /* v48.2 (Kevin, 10-nov): «me cortó la información de descripción y características» → NADA se recorta: cada
+             celda va completa y la lámina se llena según el alto real del texto (tablaPaginada), no con N filas fijas. */
           const nota=notaSoporte(x), sub=x.nombre+" · hoja «"+x.hoja+"»";
-          if(x.ficha.length){ s=pptx.addSlide({masterName:"INF"}); cabecera(s,tt+" · encabezado",sub);
-            const fsF=x.ficha.length>11?10:12;
-            s.addTable(x.ficha.map(([e,v])=>[{text:recorta(e,60),options:{bold:true,color:GRIS,fill:{color:"F3F4F6"}}},{text:recorta(v,230)}]),
-              {x:0.45,y:1.3,w:12.45,colW:[3.6,8.85],fontFace:F,fontSize:fsF,color:"222222",valign:"middle",border:{type:"solid",pt:0.5,color:LINEA},fill:{color:"FFFFFF"},autoPage:false}); }
-          const nc=x.cab.length, tot=x.pesos.reduce((a,b)=>a+b,0), colW=x.pesos.map(p=>12.45*p/tot), fs=nc>12?7:nc>9?8:nc>6?9:10, lar=nc>12?38:nc>9?55:80;
-          const cabF=x.cab.map((t,q)=>({text:recorta(t,40),options:{bold:true,color:"FFFFFF",fill:{color:TINTA},align:x.num[q]?"right":"left"}}));
-          const filasT=x.filas.map(f=>f.map((c,q)=>({text:recorta(c,x.num[q]?24:Math.round(lar*Math.min(1,x.pesos[q]/2.5)+12)),options:{align:x.num[q]?"right":"left"}})))
+          if(x.ficha.length){ const fsF=x.ficha.length>11?10:12;
+            tablaPaginada(tt+" · encabezado",sub,"",null,x.ficha.map(([e,v])=>[{text:e,options:{bold:true,color:GRIS,fill:{color:"F3F4F6"}}},{text:v}]),[3.6,8.85],fsF,5); }
+          const nc=x.cab.length, tot=x.pesos.reduce((a,b)=>a+b,0), colW=x.pesos.map(p=>12.45*p/tot), fs=nc>12?7:nc>9?8:nc>6?9:10;
+          const cabF=x.cab.map((t,q)=>({text:t,options:{bold:true,color:"FFFFFF",fill:{color:TINTA},align:x.num[q]?"right":"left"}}));
+          const filasT=x.filas.map(f=>f.map((c,q)=>({text:c,options:{align:x.num[q]?"right":"left"}})))
             .concat(x.tots.map(([e,v])=>x.cab.map((_,q)=>({text:q===0?e:q===x.cab.length-1?v:"",options:{bold:true,align:q===0?"left":"right",fill:{color:"F3F4F6"}}}))));
-          const n=Math.max(1,Math.ceil(filasT.length/SOP_POR_LAMINA));
-          for(let i=0;i<n;i++){ s=pptx.addSlide({masterName:"INF"});
-            cabecera(s,tt+(n>1?` · ${i+1}/${n}`:""),sub+(nota&&i===n-1?` · ${nota}: ver el archivo original`:""));
-            s.addTable([cabF].concat(filasT.slice(i*SOP_POR_LAMINA,(i+1)*SOP_POR_LAMINA)),{x:0.45,y:1.3,w:12.45,colW,fontFace:F,fontSize:fs,color:"222222",rowH:0.4,margin:nc>9?0.03:undefined,valign:"middle",border:{type:"solid",pt:0.5,color:LINEA},fill:{color:"FFFFFF"},autoPage:false}); }
+          tablaPaginada(tt,sub,nota?` · ${nota}: ver el archivo original`:"",cabF,filasT,colW,fs,nc>9?3:5);
         } else if(x&&x.tipo==="tabla"){
-          const n=Math.max(1,Math.ceil(x.filas.length/SOP_POR_LAMINA)), fs=x.filas[0].length>6?9:10, nota=notaSoporte(x);
-          for(let i=0;i<n;i++){
-            s=pptx.addSlide({masterName:"INF"});
-            cabecera(s,tt+(n>1?` · ${i+1}/${n}`:""),x.nombre+(nota&&i===n-1?` · ${nota}: ver el archivo original`:""));
-            const filas=x.filas.slice(i*SOP_POR_LAMINA,(i+1)*SOP_POR_LAMINA).map((f,j)=>f.map(c=>({text:recorta(c,60),options:i===0&&j===0?{bold:true}:{}})));
-            s.addTable(filas,{x:0.45,y:1.3,w:12.45,fontFace:F,fontSize:fs,color:"222222",rowH:0.4,valign:"middle",border:{type:"solid",pt:0.5,color:LINEA},fill:{color:"FFFFFF"}});
-          }
+          const fs=x.filas[0].length>6?9:10, nota=notaSoporte(x), nc=x.filas[0].length;
+          const filas=x.filas.map((f,j)=>f.map(c=>({text:c,options:j===0?{bold:true}:{}})));
+          tablaPaginada(tt,x.nombre,nota?` · ${nota}: ver el archivo original`:"",null,filas,Array(nc).fill(12.45/nc),fs,5);
         } else {
           s=pptx.addSlide({masterName:"INF"}); cabecera(s,T,m.ev.cl||"");
           s.addShape(pptx.ShapeType.rect,{x:1.2,y:1.4,w:10.9,h:5.4,fill:{color:"FAFAFB"},line:{color:LINEA,width:1.25,dashType:"dash"}});
@@ -440,7 +446,7 @@ async function generarDOCX(m, lista, fotos, op, parte){
           const libre=Math.max(0,ANCHO_H-x.cab.reduce((a,_,q)=>a+fijo(q),0)), pt=x.pesos.reduce((a,p,q)=>a+(x.num[q]?0:p),0)||1;
           const an=x.cab.map((_,q)=>fijo(q)+(x.num[q]?0:Math.floor(libre*x.pesos[q]/pt))), mg=ancha?{top:40,bottom:40,left:45,right:45}:{top:60,bottom:60,left:90,right:90}, al=q=>x.num[q]?AlignmentType.RIGHT:AlignmentType.LEFT;
           const cab=new TableRow({tableHeader:true,children:x.cab.map((t,q)=>celda(P(t,{bold:true,color:"FFFFFF",size:tl},{alignment:al(q)}),{margins:mg,shading:{type:ShadingType.CLEAR,fill:TINTA,color:"auto"},width:{size:an[q],type:WidthType.DXA}}))});
-          const cuerpo=x.filas.map(f=>new TableRow({cantSplit:true,children:f.map((c,q)=>celda(P(x.num[q]?c:recorta(c,ancha?(x.pesos[q]>=2.5?90:45):(x.pesos[q]>=3?140:70)),{size:tl},{alignment:al(q)}),{margins:mg,width:{size:an[q],type:WidthType.DXA}}))}));
+          const cuerpo=x.filas.map(f=>new TableRow({cantSplit:false,children:f.map((c,q)=>celda(P(c,{size:tl},{alignment:al(q)}),{margins:mg,width:{size:an[q],type:WidthType.DXA}}))}));
           const tots=x.tots.map(([e,v])=>new TableRow({cantSplit:true,children:x.cab.map((_,q)=>celda(P(q===0?e:q===x.cab.length-1?v:"",{size:tl,bold:true},{alignment:q===0?AlignmentType.LEFT:AlignmentType.RIGHT}),{width:{size:an[q],type:WidthType.DXA},shading:{type:ShadingType.CLEAR,fill:"F3F4F6",color:"auto"}}))}));
           hijos.push(new Table({width:{size:ANCHO_H,type:WidthType.DXA},columnWidths:an,layout:TableLayoutType.FIXED,rows:[cab].concat(cuerpo,tots)}));
           hijos.push({__hoja:"v"});
