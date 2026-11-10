@@ -111,21 +111,13 @@ function leerCotizacion(wb,XL,nombre){
   F.slice(t+1).forEach(r=>{ const pri=txtC(r.find(c=>txtC(c))); if(!pri) return;
     if(ES_TOTAL.test(pri)){ const nums=r.filter(esNum); if(nums.length) tots.push([pri.replace(/\s*:\s*$/,""),nums[nums.length-1]]); return; }
     if(!r.some(esNum)) return; cuerpo.push(r); });
-  let cols=tit.map((c,j)=>j).filter(j=>tit[j]&&cuerpo.some(r=>txtC(r[j])&&!(esNum(r[j])&&r[j]===0)));
-  const clave=v=>esNum(v)?String(Math.round(v*100)):txtC(v).toLowerCase().slice(0,22);
-  const dup=(a,b)=>{ let n=0,ig=0; cuerpo.forEach(r=>{ if(!txtC(r[a])&&!txtC(r[b])) return; n++; if(clave(r[a])===clave(r[b])) ig++; }); return n&&ig/n>=0.8; };
-  const fuera=new Set(); cols.forEach((a,ia)=>cols.slice(ia+1).forEach(b=>{ if(fuera.has(a)||fuera.has(b)||!dup(a,b)) return;
-    fuera.add(/^\s*total\s*$/i.test(tit[a])?b:/^\s*total\s*$/i.test(tit[b])?a:b); }));
-  cols=cols.filter(j=>!fuera.has(j));
-  const PRIO=[/descrip|requerim|elemento|concepto|producto|servicio/i,/caracter|especific/i,/cant/i,/d[íi]as/i,/unitario|precio/i,/^\s*total\s*$|total\s+con|valor\s+total/i,/total/i,/[íi]tem|ref|c[óo]d/i];
-  const totCols=cols.length;
-  const lleno=j=>cuerpo.filter(r=>txtC(r[j])).length/cuerpo.length;
-  if(cols.length>SOP_COLS) cols=cols.filter(j=>lleno(j)>=0.3);   // casi vacía (ej. «Descripción» que solo llenan a veces)
-  if(cols.length>SOP_COLS){ const orden=[]; PRIO.forEach(rx=>cols.forEach(j=>{ if(!orden.includes(j)&&rx.test(tit[j])) orden.push(j); })); cols.forEach(j=>{ if(!orden.includes(j)) orden.push(j); });
-    const keep=new Set(orden.slice(0,SOP_COLS)); cols=cols.filter(j=>keep.has(j)); }
-  const num=cols.map(j=>cuerpo.filter(r=>txtC(r[j])).every(r=>esNum(r[j])));
+  /* v48.1 (Kevin, 10-nov): «mejor que tenga todas las columnas de la cotización» → van TODAS las columnas con título,
+     en el orden del formato (también las vacías o en $0, como en el original); solo se quitan las ocultas en Excel. */
+  const oc=(wb.Sheets[h]["!cols"])||[];
+  const cols=tit.map((c,j)=>j).filter(j=>tit[j]&&!(oc[j]&&oc[j].hidden)), totCols=cols.length;
   const filas=cuerpo.slice(0,SOP_FILAS).map(r=>cols.map((j,q)=>fmtNum(r[j],tit[j])));
-  const largo=cols.map((j,q)=>num[q]?(ES_DINERO.test(tit[j])?1.7:0.9):Math.min(5,Math.max(1.5,filas.reduce((a,f)=>a+Math.min(70,f[q].length),0)/Math.max(1,filas.length)/12)));
+  const num=cols.map(j=>{ const v=cuerpo.filter(r=>txtC(r[j])); return v.length>0&&v.every(r=>esNum(r[j])); });
+  const largo=cols.map((j,q)=>num[q]?(ES_DINERO.test(tit[j])?1.5:0.8):Math.min(4,Math.max(1.1,filas.reduce((a,f)=>a+Math.min(70,f[q].length),0)/Math.max(1,filas.length)/14)));
   return {tipo:"cot", nombre, hoja:h, ficha, cab:cols.map(j=>tit[j]), filas, num, pesos:largo,
     tots:tots.map(([e,v])=>[e,"$"+Math.round(v).toLocaleString("es-CO")]), recortadas:Math.max(0,cuerpo.length-SOP_FILAS), colsFuera:totCols-cols.length};
 }
@@ -147,7 +139,7 @@ async function prepararSoporte(file){
   if(esPDF(file)) return pdfAImagenes(file);
   if(esHoja(file)){
     if(!window.XLSX) throw new Error("no cargó el lector de Excel");
-    const wb=window.XLSX.read(await file.arrayBuffer(),{type:"array"});
+    const wb=window.XLSX.read(await file.arrayBuffer(),{type:"array",cellStyles:true});
     const cot=leerCotizacion(wb,window.XLSX,file.name); if(cot) return cot;
     const vis=hojasUtiles(wb), h=vis.find(n=>!HOJA_AUX.test(n))||vis[0]||wb.SheetNames[0];   // sin tabla de ítems: la primera hoja visible
     let filas=window.XLSX.utils.sheet_to_json(wb.Sheets[h],{header:1,defval:"",raw:false,blankrows:false})
@@ -309,14 +301,14 @@ async function generarPPTX(m, lista, fotos, op, parte){
             const fsF=x.ficha.length>11?10:12;
             s.addTable(x.ficha.map(([e,v])=>[{text:recorta(e,60),options:{bold:true,color:GRIS,fill:{color:"F3F4F6"}}},{text:recorta(v,230)}]),
               {x:0.45,y:1.3,w:12.45,colW:[3.6,8.85],fontFace:F,fontSize:fsF,color:"222222",valign:"middle",border:{type:"solid",pt:0.5,color:LINEA},fill:{color:"FFFFFF"},autoPage:false}); }
-          const tot=x.pesos.reduce((a,b)=>a+b,0), colW=x.pesos.map(p=>12.45*p/tot), fs=x.cab.length>6?9:10;
+          const nc=x.cab.length, tot=x.pesos.reduce((a,b)=>a+b,0), colW=x.pesos.map(p=>12.45*p/tot), fs=nc>12?7:nc>9?8:nc>6?9:10, lar=nc>12?38:nc>9?55:80;
           const cabF=x.cab.map((t,q)=>({text:recorta(t,40),options:{bold:true,color:"FFFFFF",fill:{color:TINTA},align:x.num[q]?"right":"left"}}));
-          const filasT=x.filas.map(f=>f.map((c,q)=>({text:recorta(c,x.num[q]?24:(x.pesos[q]>=3?80:45)),options:{align:x.num[q]?"right":"left"}})))
+          const filasT=x.filas.map(f=>f.map((c,q)=>({text:recorta(c,x.num[q]?24:Math.round(lar*Math.min(1,x.pesos[q]/2.5)+12)),options:{align:x.num[q]?"right":"left"}})))
             .concat(x.tots.map(([e,v])=>x.cab.map((_,q)=>({text:q===0?e:q===x.cab.length-1?v:"",options:{bold:true,align:q===0?"left":"right",fill:{color:"F3F4F6"}}}))));
           const n=Math.max(1,Math.ceil(filasT.length/SOP_POR_LAMINA));
           for(let i=0;i<n;i++){ s=pptx.addSlide({masterName:"INF"});
             cabecera(s,tt+(n>1?` · ${i+1}/${n}`:""),sub+(nota&&i===n-1?` · ${nota}: ver el archivo original`:""));
-            s.addTable([cabF].concat(filasT.slice(i*SOP_POR_LAMINA,(i+1)*SOP_POR_LAMINA)),{x:0.45,y:1.3,w:12.45,colW,fontFace:F,fontSize:fs,color:"222222",rowH:0.4,valign:"middle",border:{type:"solid",pt:0.5,color:LINEA},fill:{color:"FFFFFF"},autoPage:false}); }
+            s.addTable([cabF].concat(filasT.slice(i*SOP_POR_LAMINA,(i+1)*SOP_POR_LAMINA)),{x:0.45,y:1.3,w:12.45,colW,fontFace:F,fontSize:fs,color:"222222",rowH:0.4,margin:nc>9?0.03:undefined,valign:"middle",border:{type:"solid",pt:0.5,color:LINEA},fill:{color:"FFFFFF"},autoPage:false}); }
         } else if(x&&x.tipo==="tabla"){
           const n=Math.max(1,Math.ceil(x.filas.length/SOP_POR_LAMINA)), fs=x.filas[0].length>6?9:10, nota=notaSoporte(x);
           for(let i=0;i<n;i++){
@@ -441,12 +433,17 @@ async function generarDOCX(m, lista, fotos, op, parte){
             hijos.push(tabla(x.ficha.map(([e,v])=>new TableRow({cantSplit:true,children:[celda(P(e,{size:16,bold:true,color:GRIS}),{width:{size:an[0],type:WidthType.DXA},shading:{type:ShadingType.CLEAR,fill:"F3F4F6",color:"auto"}}),celda(P(v,{size:16}),{width:{size:an[1],type:WidthType.DXA}})]})),an));
             hijos.push(P("",{size:8})); }
           /* Carta vertical: los números con ancho mínimo fijo (dinero 1.250, conteos 700 twips) y el resto se reparte entre los textos. */
-          const fijo=q=>x.num[q]?(x.pesos[q]>1?1250:700):0, libre=ANCHO_UTIL-x.cab.reduce((a,_,q)=>a+fijo(q),0), pt=x.pesos.reduce((a,p,q)=>a+(x.num[q]?0:p),0)||1;
-          const an=x.cab.map((_,q)=>x.num[q]?fijo(q):Math.floor(libre*x.pesos[q]/pt)), al=q=>x.num[q]?AlignmentType.RIGHT:AlignmentType.LEFT;
-          const cab=new TableRow({tableHeader:true,children:x.cab.map((t,q)=>celda(P(t,{bold:true,color:"FFFFFF",size:14},{alignment:al(q)}),{shading:{type:ShadingType.CLEAR,fill:TINTA,color:"auto"},width:{size:an[q],type:WidthType.DXA}}))});
-          const cuerpo=x.filas.map(f=>new TableRow({cantSplit:true,children:f.map((c,q)=>celda(P(x.num[q]?c:recorta(c,x.pesos[q]>=3?140:70),{size:14},{alignment:al(q)}),{width:{size:an[q],type:WidthType.DXA}}))}));
-          const tots=x.tots.map(([e,v])=>new TableRow({cantSplit:true,children:x.cab.map((_,q)=>celda(P(q===0?e:q===x.cab.length-1?v:"",{size:14,bold:true},{alignment:q===0?AlignmentType.LEFT:AlignmentType.RIGHT}),{width:{size:an[q],type:WidthType.DXA},shading:{type:ShadingType.CLEAR,fill:"F3F4F6",color:"auto"}}))}));
-          hijos.push(tabla([cab].concat(cuerpo,tots),an));
+          const ANCHO_H=12960, nc=x.cab.length, tl=nc>10?12:14;   // carta horizontal: 27,9 cm − 2 × 2,54 cm
+          hijos.push({__hoja:"h"});
+          /* Cada columna con su mínimo (texto 800, dinero 850/1.250, conteos 560/700 twips); lo que sobra se reparte entre los textos. */
+          const ancha=nc>10, fijo=q=>x.num[q]?(x.pesos[q]>1?(ancha?850:1250):(ancha?560:700)):800;
+          const libre=Math.max(0,ANCHO_H-x.cab.reduce((a,_,q)=>a+fijo(q),0)), pt=x.pesos.reduce((a,p,q)=>a+(x.num[q]?0:p),0)||1;
+          const an=x.cab.map((_,q)=>fijo(q)+(x.num[q]?0:Math.floor(libre*x.pesos[q]/pt))), mg=ancha?{top:40,bottom:40,left:45,right:45}:{top:60,bottom:60,left:90,right:90}, al=q=>x.num[q]?AlignmentType.RIGHT:AlignmentType.LEFT;
+          const cab=new TableRow({tableHeader:true,children:x.cab.map((t,q)=>celda(P(t,{bold:true,color:"FFFFFF",size:tl},{alignment:al(q)}),{margins:mg,shading:{type:ShadingType.CLEAR,fill:TINTA,color:"auto"},width:{size:an[q],type:WidthType.DXA}}))});
+          const cuerpo=x.filas.map(f=>new TableRow({cantSplit:true,children:f.map((c,q)=>celda(P(x.num[q]?c:recorta(c,ancha?(x.pesos[q]>=2.5?90:45):(x.pesos[q]>=3?140:70)),{size:tl},{alignment:al(q)}),{margins:mg,width:{size:an[q],type:WidthType.DXA}}))}));
+          const tots=x.tots.map(([e,v])=>new TableRow({cantSplit:true,children:x.cab.map((_,q)=>celda(P(q===0?e:q===x.cab.length-1?v:"",{size:tl,bold:true},{alignment:q===0?AlignmentType.LEFT:AlignmentType.RIGHT}),{width:{size:an[q],type:WidthType.DXA},shading:{type:ShadingType.CLEAR,fill:"F3F4F6",color:"auto"}}))}));
+          hijos.push(new Table({width:{size:ANCHO_H,type:WidthType.DXA},columnWidths:an,layout:TableLayoutType.FIXED,rows:[cab].concat(cuerpo,tots)}));
+          hijos.push({__hoja:"v"});
         } else if(x&&x.tipo==="tabla"){
           const nota=notaSoporte(x), nc=x.filas[0].length, an=Array(nc).fill(Math.floor(ANCHO_UTIL/nc));
           hijos.push(P(x.nombre+(nota?` · ${nota}: ver el archivo original`:""),{size:16,color:GRIS},{keepNext:true}));
@@ -492,11 +489,13 @@ async function generarDOCX(m, lista, fotos, op, parte){
     const fir=["Elaboró","Revisó","Aprobó"];
     hijos.push(tabla([new TableRow({children:fir.map(t=>celda([P(" ",{size:20},{spacing:{before:700}}),P("______________________________",{size:18},{alignment:AlignmentType.CENTER}),P(t,{bold:true,color:TINTA,size:19},{alignment:AlignmentType.CENTER})],{borders:sinBorde,width:{size:3120,type:WidthType.DXA}}))})],[3120,3120,3120]));
   }
+  /* Secciones: la tabla de ítems de la cotización va en hoja horizontal (marcas {__hoja:"h"|"v"}); lo demás vertical. */
+  const tramos=[{h:false,c:[]}]; hijos.forEach(x=>{ if(x&&x.__hoja){ const h=x.__hoja==="h"; if(tramos[tramos.length-1].h!==h) tramos.push({h,c:[]}); } else tramos[tramos.length-1].c.push(x); });
   const doc=new Document({creator:op.operador,title:`Informe · ${nombre}`,styles:{default:{document:{run:{font:F,size:20}}}},
-    sections:[{properties:{page:{size:{width:12240,height:15840},margin:{top:1080,bottom:1000,left:1440,right:1440}}},
+    sections:tramos.filter(t=>t.c.length).map(t=>({properties:{page:{size:t.h?{width:12240,height:15840,orientation:X.PageOrientation.LANDSCAPE}:{width:12240,height:15840},margin:{top:1080,bottom:1000,left:1440,right:1440}}},
       headers:{default:new Header({children:[new Paragraph({children:[T("Informe técnico de ejecución · "+recorta(nombre,60),{size:16,color:GRIS})]})]})},
       footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[T("Página ",{size:16,color:GRIS}),new TextRun({children:[PageNumber.CURRENT],font:F,size:16,color:GRIS})]})]})},
-      children:hijos}]});
+      children:t.c}))});
   return await Packer.toBlob(doc);
 }
 
