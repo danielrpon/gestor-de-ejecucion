@@ -291,7 +291,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v49 · 10nov · fotos idénticas bloqueadas · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v49.1 · 10nov · fotos idénticas bloqueadas · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -2129,7 +2129,11 @@ function fechaNoCorresponde(e, f){ if(!f || e.fechaOrigen==="declarada" || e.fec
    (pendiente Capa 18: columna huella + índice único por evento). */
 const HUELLAS_MAX=5000;
 function huellasKey(){ return NS+"huellas_"+((cfg&&cfg.uid)||"SIN-UID"); }
-async function huellaArchivo(file){ try{ if(!(window.crypto&&crypto.subtle)) return ""; const d=await crypto.subtle.digest("SHA-256",await file.arrayBuffer());
+/* v49.1: una huella a la vez (cola). Con el lote completo en paralelo, un iPhone con 12-15 fotos pesadas tendría
+   todos los archivos en memoria a la vez, además de su decodificación (lección iOS). */
+let colaHuella=Promise.resolve();
+function huellaArchivo(file){ const p=colaHuella.then(()=>huellaUna(file)); colaHuella=p.catch(()=>""); return p; }
+async function huellaUna(file){ try{ if(!(window.crypto&&crypto.subtle)) return ""; const d=await crypto.subtle.digest("SHA-256",await file.arrayBuffer());
   return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,"0")).join(""); }catch(_){ return ""; } }
 function huellaEnviada(h){ const L=loadJSON(huellasKey(),[])||[]; return L.find(x=>x&&x.h===h)||null; }
 function guardarHuella(e){ if(!e||!e.hash) return; try{ const L=loadJSON(huellasKey(),[])||[]; if(L.some(x=>x&&x.h===e.hash)) return;
