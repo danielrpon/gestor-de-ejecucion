@@ -291,7 +291,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v48.3 · 10nov · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v49 · 10nov · fotos idénticas bloqueadas · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -1487,7 +1487,7 @@ function eviKey(e){ return e.item_id || ((e.evento_uid||"")+"|"+iidDe(e.item,e.c
 function cargarJS(src){ return new Promise((ok,ko)=>{ if(document.querySelector('script[data-src="'+src+'"]')) return ok(); const s=document.createElement("script"); s.src=src; s.dataset.src=src; s.onload=()=>ok(); s.onerror=()=>ko(new Error("No se pudo cargar "+src)); document.head.appendChild(s); }); }
 window.adminInforme=async()=>{
   const ev=adminEventos[adminEventoActual]; if(!ev||!adminEvidencias.length){ toast("Abre un evento con evidencias"); return; }
-  try{ if(!window.InformeEstrella) await cargarJS("informe.js?v=28"); }catch(e){ toast("No cargó el generador de informes (revisa la conexión)"); return; }
+  try{ if(!window.InformeEstrella) await cargarJS("informe.js?v=29"); }catch(e){ toast("No cargó el generador de informes (revisa la conexión)"); return; }
   adminDlCancel=false;
   InformeEstrella.abrir({ev, evidencias:adminEvidencias, visibles:adminVis, contenedor:$("adInf"), bajarBlob:adminBajarBlob,
     deps:{anotarIids, iidDe, fechasDeItem, candidatoPorDia, isoHoy, slug, bajar, loadJSON, saveJSON, NS}});
@@ -2059,7 +2059,8 @@ function agregar(fileList, meta, metaResp){
     batch.push(e); nuevos.push(e); ps.push(procesar(e)); });
   renderLista();
   Promise.all(ps).then(()=>{   /* v34: avisos del lote — fotos rechazadas por fecha y galería sin metadatos */
-    const rech=nuevos.filter(e=>e.rechazo && !e.rechazoMeta), rechM=nuevos.filter(e=>e.rechazoMeta), sm=meta?[]:nuevos.filter(e=>!e.rechazo && e.sinMeta); const msg=[];
+    const rechR=nuevos.filter(e=>e.rechazoRep), rech=nuevos.filter(e=>e.rechazo && !e.rechazoMeta && !e.rechazoRep), rechM=nuevos.filter(e=>e.rechazoMeta), sm=meta?[]:nuevos.filter(e=>!e.rechazo && e.sinMeta); const msg=[];
+    if(rechR.length) msg.push((rechR.length===1?"Esta foto NO se cargó: ":"Estas "+rechR.length+" fotos NO se cargaron:\n• ")+rechR.map(e=>e.rechazo).join("\n• ")+".\n\nCada evidencia debe ser una foto distinta: no se acepta la misma foto dos veces, ni en otro requerimiento.");
     if(rechM.length) msg.push((rechM.length===1?"Esta foto NO se cargó: ":"Estas "+rechM.length+" fotos NO se cargaron:\n• ")+rechM.map(e=>e.rechazo).join("\n• ")+".\n\nEste evento solo acepta fotos con sus datos originales. Se pierden cuando la foto se envía por WhatsApp o correo, o se toma con otra app.\n\nTómala en el sitio con «Capturar foto».");   /* v42 */
     if(rech.length) msg.push((rech.length===1?"Esta foto NO se cargó: ":"Estas "+rech.length+" fotos NO se cargaron:\n• ")+rech.map(e=>e.rechazo).join("\n• ")+".\n\nSolo se aceptan fotos tomadas el día de la línea que elegiste.");
     if(sm.length && admCargaActiva()) msg.push((sm.length===1?"Esta foto no trae":"Estas "+sm.length+" fotos no traen")+" la fecha ni la ubicación originales.\n\nComo administrador: si ya traen marca de agua, usa «No aplicar marca configurada»; si no, «Completar ubicación, fecha y hora de las fotos sin datos».");   /* v39 */
@@ -2122,8 +2123,25 @@ function fechaNoCorresponde(e, f){ if(!f || e.fechaOrigen==="declarada" || e.fec
   if(fe && (f<fe || f>ff)) return `la foto es del ${fmtDia(f)}, fuera de las fechas del evento (${fmtDia(fe)} a ${fmtDia(ff)})`;
   if(!fe && !fotoDelDia(f)) return `la foto es del ${fmtDia(f)}, no de hoy`;
   return ""; }
+/* v49 · FOTOS IDÉNTICAS (Kevin, 22-oct: para llegar al mínimo repetían la misma foto, incluso en otro requerimiento).
+   Huella SHA-256 del archivo ORIGINAL elegido (antes del sello). Se bloquea: (a) la misma foto dos veces en el lote y
+   (b) una foto que este celular ya envió a este evento. Lo que se envió desde OTRO celular solo lo puede ver la base
+   (pendiente Capa 18: columna huella + índice único por evento). */
+const HUELLAS_MAX=5000;
+function huellasKey(){ return NS+"huellas_"+((cfg&&cfg.uid)||"SIN-UID"); }
+async function huellaArchivo(file){ try{ if(!(window.crypto&&crypto.subtle)) return ""; const d=await crypto.subtle.digest("SHA-256",await file.arrayBuffer());
+  return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,"0")).join(""); }catch(_){ return ""; } }
+function huellaEnviada(h){ const L=loadJSON(huellasKey(),[])||[]; return L.find(x=>x&&x.h===h)||null; }
+function guardarHuella(e){ if(!e||!e.hash) return; try{ const L=loadJSON(huellasKey(),[])||[]; if(L.some(x=>x&&x.h===e.hash)) return;
+  const it=itemById(e.itemCodigo); L.push({h:e.hash, req:(it&&(it.req||it.desc))||"", f:isoHoy()}); saveJSON(huellasKey(), L.slice(-HUELLAS_MAX)); }catch(_){} }
 async function procesar(entry){
   try{
+    if(entry.tipo==="foto" && !entry.hash){
+      const h=await huellaArchivo(entry.file); entry.hash=h;
+      if(h){ const otra=batch.find(x=>x!==entry && x.hash===h && !x.rechazo), antes=otra?null:huellaEnviada(h);
+        if(otra||antes){ entry.rechazo=(entry.file&&entry.file.name?entry.file.name+": ":"")+(otra?"es la misma foto que ya está en este envío":"ya la enviaste antes a este evento"+(antes.req?" (en «"+antes.req+"»)":""));
+          entry.rechazoRep=true; batch=batch.filter(x=>x!==entry); renderLista(); return; } }
+    }
     if(entry.tipo==="video"){
       const m=entry.meta||{};
       const mla=num(m.lat), mlo=num(m.lon);
@@ -2385,7 +2403,7 @@ async function enviarASupabase(listas, exito){
   const fallidos=[]; let ok=0; ultimoErr="";
   for(let i=0;i<listas.length;i++){
     const et=`Enviando ${i+1}/${listas.length}…`; $("sendInfo").textContent=et; $("enviar").textContent=et;
-    if(await subirEvidencia(listas[i], radicado)) ok++; else fallidos.push(listas[i]);
+    if(await subirEvidencia(listas[i], radicado)){ ok++; guardarHuella(listas[i]); } else fallidos.push(listas[i]);
   }
   if(!fallidos.length){
     const r=resumenEnvio(radicado, listas);   // se calcula ANTES de que marcarSubidas() vacíe el lote
