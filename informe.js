@@ -20,6 +20,12 @@ const BASE=(document.currentScript&&document.currentScript.src)?document.current
 const TINTA="1F2937", LINEA="C9CFD6", GRIS="5A626B", VERDE_OK="1A9E56", ROJO="B3261E", AMBAR="B7791F", F="Arial";
 const TOPE_POR_ARCHIVO=350;          // fotos por archivo; por encima se parte (medido en el ensayo: ver LEEME)
 const LADO_PX=1200, CALIDAD=0.72;    // ~120-200 KB por foto: nítida a pantalla completa, liviana en el archivo
+/* v49: el usuario elige el peso del informe (Kevin, 22-oct: el PDF de la Semana de la Juventud pesó ~386 MB).
+   mb = estimado por foto en el archivo final, para el aviso del panel. */
+const CALIDADES={alta:{lado:1200,q:0.72,mb:0.25,t:"Alta · para pantalla grande"},media:{lado:1000,q:0.66,mb:0.15,t:"Media · equilibrio"},liviana:{lado:800,q:0.6,mb:0.09,t:"Liviana · para enviar por correo"}};
+const calDe=op=>CALIDADES[op&&op.calidad]||CALIDADES.alta;
+/* Huella del archivo tal como está en el bucket: dos cargas del mismo archivo dan la misma huella. */
+async function huella(blob){ try{ const d=await crypto.subtle.digest("SHA-256",await blob.arrayBuffer()); return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,"0")).join(""); }catch(_){ return ""; } }
 const CONC=4;                        // descargas simultáneas
 
 /* ---------- utilidades ---------- */
@@ -106,6 +112,7 @@ async function pdfAImagenes(file){
 }
 async function prepararSoporte(file){
   if(esPDF(file)) return pdfAImagenes(file);
+  if(/\.(docx?|odt|rtf)$/i.test(file.name||"")) throw new Error("el Word no se puede poner tal cual (con logos y formato). Ábrelo en Word → Archivo → Guardar como → PDF, y adjunta ese PDF.");
   if(esHoja(file)) throw new Error("el Excel no se puede poner tal cual (con logos y formato). Ábrelo en Excel → Archivo → Guardar como → PDF, y adjunta ese PDF.");
   let blob=file;
   if(/\.(heic|heif)$/i.test(file.name||"")||/hei[cf]/i.test(file.type||"")){
@@ -415,18 +422,23 @@ async function generar(ctx, op, ui){
   const lista=m.visibles;
   if(!lista.length) throw new Error("No hay requerimientos para el informe con estas opciones.");
   const partes=partir(lista);
-  const resumen={partes:partes.length, fotos:0, fallas:0, bytes:0, archivos:[]};
+  const resumen={partes:partes.length, fotos:0, fallas:0, repetidas:0, bytes:0, archivos:[]};
   for(let p=0;p<partes.length;p++){
     if(ui.cancelado()) break;
     const L=partes[p], F2=fotosDe(L), fotos=new Map(); let hechas=0, fallas=0;
     const cola=F2.slice();
     ui.progreso(`Parte ${p+1} de ${partes.length} · preparando fotos`,0,F2.length,0);
     const trabajador=async()=>{ while(cola.length && !ui.cancelado()){ const e=cola.shift();
-      try{ const b=await ctx.bajarBlob(e); if(!b) throw new Error("sin archivo"); fotos.set(e,await prepararFoto(b)); }
+      try{ const b=await ctx.bajarBlob(e); if(!b) throw new Error("sin archivo"); const cal=calDe(op);
+        const f=await prepararFoto(b,cal.lado,cal.q); if(op.sinRepetidas) f.hash=await huella(b); fotos.set(e,f); }
       catch(_){ fotos.set(e,{falla:true}); fallas++; }
       hechas++; ui.progreso(`Parte ${p+1} de ${partes.length} · preparando fotos`,hechas,F2.length,fallas); } };
     await Promise.all(Array.from({length:CONC},trabajador));
     if(ui.cancelado()) break;
+    /* v49: la misma foto (mismo archivo) dentro de un requerimiento sale una sola vez. Entre requerimientos distintos
+       no se quita: puede ser legítima (una toma abierta prueba varios ítems) y la decide quien revisa. */
+    if(op.sinRepetidas) L.forEach(r=>{ const vistos=new Set(); r.bloques.forEach(bl=>{ bl.fotos=bl.fotos.filter(e=>{ const h=(fotos.get(e)||{}).hash;
+      if(!h) return true; if(vistos.has(h)){ resumen.repetidas++; return false; } vistos.add(h); return true; }); }); });
     ui.progreso(`Parte ${p+1} de ${partes.length} · armando ${op.formato==="docx"?"Word":"PowerPoint"}`,F2.length,F2.length,fallas);
     const parte={n:p+1,total:partes.length};
     const blob=op.formato==="docx"?await generarDOCX(m,L,fotos,op,parte):await generarPPTX(m,L,fotos,op,parte);
@@ -454,16 +466,18 @@ function abrir(ctx){
   box.innerHTML=`<div style="font-weight:800;margin-bottom:6px">🧾 Informe del evento</div>
     <div class="row"><div><label>Formato</label><select id="infFmt"><option value="pptx">PowerPoint (.pptx)</option><option value="docx">Word (.docx)</option></select></div>
       <div><label>Versión</label><select id="infVer"><option value="cliente">Cliente · sólo con evidencia</option><option value="interno">Control interno · todo + faltantes</option></select></div></div>
-    <div class="row" style="margin-top:8px"><div><label>Fotos por requerimiento${ctx.ev.config&&ctx.ev.config.pd?" (por día)":""}</label><select id="infMax"><option value="4">Hasta 4</option><option value="8">Hasta 8</option><option value="12">Hasta 12</option><option value="0">Todas</option></select></div>
+    <div class="row" style="margin-top:8px"><div><label>Fotos por requerimiento${ctx.ev.config&&ctx.ev.config.pd?" (por día)":""}</label><select id="infMax"><option value="3">Hasta 3</option><option value="4">Hasta 4</option><option value="8">Hasta 8</option><option value="12">Hasta 12</option><option value="0">Todas</option></select></div>
       <div><label>Número de contrato</label><input id="infContrato" type="text" value="${v("contrato","")}" placeholder="Ej.: OL-001-2026"></div></div>
+    <div class="fld" style="margin-top:8px"><label>Calidad de las fotos (peso del informe)</label><select id="infCal">${Object.entries(CALIDADES).map(([k,c])=>`<option value="${k}">${c.t}</option>`).join("")}</select></div>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:inherit"><input id="infRep" type="checkbox" style="width:auto;flex:none;margin:0" ${g.sinRepetidas===false?"":"checked"}> Quitar fotos repetidas dentro de cada requerimiento</label>
     <div class="fld" style="margin-top:8px"><label>Nombre del evento</label><input id="infNombre" type="text" value="${v("nombreEvento",ctx.ev.ev||"")}"></div>
     <div class="fld" style="margin-top:8px"><label>Lugar</label><input id="infLugar" type="text" value="${v("lugar",lugarFrecuente(ctx.evidencias)||(ctx.ev.config&&ctx.ev.config.ci)||"")}"></div>
     <div class="row" style="margin-top:8px"><div><label>Operador</label><input id="infOper" type="text" value="${v("operador","Estrella Grupo Empresarial S.A")}"></div>
       <div><label>Contacto (contraportada)</label><input id="infContacto" type="text" value="${v("contacto","")}" placeholder="Nombre · cargo"></div></div>
     <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:inherit"><input id="infPegar" type="checkbox" style="width:auto;flex:none;margin:0" ${g.hojasPegar===false?"":"checked"}> Soportes comerciales: requerimiento inicial, cotización inicial y cotización final</label>
-    <div id="infSop" style="margin:6px 0 0 24px">${SOPORTES.map(d=>`<div class="fld" style="margin-top:6px"><label>${d.t}</label>${d.valor?`<input type="text" data-sopval="${d.k}" placeholder="Valor (ej.: 573413)" style="margin-bottom:4px">`:""}<button type="button" class="btn sec" data-sopbtn="${d.k}" style="padding:9px;font-size:14px">📎 Agregar archivos · ${d.t.toLowerCase()}</button><input type="file" multiple data-sop="${d.k}" accept="application/pdf,.pdf,image/*,.heic,.heif" style="display:none"><div class="mut" data-sopest="${d.k}" style="margin:2px 0 0">Adjunta ${d.h}. Puedes elegir varias: una lámina por archivo, en el orden en que las elijas.</div></div>`).join("")}
+    <div id="infSop" style="margin:6px 0 0 24px">${SOPORTES.map(d=>`<div class="fld" style="margin-top:6px"><label>${d.t}</label>${d.valor?`<input type="text" data-sopval="${d.k}" placeholder="Valor (ej.: 573413)" style="margin-bottom:4px">`:""}<button type="button" class="btn sec" data-sopbtn="${d.k}" style="padding:9px;font-size:14px">📎 Agregar archivos · ${d.t.toLowerCase()}</button><input type="file" multiple data-sop="${d.k}" accept="application/pdf,.pdf,image/*,.heic,.heif,.doc,.docx,.xls,.xlsx" style="display:none"><div class="mut" data-sopest="${d.k}" style="margin:2px 0 0">Adjunta ${d.h}. Puedes elegir varias: una lámina por archivo, en el orden en que las elijas.</div></div>`).join("")}
       <div class="fld" style="margin-top:6px"><label>Observaciones a la cotización</label><textarea id="infObs" rows="6" maxlength="1200" placeholder="Una por línea. Ej.: Se entrega a satisfacción sin ninguna novedad." style="display:block;width:100%;box-sizing:border-box;height:152px;resize:none;background:var(--field);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:11px;font-size:15px;line-height:1.45;font-family:var(--font)"></textarea><div class="mut" id="infObsN" style="margin:3px 0 0;text-align:right;font-variant-numeric:tabular-nums">0/250</div></div>
-      <div class="mut" style="margin-top:4px">PDF o capturas: el documento sale tal cual, con logos (un PDF = una lámina por página). ¿La cotización está en Excel? Guárdala como PDF desde Excel (Archivo → Guardar como → PDF). No se guardan: adjúntalos cada vez que generes. El soporte que falte sale como lámina para pegar.</div></div>
+      <div class="mut" style="margin-top:4px">PDF o capturas: el documento sale tal cual, con logos (un PDF = una lámina por página). ¿Está en Excel o Word? Guárdalo como PDF desde el programa (Archivo → Guardar como → PDF). No se guardan: adjúntalos cada vez que generes. El soporte que falte sale como lámina para pegar.</div></div>
     <label style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:inherit"><input id="infPie" type="checkbox" style="width:auto;flex:none;margin:0" ${g.pieFoto?"checked":""}> Mostrar fecha y hora bajo cada foto (el sello de la foto ya las trae)</label>
     <label style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:inherit"><input id="infAdic" type="checkbox" style="width:auto;flex:none;margin:0" ${g.adicionales?"checked":""}> Incluir requerimientos adicionales reportados en sitio</label>
     ${filtrado?`<div class="mut" style="color:var(--oro-d)">Se usará el filtro actual del visor: ${ctx.visibles.length} de ${ctx.evidencias.length} evidencias.</div>`:""}
@@ -471,7 +485,7 @@ function abrir(ctx){
     <button class="btn" id="infGo" style="margin-top:8px">Generar informe</button>
     <div id="infProg" class="hide" style="margin-top:8px"></div>`;
   box.classList.remove("hide");
-  if(g.formato) box.querySelector("#infFmt").value=g.formato; if(g.version) box.querySelector("#infVer").value=g.version; if(g.maxPorGrupo!=null) box.querySelector("#infMax").value=String(g.maxPorGrupo);
+  if(g.formato) box.querySelector("#infFmt").value=g.formato; if(g.calidad&&CALIDADES[g.calidad]) box.querySelector("#infCal").value=g.calidad; if(g.version) box.querySelector("#infVer").value=g.version; if(g.maxPorGrupo!=null) box.querySelector("#infMax").value=String(g.maxPorGrupo);
   const sop={}, sopPend={};
   const verSop=()=>{ box.querySelector("#infSop").classList.toggle("hide",!box.querySelector("#infPegar").checked); };
   /* La app oculta todos los input[type=file] (index.html: input[type=file]{display:none}) y los abre con
@@ -498,20 +512,20 @@ function abrir(ctx){
     const ct=q("#infContacto").value.split("·");
     return {formato:q("#infFmt").value, version:q("#infVer").value, maxPorGrupo:+q("#infMax").value, contrato:q("#infContrato").value.trim(),
       nombreEvento:q("#infNombre").value.trim(), lugar:q("#infLugar").value.trim(), operador:q("#infOper").value.trim()||"Estrella Grupo Empresarial S.A",
-      contacto:(ct[0]||"").trim(), cargo:(ct[1]||"").trim(), contactoTxt:q("#infContacto").value, hojasPegar:q("#infPegar").checked, adicionales:q("#infAdic").checked, pieFoto:q("#infPie").checked, soportes:Object.assign({},sop),
+      contacto:(ct[0]||"").trim(), cargo:(ct[1]||"").trim(), contactoTxt:q("#infContacto").value, hojasPegar:q("#infPegar").checked, adicionales:q("#infAdic").checked, pieFoto:q("#infPie").checked, calidad:q("#infCal").value, sinRepetidas:q("#infRep").checked, soportes:Object.assign({},sop),
       valores:Object.fromEntries([...box.querySelectorAll("[data-sopval]")].map(i=>[i.dataset.sopval,i.value])), observaciones:q("#infObs").value}; };
   const estimar=()=>{ try{ const op=leer(); const m=construirModelo(ctx,op); const partes=partir(m.visibles); const n=fotosDe(m.visibles).length;
       const falta=op.hojasPegar?SOPORTES.filter(d=>!sop[d.k]).map(d=>d.t.toLowerCase()):[];
-      box.querySelector("#infEst").textContent=`${m.visibles.length} requerimiento(s) · ${n} foto(s) al informe${partes.length>1?` · saldrá en ${partes.length} archivos (tope ${TOPE_POR_ARCHIVO} fotos c/u)`:""} · ~${Math.max(1,Math.round(n*0.25))} MB`
+      box.querySelector("#infEst").textContent=`${m.visibles.length} requerimiento(s) · ${n} foto(s) al informe${partes.length>1?` · saldrá en ${partes.length} archivos (tope ${TOPE_POR_ARCHIVO} fotos c/u)`:""} · ~${Math.max(1,Math.round(n*calDe(op).mb))} MB`
         +(falta.length?` · Falta: ${falta.join(", ")} (saldrá como lámina para pegar)`:"");
     }catch(err){ box.querySelector("#infEst").textContent="⚠ "+err.message; } };
-  ["#infFmt","#infVer","#infMax","#infAdic","#infPegar"].forEach(s=>box.querySelector(s).addEventListener("change",estimar));
+  ["#infFmt","#infVer","#infMax","#infCal","#infAdic","#infPegar"].forEach(s=>box.querySelector(s).addEventListener("change",estimar));
   box.querySelector("#infPegar").addEventListener("change",verSop); verSop(); estimar();
   let cancel=false;
   box.querySelector("#infGo").addEventListener("click",async()=>{
     if(Object.keys(sopPend).length) await Promise.allSettled(Object.values(sopPend));   // un soporte que aún se está leyendo
     const op=leer(); const btn=box.querySelector("#infGo"), pr=box.querySelector("#infProg");
-    D.saveJSON(key,{formato:op.formato,version:op.version,maxPorGrupo:op.maxPorGrupo,contrato:op.contrato,nombreEvento:op.nombreEvento,lugar:op.lugar,operador:op.operador,contacto:op.contactoTxt,hojasPegar:op.hojasPegar,adicionales:op.adicionales,pieFoto:op.pieFoto});
+    D.saveJSON(key,{formato:op.formato,version:op.version,maxPorGrupo:op.maxPorGrupo,contrato:op.contrato,nombreEvento:op.nombreEvento,lugar:op.lugar,operador:op.operador,contacto:op.contactoTxt,hojasPegar:op.hojasPegar,adicionales:op.adicionales,pieFoto:op.pieFoto,calidad:op.calidad,sinRepetidas:op.sinRepetidas});
     btn.disabled=true; cancel=false; pr.classList.remove("hide");
     const ui={cancelado:()=>cancel, progreso:(t,h,n,f)=>{ pr.innerHTML=`<div style="font-weight:700">${esc(t)}</div><div style="height:7px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0"><div style="height:100%;width:${n?Math.round(h/n*100):0}%;background:var(--azul)"></div></div><div class="mut" style="margin:0">${h}/${n} foto(s)${f?` · <span style="color:#b3261e">no disponibles ${f}</span>`:""} · <a class="lnk" id="infCancel">cancelar</a></div>`;
       const c=pr.querySelector("#infCancel"); if(c) c.onclick=()=>{ cancel=true; }; }};
@@ -520,6 +534,7 @@ function abrir(ctx){
       window.__informeUltimo=r;
       pr.innerHTML=r.cancelado?`<div class="mut">Cancelado.</div>`:`<div style="font-weight:700;color:#1a9e56">✓ Informe listo (${r.segundos}s)</div>`
         +r.archivos.map(a=>`<div class="mut" style="margin:2px 0 0">${esc(a.nom)} · ${a.fotos} foto(s) · ${(a.bytes/1048576).toFixed(1)} MB</div>`).join("")
+        +(r.repetidas?`<div class="mut">Se quitaron ${r.repetidas} foto(s) repetidas dentro de su requerimiento.</div>`:"")
         +(r.fallas?`<div class="mut" style="color:#b3261e">${r.fallas} foto(s) no se pudieron bajar: quedaron como "Foto no disponible". Vuelve a generar si la red falló.</div>`:"")
         +`<div class="mut">El texto del informe de actividad es un borrador: revísalo antes de enviar.</div>`;
     }catch(err){ window.__informeUltimo={error:String(err&&err.message||err)}; pr.innerHTML=`<div style="color:#b3261e">⚠ ${esc(err&&err.message||err)}</div>`; }
