@@ -290,7 +290,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v49 · 10nov · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v49.2 · 11nov · fotos idénticas bloqueadas · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -2058,7 +2058,8 @@ function agregar(fileList, meta, metaResp){
     batch.push(e); nuevos.push(e); ps.push(procesar(e)); });
   renderLista();
   Promise.all(ps).then(()=>{   /* v34: avisos del lote — fotos rechazadas por fecha y galería sin metadatos */
-    const rech=nuevos.filter(e=>e.rechazo && !e.rechazoMeta), rechM=nuevos.filter(e=>e.rechazoMeta), sm=meta?[]:nuevos.filter(e=>!e.rechazo && e.sinMeta); const msg=[];
+    const rechR=nuevos.filter(e=>e.rechazoRep), rech=nuevos.filter(e=>e.rechazo && !e.rechazoMeta && !e.rechazoRep), rechM=nuevos.filter(e=>e.rechazoMeta), sm=meta?[]:nuevos.filter(e=>!e.rechazo && e.sinMeta); const msg=[];
+    if(rechR.length) msg.push((rechR.length===1?"Esta foto NO se cargó: ":"Estas "+rechR.length+" fotos NO se cargaron:\n• ")+rechR.map(e=>e.rechazo).join("\n• ")+".\n\nCada evidencia debe ser una foto distinta: no se acepta la misma foto dos veces, ni en otro requerimiento.");
     if(rechM.length) msg.push((rechM.length===1?"Esta foto NO se cargó: ":"Estas "+rechM.length+" fotos NO se cargaron:\n• ")+rechM.map(e=>e.rechazo).join("\n• ")+".\n\nEste evento solo acepta fotos con sus datos originales. Se pierden cuando la foto se envía por WhatsApp o correo, o se toma con otra app.\n\nTómala en el sitio con «Capturar foto».");   /* v42 */
     if(rech.length) msg.push((rech.length===1?"Esta foto NO se cargó: ":"Estas "+rech.length+" fotos NO se cargaron:\n• ")+rech.map(e=>e.rechazo).join("\n• ")+".\n\nSolo se aceptan fotos tomadas el día de la línea que elegiste.");
     if(sm.length && admCargaActiva()) msg.push((sm.length===1?"Esta foto no trae":"Estas "+sm.length+" fotos no traen")+" la fecha ni la ubicación originales.\n\nComo administrador: si ya traen marca de agua, usa «No aplicar marca configurada»; si no, «Completar ubicación, fecha y hora de las fotos sin datos».");   /* v39 */
@@ -2121,8 +2122,33 @@ function fechaNoCorresponde(e, f){ if(!f || e.fechaOrigen==="declarada" || e.fec
   if(fe && (f<fe || f>ff)) return `la foto es del ${fmtDia(f)}, fuera de las fechas del evento (${fmtDia(fe)} a ${fmtDia(ff)})`;
   if(!fe && !fotoDelDia(f)) return `la foto es del ${fmtDia(f)}, no de hoy`;
   return ""; }
+/* v49 · FOTOS IDÉNTICAS (Kevin, 22-oct: para llegar al mínimo repetían la misma foto, incluso en otro requerimiento).
+   Huella SHA-256 del archivo ORIGINAL elegido (antes del sello). Se bloquea: (a) la misma foto dos veces en el lote y
+   (b) una foto que ya está en la base para este evento (v49.2, Capa 18), venga del celular que venga. Si el admin
+   BORRA la evidencia, la huella se va con ella y la foto se puede volver a subir.
+   Sin señal o sin Capa 18 → se acepta; el índice único de la base la frena al registrar si estuviera repetida. */
+let huellaRemotaCaida=0;
+async function huellaEnEvento(h){
+  if(!h || !cfg || !cfg.uid || Date.now()<huellaRemotaCaida) return null;
+  try{ const r=await fetchTO(SB_URL+"/rest/v1/rpc/huella_en_evento",{method:"POST",headers:SB_H,
+      body:JSON.stringify({p_evento:cfg.uid,p_huella:h})},4000);
+    if(!r.ok){ huellaRemotaCaida=Date.now()+60000; return null; }
+    const v=await r.json(); return (typeof v==="string" && v)?v:null;
+  }catch(_){ huellaRemotaCaida=Date.now()+60000; return null; } }
+/* v49.1: una huella a la vez (cola). Con el lote completo en paralelo, un iPhone con 12-15 fotos pesadas tendría
+   todos los archivos en memoria a la vez, además de su decodificación (lección iOS). */
+let colaHuella=Promise.resolve();
+function huellaArchivo(file){ const p=colaHuella.then(()=>huellaUna(file)); colaHuella=p.catch(()=>""); return p; }
+async function huellaUna(file){ try{ if(!(window.crypto&&crypto.subtle)) return ""; const d=await crypto.subtle.digest("SHA-256",await file.arrayBuffer());
+  return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,"0")).join(""); }catch(_){ return ""; } }
 async function procesar(entry){
   try{
+    if(entry.tipo==="foto" && !entry.hash){
+      const h=await huellaArchivo(entry.file); entry.hash=h;
+      if(h){ const otra=batch.find(x=>x!==entry && x.hash===h && !x.rechazo), antes=otra?null:await huellaEnEvento(h);
+        if(otra||antes){ entry.rechazo=(entry.file&&entry.file.name?entry.file.name+": ":"")+(otra?"es la misma foto que ya está en este envío":"ya está cargada en este evento (en «"+antes+"»)");
+          entry.rechazoRep=true; batch=batch.filter(x=>x!==entry); renderLista(); return; } }
+    }
     if(entry.tipo==="video"){
       const m=entry.meta||{};
       const mla=num(m.lat), mlo=num(m.lon);
@@ -2360,7 +2386,12 @@ async function subirEvidencia(e, radicado){
       fecha:fechaEfectiva(e)||"", hora:e.sinHora?"":(e.datos.hora||""), lugar:e.datos.lugar||"", lat:e.datos.lat, lon:e.datos.lon };
     const dd=diaDeFoto(e); row.fecha_origen=e.fechaOrigen||""; row.dia_evento=dd?dd.idx:null; row.dias_evento=dd?dd.n:null;   // Capa 13
     if(e.declPor) row.declarado_por=e.declPor; if(ad.grupo) row.grupo=ad.grupo;   /* v39 (Capa 15) */
+    if(e.hash) row.huella=e.hash;   /* v49.2 (Capa 18) */
     let ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:HE,body:JSON.stringify(row)}, 15000);
+    if(!ins.ok && row.huella){   /* 23505 = la base ya tiene esa foto en el evento: no se duplica y sale del lote. Otro error = Capa 18 sin correr: va sin huella */
+      let cod=""; try{ cod=((await ins.json())||{}).code||""; }catch(_){}
+      if(cod==="23505"){ e.repetidaEnBase=true; return true; }
+      delete row.huella; ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:HE,body:JSON.stringify(row)}, 15000); }
     if(!ins.ok && (row.declarado_por!==undefined || row.grupo!==undefined)){   /* Capa 15 sin correr: soltar SOLO sus columnas */
       delete row.declarado_por; delete row.grupo;
       ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:HE,body:JSON.stringify(row)}, 15000); }
@@ -2389,7 +2420,8 @@ async function enviarASupabase(listas, exito){
   if(!fallidos.length){
     const r=resumenEnvio(radicado, listas);   // se calcula ANTES de que marcarSubidas() vacíe el lote
     envioActual={radicado, listas:listas.slice(), csv, texto:textoResumen(r)};
-    $("sendInfo").innerHTML=`<b style="color:#1a7f37">✅ Enviado. ${ok} evidencia(s) en la base.</b><br><span class="mut" style="font-size:12px">${radicado}</span>`;
+    const repB=listas.filter(x=>x.repetidaEnBase).length;
+    $("sendInfo").innerHTML=`<b style="color:#1a7f37">✅ Enviado. ${ok-repB} evidencia(s) en la base.</b>${repB?`<br><span style="color:#b7791f">${repB} ya estaba(n) cargada(s) en el evento: no se duplicaron.</span>`:""}<br><span class="mut" style="font-size:12px">${radicado}</span>`;
     $("okRad").textContent="Radicado: "+radicado;
     $("okDet").innerHTML=htmlResumen(r);
     $("okm").classList.remove("hide");
