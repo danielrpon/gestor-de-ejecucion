@@ -296,7 +296,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v49.3 · 11nov · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v49.4 · 12nov · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -2180,7 +2180,6 @@ async function procesar(entry){
       entry.thumb=await videoThumb(entry.file); entry.blob=entry.file;   // el video va sin marca (sin re-encode)
       entry.status="listo"; renderLista(); return;
     }
-    const bitmap=await decodificar(entry.file);
     let ex;
     if(entry.meta){ ex={fecha:entry.meta.fecha||"",hora:entry.meta.hora||"",lat:num(entry.meta.lat),lon:num(entry.meta.lon)}; entry.fechaOrigen="captura"; }
     else{ ex={fecha:"",hora:"",lat:null,lon:null};
@@ -2203,11 +2202,11 @@ async function procesar(entry){
     let lugar="",lugLin=[]; if(ex.lat!=null&&ex.lon!=null){ const d=await geocodeThrottled(ex.lat,ex.lon); if(d){ lugar=d.txt; lugLin=d.lineas; } }
     entry.datos={fecha:ex.fecha,hora:ex.hora,lugar,lugLin,lat:ex.lat,lon:ex.lon,sinMeta:!!entry.sinMeta,origen:entry.fechaOrigen||"",fcarga:(entry.cargada&&entry.cargada.fecha)||""};
     const sl=selloDe(entry);
-    const out=await dibujar(bitmap,sl.texto,sl.con,{conOrig:true});
+    const out=await enColaPesada(async()=>dibujar(await decodificar(entry.file),sl.texto,sl.con,{conOrig:true}));   /* v49.4: de a una foto */
     entry.blob=out.blob; entry.thumb=out.thumb; entry.origBlob=out.orig||null;
     entry.status = out.vacio ? "⚠ salió en negro — vuelve a tomarla" : "listo";
     if(!lugar && ex.lat!=null) programarCompletado();   // se resella sola en cuanto haya dirección
-  }catch(err){ entry.status=(err&&err.message==="no-decode")?"HEIC no decodificable (usa Safari o JPG)":("error: "+(err&&err.message||err)); }
+  }catch(err){ entry.status=msgDecode(err); }
   renderLista();
 }
 function claveDe(iid){ return `${(cfg&&cfg.uid)||"SIN-UID"}|${iid}`; }   // = item_id de la base: llave global e inmutable
@@ -2266,16 +2265,15 @@ async function redibujarTodas(){
   try{ for(const e of batch){ if(e.tipo==="video"||e.status!=="listo"||!e.datos) continue;
     try{
       if(esNum(e.datos.lat) && !e.datos.lugar){ const d=await geocodeThrottled(e.datos.lat,e.datos.lon); if(d){ e.datos.lugar=d.txt; e.datos.lugLin=d.lineas; if(e.orig&&e.orig.datos){ e.orig.datos.lugar=d.txt; e.orig.datos.lugLin=d.lineas; } } }
-      const bmp=await decodificar(e.file); const sl=selloDe(e);
-      const out=await dibujar(bmp,sl.texto,sl.con); e.blob=out.blob; e.thumb=out.thumb;
+      const sl=selloDe(e);
+      const out=await enColaPesada(async()=>dibujar(await decodificar(e.file),sl.texto,sl.con));   /* v49.4 */ e.blob=out.blob; e.thumb=out.thumb;
     }catch(_){} } }
   finally{ redibujando=false; renderLista(); }
 }
 
 /* Re-sella UNA evidencia con los datos que ya tiene (no vuelve a pedir nada a la red). */
 async function resellar(e){
-  try{ const bmp=await decodificar(e.file);
-    const sl=selloDe(e); const out=await dibujar(bmp, sl.texto, sl.con);
+  try{ const sl=selloDe(e); const out=await enColaPesada(async()=>dibujar(await decodificar(e.file), sl.texto, sl.con));   /* v49.4 */
     e.blob=out.blob; e.thumb=out.thumb; return true; }catch(_){ return false; }
 }
 /* Completa las direcciones que faltaron y vuelve a sellar sólo esas fotos. Barato: si la
@@ -2673,10 +2671,25 @@ function imgFromBlob(blob){
   return new Promise((res,rej)=>{ const url=URL.createObjectURL(blob); const img=new Image();
     img.onload=()=>res(img); img.onerror=()=>{ URL.revokeObjectURL(url); rej(new Error("img")); }; img.src=url; });
 }
+/* v49.4 (12-nov, «Promotores de cultura»): un proveedor eligió más de 5 fotos para un requerimiento en iPhone; la app
+   las abría y sellaba TODAS a la vez (~100 MB cada una de 12 MP: imagen + lienzo + original + sellada), Safari se quedaba
+   sin memoria, una foto salía «HEIC no decodificable» y luego la pestaña se recargaba («me sacó»). Ahora la parte pesada
+   (abrir + sellar) va en cola, una foto a la vez; la huella, el EXIF y la dirección siguen en paralelo (son livianos).
+   Si una foto no abre se reintenta una vez, y el mensaje dice la verdad (casi nunca es por ser HEIC). */
+let colaPesada=Promise.resolve();
+function enColaPesada(fn){ const p=colaPesada.then(fn); colaPesada=p.catch(()=>{}); return p; }
+function msgDecode(err){ const m=err&&err.message;
+  if(m==="vacio") return "La foto llegó vacía (¿estaba en iCloud?). Ábrela primero en Fotos y vuelve a elegirla";
+  if(m==="no-decode") return "No se pudo abrir esta foto. Quítala y elígela de nuevo sola; si sigue, tómala con «Capturar foto»";
+  return "error: "+(m||err); }
 async function decodificar(file){
+  if(!file || !file.size) throw new Error("vacio");                    // foto de iCloud sin descargar / selección interrumpida
   const heic=/heic|heif/i.test(file.type)||/\.hei[cf]$/i.test(file.name);
-  try{ return await imgFromBlob(file); }catch(_){}                    // <img> nativo: Safari/iOS decodifican HEIC sin createImageBitmap
-  if(heic&&typeof heic2any==="function"){ try{ const b=await heic2any({blob:file,toType:"image/jpeg",quality:0.92}); return await imgFromBlob(b); }catch(_){} }
+  for(let i=0;i<2;i++){
+    if(i) await new Promise(r=>setTimeout(r,900));                      // v49.4: segundo intento tras liberar memoria
+    try{ return await imgFromBlob(file); }catch(_){}                    // <img> nativo: Safari/iOS decodifican HEIC sin createImageBitmap
+    if(heic&&typeof heic2any==="function"){ try{ const b=await heic2any({blob:file,toType:"image/jpeg",quality:0.92}); return await imgFromBlob(b); }catch(_){} }
+  }
   throw new Error("no-decode");
 }
 function wrap(ctx,t,mw){ const w=t.split(" "),l=[]; let c=""; for(const x of w){ const q=c?c+" "+x:x; if(ctx.measureText(q).width<=mw||!c)c=q; else{ l.push(c); c=x; } } if(c)l.push(c); return l; }
