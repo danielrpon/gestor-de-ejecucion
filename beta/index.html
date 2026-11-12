@@ -182,6 +182,11 @@
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span class="mut" id="fltInfo"></span><a class="lnk" id="fltLimpiar" style="font-size:13px">Limpiar filtros</a></div>
       </div>
+      <div id="minTodos" class="hide" style="margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px">
+        <label for="minTodosSel" style="font-weight:700">Mínimo de fotos por requerimiento</label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px"><select id="minTodosSel" onchange="minTodosExec(this.value)" style="width:auto;flex:none"><option value="">Aplicar a los requerimientos de la lista…</option><option value="auto">auto (3, o 2 en pagos a terceros)</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select><span class="mut" id="minTodosInfo" style="margin:0"></span></div>
+        <div class="mut" style="margin:6px 0 0">Se aplica a los que se ven en la lista (usa los filtros para elegir una categoría o un proveedor). Cada requerimiento se puede ajustar aparte en «mín.». Recuerda guardar el evento.</div>
+      </div>
       <div id="execList" class="list" style="margin-top:10px"></div>
       <!-- Capa 12 · evidencia por requerimiento por día -->
       <div id="epdWrap" class="hide" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
@@ -291,7 +296,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v49.2 · 11nov · fotos idénticas bloqueadas · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v49.3 · 11nov · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -683,6 +688,11 @@ function minSelHTML(it,idx){ const fijo=parseMin(it.mn), au=minAuto(it);
     .concat([1,2,3,4,5,6,7,8,9,10].map(k=>`<option value="${k}"${fijo===k?" selected":""}>${k}</option>`)).join("");
   return `<label class="minSel${minDe(it)!==MIN_DEF?" dif":""}" title="Mínimo de fotos para dar el requerimiento por completo">mín. <select onchange="minExec(${idx},this.value)">${ops}</select></label>`; }
 window.minExec=(idx,v)=>{ const it=execItems[idx]; if(!it) return; it.mn=parseMin(v); renderExecItems(); };
+/* v49.3 · Kevin (11-nov) no encontraba el mínimo al editar el evento: control visible que lo aplica a los requerimientos mostrados */
+let execMostrados=[];
+window.minTodosExec=v=>{ if(!v) return; const val=v==="auto"?null:parseMin(v); const n=execMostrados.length;
+  execMostrados.forEach(i=>{ if(execItems[i]) execItems[i].mn=val; }); renderExecItems();
+  const sel=$("minTodosSel"); if(sel) sel.value=""; const inf=$("minTodosInfo"); if(inf) inf.textContent="Aplicado a "+n+" requerimiento(s): "+(val?val+" foto(s)":"automático")+"."; };
 function renderExecItems(){
   const c=$("execList"); c.innerHTML="";
   // poblar filtros (categorías y proveedores presentes en la lista)
@@ -691,13 +701,13 @@ function renderExecItems(){
   llenarSelectFiltro($("fltCat"), cats); llenarSelectFiltro($("fltProv"), provs);
   if($("execFiltros")) $("execFiltros").classList.toggle("hide", execItems.length<6);   // filtros solo si vale la pena
   const q=fnorm($("fltBuscar")&&$("fltBuscar").value), fc=($("fltCat")&&$("fltCat").value)||"", fp=($("fltProv")&&$("fltProv").value)||"";
-  let mostrados=0;
+  let mostrados=0; execMostrados=[]; if($("minTodos")) $("minTodos").classList.toggle("hide", !execItems.length);
   const dlc=$("catList"); if(dlc){ dlc.innerHTML=""; cats.forEach(c=>{ const o=document.createElement("option"); o.value=c; dlc.appendChild(o); }); }
   execItems.map((it,idx)=>({it,idx})).sort((x,y)=>ordenReq(x.it,y.it)||x.idx-y.idx).forEach(({it,idx})=>{   /* v39: se muestra ordenada; idx sigue siendo la posición real */
     if(fc && (it.cat||it.grupo||"").trim()!==fc) return;
     if(fp && (it.prov||"").trim()!==fp) return;
     if(q && !fnorm([it.codigo,it.req,it.prov,it.nit,it.cat].join(" ")).includes(q)) return;
-    mostrados++;
+    mostrados++; execMostrados.push(idx);
     const d=document.createElement("div"); d.className="ev";
     d.innerHTML=`<div class="in"><b style="color:var(--azul)">${escAttr(it.codigo)}</b> · ${escAttr(it.req||"(sin descripción)")}${it.cant?` &nbsp;<span class="mut" style="margin:0">x${escAttr(it.cant)}</span>`:""}${it.cat?` <span class="mut" style="margin:0">· ${escAttr(it.cat)}</span>`:(editandoId?` <span class="mut" style="margin:0">· <input list="catList" value="${escAttr(it.grupo||"")}" placeholder="categoría (orden)" onchange="grupoExec(${idx},this.value)" style="display:inline-block;width:150px;padding:2px 6px;font-size:12px"></span>`:"")}${it.prov||it.nit?`<div class="mut" style="margin:2px 0 0">${escAttr(it.prov||"")}${it.nit?`${it.prov?" · ":""}NIT ${escAttr(it.nit)}`:""}</div>`:""}<div class="ac">${minSelHTML(it,idx)}<a class="lnk" onclick="quitarExec(${idx})">quitar</a></div></div>`;
     c.appendChild(d); });
@@ -2060,7 +2070,7 @@ function agregar(fileList, meta, metaResp){
   renderLista();
   Promise.all(ps).then(()=>{   /* v34: avisos del lote — fotos rechazadas por fecha y galería sin metadatos */
     const rechR=nuevos.filter(e=>e.rechazoRep), rech=nuevos.filter(e=>e.rechazo && !e.rechazoMeta && !e.rechazoRep), rechM=nuevos.filter(e=>e.rechazoMeta), sm=meta?[]:nuevos.filter(e=>!e.rechazo && e.sinMeta); const msg=[];
-    if(rechR.length) msg.push((rechR.length===1?"Esta foto NO se cargó: ":"Estas "+rechR.length+" fotos NO se cargaron:\n• ")+rechR.map(e=>e.rechazo).join("\n• ")+".\n\nCada evidencia debe ser una foto distinta: no se acepta la misma foto dos veces, ni en otro requerimiento.");
+    if(rechR.length) msg.push((rechR.length===1?"Esta foto NO se cargó: ":"Estas "+rechR.length+" fotos NO se cargaron:\n• ")+rechR.map(e=>e.rechazo).join("\n• ")+".\n\nCada evidencia de un requerimiento debe ser una foto distinta. Si una misma foto muestra varios requerimientos, sí la puedes cargar en cada uno.");
     if(rechM.length) msg.push((rechM.length===1?"Esta foto NO se cargó: ":"Estas "+rechM.length+" fotos NO se cargaron:\n• ")+rechM.map(e=>e.rechazo).join("\n• ")+".\n\nEste evento solo acepta fotos con sus datos originales. Se pierden cuando la foto se envía por WhatsApp o correo, o se toma con otra app.\n\nTómala en el sitio con «Capturar foto».");   /* v42 */
     if(rech.length) msg.push((rech.length===1?"Esta foto NO se cargó: ":"Estas "+rech.length+" fotos NO se cargaron:\n• ")+rech.map(e=>e.rechazo).join("\n• ")+".\n\nSolo se aceptan fotos tomadas el día de la línea que elegiste.");
     if(sm.length && admCargaActiva()) msg.push((sm.length===1?"Esta foto no trae":"Estas "+sm.length+" fotos no traen")+" la fecha ni la ubicación originales.\n\nComo administrador: si ya traen marca de agua, usa «No aplicar marca configurada»; si no, «Completar ubicación, fecha y hora de las fotos sin datos».");   /* v39 */
@@ -2129,12 +2139,24 @@ function fechaNoCorresponde(e, f){ if(!f || e.fechaOrigen==="declarada" || e.fec
    BORRA la evidencia, la huella se va con ella y la foto se puede volver a subir.
    Sin señal o sin Capa 18 → se acepta; el índice único de la base la frena al registrar si estuviera repetida. */
 let huellaRemotaCaida=0;
-async function huellaEnEvento(h){
+/* v49.3 · Kevin (11-nov): una misma foto puede evidenciar varios requerimientos. Se bloquea solo dentro del MISMO
+   requerimiento. Con Capa 19 la base responde por requerimiento (p_item); sin ella se usa la función de la Capa 18 y
+   se compara el nombre del requerimiento. */
+let huellaPorItem=null;   /* null = sin saber; false = la base aún no tiene la Capa 19 */
+async function huellaEnEvento(h,iid){
   if(!h || !cfg || !cfg.uid || Date.now()<huellaRemotaCaida) return null;
-  try{ const r=await fetchTO(SB_URL+"/rest/v1/rpc/huella_en_evento",{method:"POST",headers:SB_H,
-      body:JSON.stringify({p_evento:cfg.uid,p_huella:h})},4000);
+  const rpc=b=>fetchTO(SB_URL+"/rest/v1/rpc/huella_en_evento",{method:"POST",headers:SB_H,body:JSON.stringify(b)},4000);
+  try{
+    if(huellaPorItem!==false){
+      const r=await rpc({p_evento:cfg.uid,p_huella:h,p_item:claveDe(iid)});
+      if(r.ok){ huellaPorItem=true; const v=await r.json(); return (typeof v==="string" && v)?v:null; }
+      if(r.status!==404 && r.status!==400){ huellaRemotaCaida=Date.now()+60000; return null; }
+      huellaPorItem=false; }
+    const r=await rpc({p_evento:cfg.uid,p_huella:h});
     if(!r.ok){ huellaRemotaCaida=Date.now()+60000; return null; }
-    const v=await r.json(); return (typeof v==="string" && v)?v:null;
+    const v=await r.json(); if(!(typeof v==="string" && v)) return null;
+    const mio=String(itemReq(iid)||"").trim()||String(itemCod(iid)||"").trim();
+    return (mio && v.trim()===mio)?v:null;   /* está en OTRO requerimiento: se permite */
   }catch(_){ huellaRemotaCaida=Date.now()+60000; return null; } }
 /* v49.1: una huella a la vez (cola). Con el lote completo en paralelo, un iPhone con 12-15 fotos pesadas tendría
    todos los archivos en memoria a la vez, además de su decodificación (lección iOS). */
@@ -2146,8 +2168,8 @@ async function procesar(entry){
   try{
     if(entry.tipo==="foto" && !entry.hash){
       const h=await huellaArchivo(entry.file); entry.hash=h;
-      if(h){ const otra=batch.find(x=>x!==entry && x.hash===h && !x.rechazo), antes=otra?null:await huellaEnEvento(h);
-        if(otra||antes){ entry.rechazo=(entry.file&&entry.file.name?entry.file.name+": ":"")+(otra?"es la misma foto que ya está en este envío":"ya está cargada en este evento (en «"+antes+"»)");
+      if(h){ const otra=batch.find(x=>x!==entry && x.hash===h && x.itemCodigo===entry.itemCodigo && !x.rechazo), antes=otra?null:await huellaEnEvento(h,entry.itemCodigo);
+        if(otra||antes){ entry.rechazo=(entry.file&&entry.file.name?entry.file.name+": ":"")+(otra?"es la misma foto que ya está en este envío para este requerimiento":"ya está cargada en este requerimiento («"+antes+"»)");
           entry.rechazoRep=true; batch=batch.filter(x=>x!==entry); renderLista(); return; } }
     }
     if(entry.tipo==="video"){
@@ -2391,7 +2413,7 @@ async function subirEvidencia(e, radicado){
     let ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:HE,body:JSON.stringify(row)}, 15000);
     if(!ins.ok && row.huella){   /* 23505 = la base ya tiene esa foto en el evento: no se duplica y sale del lote. Otro error = Capa 18 sin correr: va sin huella */
       let cod=""; try{ cod=((await ins.json())||{}).code||""; }catch(_){}
-      if(cod==="23505"){ e.repetidaEnBase=true; return true; }
+      if(cod==="23505" && await huellaEnEvento(row.huella,e.itemCodigo)){ e.repetidaEnBase=true; return true; }   /* v49.3: repetida en ESTE requerimiento */
       delete row.huella; ins=await fetchTO(SB_URL+"/rest/v1/evidencias",{method:"POST",headers:HE,body:JSON.stringify(row)}, 15000); }
     if(!ins.ok && (row.declarado_por!==undefined || row.grupo!==undefined)){   /* Capa 15 sin correr: soltar SOLO sus columnas */
       delete row.declarado_por; delete row.grupo;
