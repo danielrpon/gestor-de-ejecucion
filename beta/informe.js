@@ -236,7 +236,7 @@ async function generarPPTX(m, lista, fotos, op, parte){
   // 2 · Ficha del evento
   if(parte.n===1){
     s=pptx.addSlide({masterName:"INF"}); cabecera(s,"Ficha del evento",m.ev.cl||"");
-    const filas=[["Nombre del evento",nombre],["Lugar",op.lugar||"—"],["Fecha",cap(rango(m.cfg.fe,m.cfg.ff).replace(/^el /,""))||"—"],["Operador",op.operador],["Número de contrato",op.contrato||"—"],["Cliente",m.ev.cl||"—"]];
+    const filas=[["Nombre del evento",nombre]].concat(m.cfg&&m.cfg.ege?[["Código del evento",m.cfg.ege]]:[]).concat([["Lugar",op.lugar||"—"],["Fecha",cap(rango(m.cfg.fe,m.cfg.ff).replace(/^el /,""))||"—"],["Operador",op.operador],["Número de contrato",op.contrato||"—"],["Cliente",m.ev.cl||"—"]]);
     s.addTable(filas.map((f,k)=>[{text:`${k+1}. ${f[0]}`,options:{bold:true,color:TINTA}},{text:String(f[1])}]),
       {x:1.0,y:1.55,w:11.3,colW:[3.6,7.7],fontFace:F,fontSize:18,color:"222222",rowH:0.62,valign:"middle",border:{type:"solid",pt:0.5,color:LINEA}});
     // 3 · Resumen de cobertura (en tramos de 9 filas)
@@ -349,7 +349,7 @@ async function generarDOCX(m, lista, fotos, op, parte){
   let sec=1;
   if(parte.n===1){
     hijos.push(H1(`${sec++}. Ficha del evento`));
-    const ficha=[["Nombre del evento",nombre],["Lugar",op.lugar||"—"],["Fecha",cap(rango(m.cfg.fe,m.cfg.ff).replace(/^el /,""))||"—"],["Operador",op.operador],["Número de contrato",op.contrato||"—"],["Cliente",m.ev.cl||"—"]];
+    const ficha=[["Nombre del evento",nombre]].concat(m.cfg&&m.cfg.ege?[["Código del evento",m.cfg.ege]]:[]).concat([["Lugar",op.lugar||"—"],["Fecha",cap(rango(m.cfg.fe,m.cfg.ff).replace(/^el /,""))||"—"],["Operador",op.operador],["Número de contrato",op.contrato||"—"],["Cliente",m.ev.cl||"—"]]);
     hijos.push(tabla(ficha.map(f=>new TableRow({children:[celda(P(f[0],{bold:true,color:TINTA,size:20}),{shading:{type:ShadingType.CLEAR,fill:"F3F4F6",color:"auto"},width:{size:3000,type:WidthType.DXA}}),celda(P(f[1],{size:20}),{width:{size:6360,type:WidthType.DXA}})]})),[3000,6360]));
     hijos.push(H1(`${sec++}. Resumen de cobertura`));
     hijos.push(P(`${lista.filter(r=>r.total>0).length} de ${lista.length} requerimiento(s) con evidencia · ${lista.reduce((a,r)=>a+r.total,0)} foto(s) registradas.`,{size:20,color:GRIS},{spacing:{after:120}}));
@@ -443,7 +443,7 @@ async function generar(ctx, op, ui){
     const parte={n:p+1,total:partes.length};
     const blob=op.formato==="docx"?await generarDOCX(m,L,fotos,op,parte):await generarPPTX(m,L,fotos,op,parte);
     fotos.clear();
-    const nom=`INFORME_${ctx.deps.slug(m.ev.cl||"")}_${ctx.deps.slug(op.nombreEvento||m.ev.ev||"")}_${op.version}${partes.length>1?`_parte${p+1}de${partes.length}`:""}.${op.formato}`;
+    const nom=`INFORME_${m.cfg&&m.cfg.ege?m.cfg.ege+"_":""}${ctx.deps.slug(m.ev.cl||"")}_${ctx.deps.slug(op.nombreEvento||m.ev.ev||"")}_${op.version}${partes.length>1?`_parte${p+1}de${partes.length}`:""}.${op.formato}`;
     ctx.deps.bajar(blob,nom);
     resumen.fotos+=F2.length; resumen.fallas+=fallas; resumen.bytes+=blob.size; resumen.archivos.push({nom,bytes:blob.size,fotos:F2.length});
     if(p<partes.length-1) await new Promise(r=>setTimeout(r,800));   // Chrome agrupa descargas seguidas; un respiro evita el bloqueo

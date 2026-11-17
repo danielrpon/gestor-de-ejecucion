@@ -155,6 +155,7 @@
       <div class="guia neutro hide" id="execNuevo" style="margin-bottom:10px">Evento <b>nuevo</b>, en blanco. Para modificar uno que ya existe, ábrelo desde tu panel con <b>✏️ Editar evento</b>.</div>
       <div class="fld"><label>Cliente</label><input id="ecliente" type="text" autocomplete="off"></div>
       <div class="fld"><label>Evento</label><input id="eevento" type="text" autocomplete="off"></div>
+      <div class="fld"><label>Código del evento <span style="font-weight:500">(opcional · el EGE del tablero)</span></label><input id="eege" type="text" autocomplete="off" placeholder="EGE-2026-0179" style="text-transform:uppercase"><div class="mut hide" id="eegeInfo" style="margin:4px 0 0;color:#b3261e">Formato esperado: EGE-AAAA-NNNN. Se guarda igual, revisa que esté bien escrito.</div></div>
       <div class="row fechas"><div class="fld"><label>Fecha de inicio</label><input id="efecha" type="date"></div><div class="fld"><label>Fecha fin <span style="font-weight:500">(si son varios días)</span></label><input id="efechafin" type="date"></div></div>
       <div class="fld"><label>Ciudad</label><input id="eciudad" type="text" autocomplete="off"></div>
       <div class="fld hide" id="eEjWrap"><label>Ejecutivo asignado</label><select id="eEj"><option value="">— Sin asignar —</option></select>
@@ -296,7 +297,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v49.4 · 12nov · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v50 · 16nov · código del evento (EGE) e importador del evento completo · CSV leído como texto («001» y fechas) · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -532,6 +533,24 @@ function decCfg(s){ try{ return JSON.parse(decodeURIComponent(escape(atob(s))));
 function eventos(){ return loadJSON(NS+"eventos", {}); }                 // cache local por uid (respaldo si no hay señal)
 function cacheEvento(rec){ try{ if(rec&&rec.uid){ const all=eventos(); all[rec.uid]=rec; saveJSON(NS+"eventos",all); } }catch(_){} }
 function evConsecTag(n){ return "EV-"+String(n).padStart(3,"0"); }
+/* v50 · código del evento del tablero (EGE-AAAA-NNNN). Vive SOLO en eventos.config.ege: no toca uid, consecutivo ni la llave de las evidencias. */
+const EGE_RX=/^EGE-\d{4}-\d{4}$/;
+function normEge(v){ return String(v||"").trim().toUpperCase().replace(/\s+/g,""); }
+function egeDeUid(uid){ const e=(adminEventos||[]).find(x=>x&&x.uid===uid); return (e&&e.config&&e.config.ege)||""; }
+function idItemEge(ege, codigo, adicional){ return (ege && !adicional && String(codigo||"").trim()) ? ege+"-"+String(codigo).trim() : ""; }
+/* CSV se lee como TEXTO (raw): así "001" no se vuelve 1 y las fechas ISO no se vuelven número. Excel se lee igual que siempre. */
+function esCSV(file){ return /\.csv$/i.test((file&&file.name)||"") || /csv/i.test((file&&file.type)||""); }
+/* CSV en UTF-8 (con o sin BOM) se decodifica aquí; si no es UTF-8 válido (CSV de Excel Windows, ANSI) se lee como siempre. */
+async function leerLibro(file){ const buf=await file.arrayBuffer();
+  if(!esCSV(file)) return XLSX.read(buf, {type:"array"});
+  try{ const txt=new TextDecoder("utf-8",{fatal:true}).decode(buf).replace(/^\ufeff/,""); return XLSX.read(txt, {type:"string",raw:true}); }catch(_){}
+  return XLSX.read(buf, {type:"array",raw:true}); }
+/* Si el evento ya tiene el código "1" y el archivo trae "001", se conserva "1": cambiarlo cambiaría la llave y dejaría fotos huérfanas. */
+function ajustarCodigos(nuevos, actuales){ const ya=new Set((actuales||[]).map(i=>String(i.codigo||"")));
+  (nuevos||[]).forEach(it=>{ const c=String(it.codigo||""); if(/^0+\d+$/.test(c) && !ya.has(c) && ya.has(String(+c))) it.codigo=String(+c); }); return nuevos; }
+function fechaISO(v){ v=String(v||"").trim(); if(!v) return "";
+  if(/^\d{5}(\.\d+)?$/.test(v)){ const d=new Date(Math.round((parseFloat(v)-25569)*864e5)); return d.toISOString().slice(0,10); }   // serial de Excel
+  const f=parseFechas([v])[0]||""; return /^\d{4}-\d{2}-\d{2}$/.test(f)?f:""; }
 /* Capa 11b: 8 caracteres aleatorios criptográficos (antes 4 de Math.random): con la hora de creación a la vista, 4 se
    adivinaban. Solo aplica a eventos NUEVOS: el uid va dentro de item_id y los existentes no se pueden cambiar. */
 function nuevoUid(){ const a="abcdefghijklmnopqrstuvwxyz0123456789", r=new Uint8Array(8); crypto.getRandomValues(r);
@@ -626,6 +645,7 @@ $("efileReq").addEventListener("change", e=>{ if(e.target.files[0]) cargarReq(e.
 $("ebtnFicha").addEventListener("click", ()=>$("efileFicha").click());
 $("efileFicha").addEventListener("change", e=>{ if(e.target.files[0]) completarFicha(e.target.files[0]); e.target.value=""; });
 ["ecliente","eevento"].forEach(id=>$(id).addEventListener("input", chequearGen));
+if($("eege")) $("eege").addEventListener("input", ()=>{ const v=normEge($("eege").value); $("eegeInfo").classList.toggle("hide", !v || EGE_RX.test(v)); });
 $("egen").addEventListener("click", generarAcceso);
 $("acCopy").addEventListener("click", ()=>{ if(navigator.clipboard) navigator.clipboard.writeText(invitacionTexto()); $("acCopy").textContent="Invitación copiada ✓"; toast("Invitación copiada ✓"); });
 $("acGo").addEventListener("click", ()=>{ saveConfigDesdeExec(); irALogin(); });
@@ -640,7 +660,7 @@ async function renderHistorial(){
   else arr=Object.values(eventos());                           // respaldo: cache local si no hay señal
   arr=arr.slice().sort((a,b)=>(b.consec||0)-(a.consec||0));
   if(!arr.length){ l.innerHTML='<div class="mut">Aún no hay eventos configurados.</div>'; return; }
-  l.innerHTML=arr.map(e=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${escAttr(e.cl||"")} — ${escAttr(e.ev||"")}${e.fe?` <span class="mut" style="margin:0">(${escAttr(e.fe)})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.n_items||0} evidencias</div><div class="ac"><a class="lnk" onclick="copiarLinkEv('${uidSeguro(e.uid)}','oper')">link proveedor</a><a class="lnk" onclick="copiarLinkEv('${uidSeguro(e.uid)}','exec')">link para editar</a><a class="lnk" onclick="editarEventoId('${uidSeguro(e.uid)}')">editar</a></div></div></div>`).join("");
+  l.innerHTML=arr.map(e=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${escAttr(e.cl||"")} — ${escAttr(e.ev||"")}${e.config&&e.config.ege?` <span style="color:var(--azul)">· ${escAttr(e.config.ege)}</span>`:""}${e.fe?` <span class="mut" style="margin:0">(${escAttr(e.fe)})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.n_items||0} evidencias</div><div class="ac"><a class="lnk" onclick="copiarLinkEv('${uidSeguro(e.uid)}','oper')">link proveedor</a><a class="lnk" onclick="copiarLinkEv('${uidSeguro(e.uid)}','exec')">link para editar</a><a class="lnk" onclick="editarEventoId('${uidSeguro(e.uid)}')">editar</a></div></div></div>`).join("");
 }
 window.copiarLinkEv=(uid,tipo)=>{ const u=tipo==="exec"?linkExec(uid):linkOper(uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace para editar":"Enlace del proveedor")); };   // siempre el enlace directo ?ev=
 window.editarEventoId=(uid)=>{ editarEvento(uid); };
@@ -659,7 +679,7 @@ window.grupoExec=(idx,v)=>{ const it=execItems[idx]; if(!it) return; it.grupo=St
    que no eran de su evento. Para partir de una copia está "Duplicar como evento nuevo". */
 function nuevoExec(){
   epdAuto=false;   /* v38: el auto-encendido de «por día» es solo para eventos nuevos */
-  $("ecliente").value=""; $("eevento").value=""; $("efecha").value=""; $("efechafin").value=""; $("epd").checked=false; $("eciudad").value="";
+  $("ecliente").value=""; $("eevento").value=""; $("efecha").value=""; $("efechafin").value=""; $("epd").checked=false; $("eciudad").value=""; if($("eege")){ $("eege").value=""; $("eegeInfo").classList.add("hide"); }
   execItems=[]; renderExecItems();
   $("emPos").value="bl"; $("emEsc").value="3.4"; $("emOn").checked=true; $("emGal").checked=true; $("emVf").checked=true; $("emMm").value="fh";   /* v42.1: eventos nuevos exigen fecha y hora originales (decisión de Daniel 29-sep) */
   if($("acWrap")) $("acWrap").classList.add("hide");
@@ -670,7 +690,7 @@ function nuevoExec(){
   if($("execNuevo")) $("execNuevo").classList.remove("hide");
   window.scrollTo(0,0);
 }
-function prefillExec(){ if(cfg){ epdAuto=true;   /* v38: evento existente = se respeta su cfg.pd guardado; antes se prendía solo al abrir el enlace del productor */ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("efechafin").value=cfg.ff||""; $("epd").checked=!!cfg.pd; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",grupo:i.grupo||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null)),mn:parseMin(i.mn)})); renderExecItems();
+function prefillExec(){ if(cfg){ epdAuto=true;   /* v38: evento existente = se respeta su cfg.pd guardado; antes se prendía solo al abrir el enlace del productor */ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("efechafin").value=cfg.ff||""; $("epd").checked=!!cfg.pd; $("eciudad").value=cfg.ci||""; if($("eege")){ $("eege").value=cfg.ege||""; $("eegeInfo").classList.add("hide"); } execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",grupo:i.grupo||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null)),mn:parseMin(i.mn)})); renderExecItems();
     const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; $("emGal").checked=cfg.gal!==false; $("emVf").checked=cfg.vf!==false; $("emMm").value=cfg.mm||""; } if(typeof renderHistorial==="function") renderHistorial();
   editandoId=null; aplicarModoExec(); }   // por defecto: modo NUEVO (los que editan fijan editandoId DESPUÉS y llaman aplicarModoExec)
 /* Modo de la vista ejecutivo: EDITAR (editandoId fijado) muestra solo "Guardar cambios" + "Duplicar";
@@ -895,7 +915,7 @@ let execItems = [];
 /* Lee la plantilla y devuelve {filas, items} con los mismos criterios de columnas.
    Se usa tanto para CARGAR la lista como para COMPLETAR la ficha de un evento ya publicado. */
 async function parsearPlantilla(file){
-  const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
+  const wb = await leerLibro(file);
   const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:""});
   const get=(o,n)=>{ for(const k in o){ if(n.includes(k.trim().toLowerCase())) return String(o[k]).trim(); } return ""; };
   const items = rows.map(r=>({
@@ -915,7 +935,7 @@ async function completarFicha(file){
   const inf=$("efichaInfo");
   try{
     if(!execItems.length){ inf.textContent="Primero abre o carga un evento con requerimientos."; return; }
-    const {items} = await parsearPlantilla(file);
+    const {items} = await parsearPlantilla(file); ajustarCodigos(items, execItems);
     if(!items.length){ inf.textContent="No pude leer requerimientos en ese archivo."; return; }
     const mapa={}; anotarIids(items).forEach(it=>{ mapa[it.iid]=it; });
     let ok=0, sin=0;
@@ -940,21 +960,27 @@ async function completarFicha(file){
 }
 async function cargarReq(file){
   try{
-    const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
+    const wb = await leerLibro(file);
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:""});
     const get=(o,n)=>{ for(const k in o){ if(n.includes(k.trim().toLowerCase())) return String(o[k]).trim(); } return ""; };
+    const previos=execItems.slice();
     execItems = rows.map(r=>({ codigo:get(r,["item_codigo","codigo","código","item","ítem","id","cod"]), req:get(r,["requerimiento","descripcion","descripción","detalle","concepto"]), cant:get(r,["cantidad","cant","qty","unidades"]), prov:get(r,["nombre proveedores","nombre proveedor","proveedor","provider","prov","proveedor_nombre","empresa","contratista"]), nit:get(r,["nit proveedor","nit","nit_proveedor","identificacion proveedor","identificación proveedor"]), cat:get(r,["categoria","categoría","modulo","módulo","grupo","hoja"]),
       car:get(r,["caracteristicas","características","especificaciones","observaciones","nota"]),
       um:get(r,["unidad de medida","unidad_de_medida","unidad","um","medida"]),
       dias:get(r,["dias","días","dias_servicio"]), fechas:parseFechas(get(r,["fechas","fechas requeridas","dias especificos","días específicos","fechas_evidencia"])), pd:parseBool(get(r,["por dia","por día","por_dia","evidencia por dia","evidencia por día","evidencia diaria","diaria"])), mn:parseMin(get(r,["evidencias minimas","evidencias mínimas","evidencia minima","evidencia mínima","minimo evidencias","mínimo evidencias","min evidencias","evidencias_minimas","min_evidencias","minimo","mínimo","fotos minimas","fotos mínimas"])) })).filter(x=>x.req||x.codigo);
     let mx=0; execItems.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx)mx=n; });
     execItems.forEach(it=>{ if(!String(it.codigo).trim()){ mx++; it.codigo=String(mx).padStart(2,"0"); } });   // la app asigna código a los ítems sin código
-    const c=rows.map(r=>get(r,["cliente","client"])).find(Boolean), e=rows.map(r=>get(r,["evento","nombre_evento"])).find(Boolean), ci=rows.map(r=>get(r,["ciudad","municipio"])).find(Boolean);
-    if(c && !$("ecliente").value) $("ecliente").value=c;
-    if(e && !$("eevento").value) $("eevento").value=e;
-    if(ci && !$("eciudad").value) $("eciudad").value=ci;
+    ajustarCodigos(execItems, previos);
+    /* v50 · cabecera del evento: llena lo vacío; si el formulario ya trae otro valor, NO lo pisa y avisa. */
+    const col=n=>rows.map(r=>get(r,n)).find(Boolean)||"", avisos=[];
+    const pon=(id,val,nom)=>{ const el=$(id); if(!val||!el) return; if(!el.value) el.value=val; else if(el.value.trim()!==val) avisos.push(`${nom}: se dejó «${el.value.trim()}» (el archivo dice «${val}»)`); };
+    pon("ecliente",col(["cliente","client"]),"Cliente"); pon("eevento",col(["evento","nombre_evento","nombre del evento"]),"Evento"); pon("eciudad",col(["ciudad","municipio"]),"Ciudad");
+    const ege=normEge(col(["codigo_evento","código_evento","codigo evento","código evento","codigo del evento","código del evento","ege"]));
+    pon("eege",ege,"Código"); pon("efecha",fechaISO(col(["fecha_inicio","fecha inicio","fecha de inicio","fecha"])),"Fecha de inicio"); pon("efechafin",fechaISO(col(["fecha_fin","fecha fin","fecha de fin"])),"Fecha fin");
+    if($("eege")&&$("eegeInfo")){ const v=normEge($("eege").value); $("eegeInfo").classList.toggle("hide", !v || EGE_RX.test(v)); }
     if(!execItems.length) $("ereqInfo").textContent="No se encontró la columna de código (item_codigo / codigo / id).";
-    renderExecItems();
+    renderExecItems(); if(typeof chequearGen==="function") chequearGen();
+    if(execItems.length && (ege||avisos.length)){ const inf=$("ereqInfo"); inf.textContent=(inf.textContent?inf.textContent+" · ":"")+(ege?"Código "+ege+" cargado.":"")+(avisos.length?" ⚠ "+avisos.join(" · "):""); }   // v50: después de renderExecItems, que reescribe este texto
   }catch(err){ $("ereqInfo").textContent="No se pudo leer: "+err.message; }
 }
 function chequearGen(){ $("egen").disabled = !(execItems.length && $("ecliente").value.trim() && $("eevento").value.trim()); }
@@ -964,6 +990,7 @@ function saveConfigDesdeExec(){
           it:execItems.map(i=>Object.assign({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null)),mn:parseMin(i.mn)}, i.grupo?{grupo:i.grupo}:{})),
           marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked}, gal:$("emGal").checked, vf:$("emVf").checked, mm:$("emMm").value };   /* v42: mm = qué hacer con fotos de galería sin metadatos ("" aceptar y marcar · fh · fhu) */   /* v38: vf=false → no se exige que la foto sea de las fechas del evento */   // marca definida por el ejecutivo, igual para todos
   if(uid) cfg.uid=uid; if(consec) cfg.consec=consec;
+  const ege=normEge($("eege")?$("eege").value:""); if(ege) cfg.ege=ege;   // v50: solo si hay código (los eventos sin código quedan idénticos)
   saveJSON(NS+"config", cfg);
 }
 let accesoLink="", accesoExec="", accesoCorto="", editandoId=null;
@@ -977,7 +1004,7 @@ async function generarAcceso(){
 }
 /* Panel de acceso: consecutivo + ambos enlaces (operador + ejecutivo) acortados; guarda en Supabase. */
 async function mostrarAcceso(consec){
-  $("invCli").textContent = evConsecTag(consec)+" · "+(cfg.cl || "—");
+  $("invCli").textContent = evConsecTag(consec)+(cfg.ege?" · "+cfg.ege:"")+" · "+(cfg.cl || "—");
   $("invEv").textContent = [cfg.ev, cfg.fe?(cfg.fe+(cfg.ff&&cfg.ff!==cfg.fe?" → "+cfg.ff:"")):"", cfg.ci, cfg.pd?"evidencia por día":""].filter(Boolean).join("  ·  ");
   $("acWrap").classList.remove("hide"); $("acCopy").textContent="Copiar invitación (proveedor)";
   accesoCorto=accesoLink;   // sin acortador: el enlace ?ev= ya es corto, DIRECTO y estable (sin página intermedia)
@@ -1013,7 +1040,7 @@ async function guardarEventoEditado(){
 function invitacionTexto(){
   const link = accesoCorto || accesoLink;
   const l2 = [cfg.ev, cfg.fe, cfg.ci].filter(Boolean).join(" · ");
-  return `Invitación — Captura de evidencias\nCliente: ${cfg.cl}\n${l2?("Evento: "+l2+"\n"):""}\nIngresa a la plataforma para cargar tus evidencias:\n${link}\n\nÁbrelo en tu celular, regístrate (nombre, cédula y celular) y comienza a capturar.`;
+  return `Invitación — Captura de evidencias\nCliente: ${cfg.cl}\n${l2?("Evento: "+l2+"\n"):""}${cfg.ege?("Código: "+cfg.ege+"\n"):""}\nIngresa a la plataforma para cargar tus evidencias:\n${link}\n\nÁbrelo en tu celular, regístrate (nombre, cédula y celular) y comienza a capturar.`;
 }
 
 /* ---- OPERADOR: login ---- */
@@ -1314,7 +1341,7 @@ function adminRenderDash(){
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:12px;color:var(--azul)">🔎 Ver: ${activos.length?"filtrado":"todo"}</b>${activos.length?`<a class="lnk" id="segTodo">Todo (limpiar filtros)</a>`:""}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">`
     +sel("segCl",opt(clientes,"Todos los clientes",s.cl))
-    +sel("segEv",opt(eventosOpc.map(e=>[e.uid,evConsecTag(e.consec)+" · "+(e.ev||"")]),"Todos los eventos",s.ev),150)
+    +sel("segEv",opt(eventosOpc.map(e=>[e.uid,evConsecTag(e.consec)+(e.config&&e.config.ege?" · "+e.config.ege:"")+" · "+(e.ev||"")]),"Todos los eventos",s.ev),150)
     +sel("segMes",opt(meses,"Todos los meses",s.mes,fmtMes),110)
     +sel("segEstado",opt([["curso","En curso"],["cerrado","Cerrados"],["proximo","Próximos"]],"Cualquier estado",s.estado),110)
     +sel("segProv",opt(provs,"Todas las empresas proveedoras",s.prov),150)
@@ -1351,7 +1378,7 @@ function adminRenderDash(){
   l.innerHTML=seg+dash+(visibles.length?visibles.map(i=>{
       const e=adminEventos[i], m=adminMetricas[i];
       const est=(v,t,c)=>`<div${c?` class="${c}"`:""}><b>${v}</b><span>${t}</span></div>`;
-      return `<div class="ev adEv"><div class="t1"><b>${evConsecTag(e.consec)}</b> · ${escAttr(e.cl)}${e.fe?` · ${escAttr(e.fe)}${e.config&&e.config.ff&&e.config.ff!==e.fe?" → "+escAttr(e.config.ff):""}`:""}${e.config&&e.config.pd?` · <span style="color:var(--azul);font-weight:600">por día</span>`:""}</div>`
+      return `<div class="ev adEv"><div class="t1"><b>${evConsecTag(e.consec)}</b>${e.config&&e.config.ege?` · <span style="color:var(--azul)">${escAttr(e.config.ege)}</span>`:""} · ${escAttr(e.cl)}${e.fe?` · ${escAttr(e.fe)}${e.config&&e.config.ff&&e.config.ff!==e.fe?" → "+escAttr(e.config.ff):""}`:""}${e.config&&e.config.pd?` · <span style="color:var(--azul);font-weight:600">por día</span>`:""}</div>`
         +`<div class="t2">${escAttr(e.ev)}</div>`
         +`<div class="av">${bar(m.av)}<b style="color:${m.av>=100?'#1a9e56':'var(--azul)'}">${m.av}%</b></div>`
         +`<div class="st">${est(m.n+(m.n!==m.tot?`<small class="mut" style="margin:0;font-weight:500"> de ${m.tot}</small>`:""),"Requerimientos")}${est(m.conEvi,"Con evidencia")}${est(m.comp,"Completos")}${est(m.pend,"Pendientes",m.pend?"pend":"")}${est(m.reg.toLocaleString("es-CO"),"Evidencias")}${est(m.extras,"Extras en sitio",m.extras?"ext":"")}</div>`
@@ -1532,9 +1559,9 @@ function bloqueExtras(arr){
 window.adminExtrasCSV=()=>{
   const x=extrasDeEvidencias(adminEvidencias); if(!x.length){ toast("Sin adicionales"); return; }
   const ev=adminEventos[adminEventoActual]||{};
-  const cols=["item","requerimiento","cantidad","proveedor","proveedor_nit","solicitado_por","justificacion","operador","fotos"];
-  let csv=cols.join(",")+"\n";
-  x.forEach(e=>{ csv+=[e.item,e.req,e.cant,e.prov,e.nit,e.quien,e.nota,e.oper,e.fotos].map(csvCell).join(",")+"\n"; });
+  const cols=["item","requerimiento","cantidad","proveedor","proveedor_nit","solicitado_por","justificacion","operador","fotos","codigo_evento"];
+  let csv=cols.join(",")+"\n"; const g=(ev.config&&ev.config.ege)||"";
+  x.forEach(e=>{ csv+=[e.item,e.req,e.cant,e.prov,e.nit,e.quien,e.nota,e.oper,e.fotos,g].map(csvCell).join(",")+"\n"; });
   bajar(new Blob([csv],{type:"text/csv"}), `extras_${slug(ev.cl||"")}_${slug(ev.ev||"")}.csv`);
 };
 /* ---- Capa 14 · VISOR LIVIANO: filas de a páginas, vista previa sólo de lo que está en pantalla (miniatura si existe,
@@ -1732,9 +1759,9 @@ $("lightbox").addEventListener("click", e=>{ if(e.target.id==="lightbox") $("lig
 /* Manifiesto CSV del evento (se genera desde la tabla -> siempre al día con todo lo enviado) */
 window.adminManifiesto=()=>{
   const arr=adminEvidencias; if(!arr.length){ toast("Sin evidencias"); return; }
-  const cols=["radicado","evento_consec","cliente","evento","categoria","item","item_id","requerimiento","cantidad","proveedor","adicional","solicitado_por","justificacion","operador_nombre","operador_cedula","operador_celular","tipo","archivo","fecha","hora","lugar","lat","lon","creado"];
+  const cols=["radicado","evento_consec","cliente","evento","categoria","item","item_id","requerimiento","cantidad","proveedor","adicional","solicitado_por","justificacion","operador_nombre","operador_cedula","operador_celular","tipo","archivo","fecha","hora","lugar","lat","lon","creado","codigo_evento","id_item_ege"];
   let csv=cols.join(",")+"\n";
-  arr.forEach(e=>{ csv+=cols.map(c=>{ const v=(c==="evento_consec")?(e.consec?evConsecTag(e.consec):""):(e[c]!=null?e[c]:""); return csvCell(v); }).join(",")+"\n"; });
+  arr.forEach(e=>{ const g=egeDeUid(e.evento_uid); csv+=cols.map(c=>{ const v=(c==="evento_consec")?(e.consec?evConsecTag(e.consec):""):(c==="codigo_evento")?g:(c==="id_item_ege")?idItemEge(g,e.item,e.adicional):(e[c]!=null?e[c]:""); return csvCell(v); }).join(",")+"\n"; });
   bajar(new Blob([csv],{type:"text/csv"}), `manifiesto_${slug(arr[0].cliente||"")}_${slug(arr[0].evento||"")}.csv`);
 };
 /* ZIP con las fotos cargadas + manifiesto */
@@ -1743,7 +1770,7 @@ window.adminManifiesto=()=>{
    Respeta el filtro activo del visor. Reintenta 4 veces cada foto y deja FALLIDAS.txt si alguna no bajó. ---- */
 let adminDlCancel=false; const AD_ZIP_TAM=500;
 function nombreSeguro(n){ n=String(n||"foto.jpg").replace(/[\/\\:*?"<>|\x00-\x1f]/g,"_"); const ext=(n.match(/\.[A-Za-z0-9]{2,5}$/)||[""])[0]; let base=n.slice(0,n.length-ext.length); const enc=new TextEncoder(); while(base.length>1 && enc.encode(base+ext).length>200) base=base.slice(0,-1); return base+ext; }
-function adminManifiestoCSV(lista){ const cols=["radicado","cliente","evento","categoria","item","item_id","requerimiento","proveedor","proveedor_nit","operador_nombre","archivo","tipo","fecha","hora","lugar","creado","fecha_origen","dia_evento","dias_evento","adicional","cantidad","solicitado_por","justificacion","grupo","declarado_por"]; let csv=cols.join(",")+"\n"; lista.forEach(e=>{ csv+=cols.map(c=>csvCell(e[c]!=null?e[c]:"")).join(",")+"\n"; }); return csv; }
+function adminManifiestoCSV(lista){ const cols=["radicado","cliente","evento","categoria","item","item_id","requerimiento","proveedor","proveedor_nit","operador_nombre","archivo","tipo","fecha","hora","lugar","creado","fecha_origen","dia_evento","dias_evento","adicional","cantidad","solicitado_por","justificacion","grupo","declarado_por","codigo_evento","id_item_ege"]; let csv=cols.join(",")+"\n"; lista.forEach(e=>{ const g=egeDeUid(e.evento_uid); csv+=cols.map(c=>csvCell(c==="codigo_evento"?g:c==="id_item_ege"?idItemEge(g,e.item,e.adicional):(e[c]!=null?e[c]:""))).join(",")+"\n"; }); return csv; }
 function adminDlPanel(html){ const p=$("adDl"); if(!p) return; p.classList.remove("hide"); p.innerHTML=html; }
 function adminDlProgreso(t,hechas,total,fall){ adminDlPanel(`<div style="font-weight:700">${escAttr(t)}</div><div style="height:7px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0"><div style="height:100%;width:${total?Math.round(hechas/total*100):0}%;background:var(--azul)"></div></div><div class="mut" style="margin:0">${hechas}/${total}${fall?` · <span style="color:#b3261e">fallidas ${fall}</span>`:""} · <a class="lnk" onclick="adminDlCancelar()">cancelar</a></div>`); }
 window.adminDlCancelar=()=>{ adminDlCancel=true; };
@@ -2306,10 +2333,10 @@ function programarCompletado(){
 function csvCell(v){ v=String(v==null?"":v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 let enviando=false;
 function construirCSV(listas, radicado){
-  let csv="radicado,operador_cedula,operador_nombre,operador_celular,operador_proveedor,cliente,evento,evento_consec,evento_fecha,evento_ciudad,categoria,item,cantidad,proveedor,proveedor_nit,adicional,solicitado_por,justificacion,tipo,archivo,fecha,hora,lugar,lat,lon\n";
+  let csv="radicado,operador_cedula,operador_nombre,operador_celular,operador_proveedor,cliente,evento,evento_consec,evento_fecha,evento_ciudad,categoria,item,cantidad,proveedor,proveedor_nit,adicional,solicitado_por,justificacion,tipo,archivo,fecha,hora,lugar,lat,lon,codigo_evento,id_item_ege\n";
   const evc=cfg.consec?evConsecTag(cfg.consec):""; const rad=radicado||"";
   listas.forEach(e=>{ const ad=itemAdic(e.itemCodigo);
-    csv+=[rad,operador.cedula,operador.nombre,operador.celular,(operador.prov||""),cfg.cl,cfg.ev,evc,cfg.fe||"",cfg.ci||"",itemCat(e.itemCodigo),itemCod(e.itemCodigo),itemCant(e.itemCodigo),itemProv(e.itemCodigo),itemNit(e.itemCodigo),(ad?"SI":""),(ad?ad.solicitadoPor:""),(ad?ad.justificacion:""),e.tipo||"foto",e.filename,e.datos.fecha,e.datos.hora,e.datos.lugar,e.datos.lat,e.datos.lon].map(csvCell).join(",")+"\n"; });
+    csv+=[rad,operador.cedula,operador.nombre,operador.celular,(operador.prov||""),cfg.cl,cfg.ev,evc,cfg.fe||"",cfg.ci||"",itemCat(e.itemCodigo),itemCod(e.itemCodigo),itemCant(e.itemCodigo),itemProv(e.itemCodigo),itemNit(e.itemCodigo),(ad?"SI":""),(ad?ad.solicitadoPor:""),(ad?ad.justificacion:""),e.tipo||"foto",e.filename,e.datos.fecha,e.datos.hora,e.datos.lugar,e.datos.lat,e.datos.lon,(cfg.ege||""),idItemEge(cfg.ege,itemCod(e.itemCodigo),!!ad)].map(csvCell).join(",")+"\n"; });
   return csv;
 }
 async function descargarZIP(listas, csv, exito){
@@ -2471,7 +2498,7 @@ function resumenEnvio(radicado, listas){
   const adics=new Set(listas.filter(e=>itemAdic(e.itemCodigo)).map(e=>e.itemCodigo));
   const t=new Date();
   return { cliente:cfg.cl||"—", evento:cfg.ev||"—",
-    consec:(cfg&&cfg.consec)?evConsecTag(cfg.consec):"",
+    consec:(cfg&&cfg.consec)?evConsecTag(cfg.consec)+(cfg.ege?" · "+cfg.ege:""):"",
     ciudad:cfg.ci||"", fechaEv:cfg.fe||"", radicado,
     cuando:`${z(t.getDate())}/${z(t.getMonth()+1)}/${t.getFullYear()} ${hora12(z(t.getHours())+":"+z(t.getMinutes()))}`,
     operador:(operador&&operador.nombre)||"", prov:(operador&&operador.prov)||"",
