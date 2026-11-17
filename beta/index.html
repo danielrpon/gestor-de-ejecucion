@@ -162,6 +162,7 @@
         <div class="mut" style="margin:4px 0 0">El ejecutivo ve y administra solo los eventos que tiene asignados.</div></div>
       <div style="height:14px"></div>
       <button class="btn sec" id="ebtnReq">Cargar lista de evidencias (Excel / CSV)</button>
+      <div id="eDrop" class="mut" style="border:2px dashed #b9c3d6;border-radius:10px;padding:12px;text-align:center;margin:8px 0 4px">… o <b>arrastra aquí</b> el CSV o el <b>Tablero de eventos</b> (.xlsx): se lee su hoja «CSV app», con el evento elegido en Inicio.</div>
       <input id="efileReq" type="file" accept=".xlsx,.xls,.csv">
       <div class="mut" id="ereqInfo">Carga un Excel/CSV o agrega manualmente. Columnas: proveedor · requerimiento · cantidad · días · fechas (2026-09-08 o D1;D2;D4) · por día (SI/NO). El código lo asigna la app.</div>
       <div style="height:8px"></div>
@@ -297,7 +298,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v50 · 16nov · código del evento (EGE) e importador del evento completo · CSV leído como texto («001» y fechas) · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v50.1 · 17nov · arrastrar el CSV o el Tablero de eventos (.xlsx, hoja «CSV app») · código del evento (EGE) e importador del evento completo · CSV leído como texto («001» y fechas) · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -539,6 +540,9 @@ function normEge(v){ return String(v||"").trim().toUpperCase().replace(/\s+/g,""
 function egeDeUid(uid){ const e=(adminEventos||[]).find(x=>x&&x.uid===uid); return (e&&e.config&&e.config.ege)||""; }
 function idItemEge(ege, codigo, adicional){ return (ege && !adicional && String(codigo||"").trim()) ? ege+"-"+String(codigo).trim() : ""; }
 /* CSV se lee como TEXTO (raw): así "001" no se vuelve 1 y las fechas ISO no se vuelven número. Excel se lee igual que siempre. */
+/* v50.1 · si el archivo es el Tablero de eventos completo (.xlsx), se lee su hoja «CSV app»: la del evento elegido en Inicio. */
+function hojaDatos(wb){ const n=(wb.SheetNames||[]).find(x=>String(x).trim().toLowerCase()==="csv app"); return wb.Sheets[n||wb.SheetNames[0]]; }
+function esTablero(wb){ return (wb.SheetNames||[]).some(x=>String(x).trim().toLowerCase()==="csv app"); }
 function esCSV(file){ return /\.csv$/i.test((file&&file.name)||"") || /csv/i.test((file&&file.type)||""); }
 /* CSV en UTF-8 (con o sin BOM) se decodifica aquí; si no es UTF-8 válido (CSV de Excel Windows, ANSI) se lee como siempre. */
 async function leerLibro(file){ const buf=await file.arrayBuffer();
@@ -642,6 +646,16 @@ $("brandWord").addEventListener("click", ()=>show("home"));
 /* ---- EJECUTIVO ---- */
 $("ebtnReq").addEventListener("click", ()=>$("efileReq").click());
 $("efileReq").addEventListener("change", e=>{ if(e.target.files[0]) cargarReq(e.target.files[0]); });
+/* v50.1 · arrastrar y soltar: solo con la pantalla del productor abierta. En un evento ya publicado pide confirmación,
+   porque cargar una lista REEMPLAZA sus requerimientos (para completar datos sin tocar la lista está «Completar ficha»). */
+(()=>{ const ex=$("exec"), dz=$("eDrop"); if(!ex||!dz) return; const visible=()=>!ex.classList.contains("hide");
+  const marca=on=>{ dz.style.borderColor=on?"var(--azul)":"#b9c3d6"; dz.style.background=on?"#eef3fb":""; };
+  ["dragenter","dragover"].forEach(t=>document.addEventListener(t, e=>{ if(!visible()||!e.dataTransfer||![...(e.dataTransfer.types||[])].includes("Files")) return; e.preventDefault(); marca(true); }));
+  document.addEventListener("dragleave", e=>{ if(!e.relatedTarget) marca(false); });
+  document.addEventListener("drop", async e=>{ if(!visible()||!e.dataTransfer||!e.dataTransfer.files.length) return; e.preventDefault(); marca(false);
+    const f=e.dataTransfer.files[0]; if(!/\.(csv|xlsx|xls)$/i.test(f.name)){ toast("Solo CSV o Excel"); return; }
+    if(editandoId && execItems.length && !confirm("Este evento ya está publicado. Cargar «"+f.name+"» REEMPLAZA su lista de requerimientos.\n\nPara solo completar datos sin tocar la lista, usa «Completar ficha desde plantilla».\n\n¿Reemplazar la lista?")) return;
+    await cargarReq(f); }); })();
 $("ebtnFicha").addEventListener("click", ()=>$("efileFicha").click());
 $("efileFicha").addEventListener("change", e=>{ if(e.target.files[0]) completarFicha(e.target.files[0]); e.target.value=""; });
 ["ecliente","eevento"].forEach(id=>$(id).addEventListener("input", chequearGen));
@@ -916,7 +930,7 @@ let execItems = [];
    Se usa tanto para CARGAR la lista como para COMPLETAR la ficha de un evento ya publicado. */
 async function parsearPlantilla(file){
   const wb = await leerLibro(file);
-  const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:""});
+  const rows = XLSX.utils.sheet_to_json(hojaDatos(wb), {defval:""});
   const get=(o,n)=>{ for(const k in o){ if(n.includes(k.trim().toLowerCase())) return String(o[k]).trim(); } return ""; };
   const items = rows.map(r=>({
       codigo:get(r,["item_codigo","codigo","código","item","ítem","id","cod"]), req:get(r,["requerimiento","descripcion","descripción","detalle","concepto"]), cant:get(r,["cantidad","cant","qty","unidades"]), prov:get(r,["nombre proveedores","nombre proveedor","proveedor","provider","prov","proveedor_nombre","empresa","contratista"]), nit:get(r,["nit proveedor","nit","nit_proveedor","identificacion proveedor","identificación proveedor"]),
@@ -961,7 +975,7 @@ async function completarFicha(file){
 async function cargarReq(file){
   try{
     const wb = await leerLibro(file);
-    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:""});
+    const rows = XLSX.utils.sheet_to_json(hojaDatos(wb), {defval:""});
     const get=(o,n)=>{ for(const k in o){ if(n.includes(k.trim().toLowerCase())) return String(o[k]).trim(); } return ""; };
     const previos=execItems.slice();
     execItems = rows.map(r=>({ codigo:get(r,["item_codigo","codigo","código","item","ítem","id","cod"]), req:get(r,["requerimiento","descripcion","descripción","detalle","concepto"]), cant:get(r,["cantidad","cant","qty","unidades"]), prov:get(r,["nombre proveedores","nombre proveedor","proveedor","provider","prov","proveedor_nombre","empresa","contratista"]), nit:get(r,["nit proveedor","nit","nit_proveedor","identificacion proveedor","identificación proveedor"]), cat:get(r,["categoria","categoría","modulo","módulo","grupo","hoja"]),
@@ -978,7 +992,7 @@ async function cargarReq(file){
     const ege=normEge(col(["codigo_evento","código_evento","codigo evento","código evento","codigo del evento","código del evento","ege"]));
     pon("eege",ege,"Código"); pon("efecha",fechaISO(col(["fecha_inicio","fecha inicio","fecha de inicio","fecha"])),"Fecha de inicio"); pon("efechafin",fechaISO(col(["fecha_fin","fecha fin","fecha de fin"])),"Fecha fin");
     if($("eege")&&$("eegeInfo")){ const v=normEge($("eege").value); $("eegeInfo").classList.toggle("hide", !v || EGE_RX.test(v)); }
-    if(!execItems.length) $("ereqInfo").textContent="No se encontró la columna de código (item_codigo / codigo / id).";
+    if(!execItems.length) $("ereqInfo").textContent = esTablero(wb) ? "El tablero no trae renglones en la hoja «CSV app». Elige el evento en Inicio (celda C4), espera que se calcule y vuelve a descargar el archivo." : "No se encontró la columna de código (item_codigo / codigo / id).";
     renderExecItems(); if(typeof chequearGen==="function") chequearGen();
     if(execItems.length && (ege||avisos.length)){ const inf=$("ereqInfo"); inf.textContent=(inf.textContent?inf.textContent+" · ":"")+(ege?"Código "+ege+" cargado.":"")+(avisos.length?" ⚠ "+avisos.join(" · "):""); }   // v50: después de renderExecItems, que reescribe este texto
   }catch(err){ $("ereqInfo").textContent="No se pudo leer: "+err.message; }
