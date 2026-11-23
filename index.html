@@ -294,8 +294,9 @@
       <div class="list" id="list"></div>
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
+      <button class="btn sec hide" id="fotos" style="margin-top:8px">Guardar en Fotos</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v49.8 · 23nov · lote máximo 12 · v49.7 · 23nov · copia sin sello solo si la foto llega incompleta · v49.6 · fotos a 8 MP y 3 a la vez · 22nov · foto de «Capturar foto» que no abría en Safari iPhone · vista previa con marca · v49.4 · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v49.9 · 23nov · guardar en Fotos (iPhone) · sin tope con conexión rápida · v49.8 · 23nov · lote máximo 12 · v49.7 · 23nov · copia sin sello solo si la foto llega incompleta · v49.6 · fotos a 8 MP y 3 a la vez · 22nov · foto de «Capturar foto» que no abría en Safari iPhone · vista previa con marca · v49.4 · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -403,6 +404,14 @@
   <button class="btn sec" id="failClose">Cerrar</button>
 </div></div>
 
+<div id="fotm" class="modal hide"><div class="sheet" style="text-align:center">
+  <div style="font-size:44px;line-height:1">📲</div>
+  <div class="h" style="justify-content:center;margin-top:6px">Guarda una copia en Fotos</div>
+  <div class="mut" id="fotDet" style="margin-top:4px"></div>
+  <div style="height:14px"></div>
+  <button class="btn" id="fotGuardar">Guardar en Fotos</button>
+  <div class="mut" id="fotMsg" style="margin-top:8px;font-size:12px"></div>
+</div></div>
 <div id="toast" class="toast"></div>
 
 <!-- v49.5 · VISTA PREVIA del proveedor (foto con la marca de agua, antes de enviar) -->
@@ -2070,7 +2079,31 @@ window.addEventListener("online", ()=>{ if(batch.some(e=>e.status==="listo"&&e.d
 /* v49.8 (23-nov): lote máximo de 12 evidencias por envío (~40 s por datos móviles). Sin señal no hay tope (no se pierde
    evidencia) y la «Carga de administrador» tampoco lo tiene. */
 const LOTE_MAX=12;
-function topeLote(){ return (admCargaActiva() || navigator.onLine===false) ? Infinity : LOTE_MAX; }
+/* v49.9 (23-nov): tope según la velocidad REAL. Cada envío mide bytes/segundo; si fue rápido (≥ 1 MB/s ≈ 12 fotos en
+   menos de 20 s, típico de WiFi) se quita el tope por 30 min; un envío lento lo vuelve a poner. Android en WiFi: sin tope
+   desde el primero (navigator.connection.type; Safari de iPhone no lo informa). */
+const VEL_RAPIDA=1e6, VEL_VIGENCIA=30*60e3;
+function wifiAndroid(){ try{ const c=navigator.connection; return !!(c && (c.type==="wifi"||c.type==="ethernet")); }catch(_){ return false; } }
+function rapidaHasta(){ try{ return +sessionStorage.getItem(NS+"rapida")||0; }catch(_){ return 0; } }
+function conexionRapida(){ return wifiAndroid() || rapidaHasta()>Date.now(); }
+function registrarVelocidad(bytes, ms){ if(!(bytes>0&&ms>0)) return null; const bps=bytes/(ms/1000), rapida=bps>=VEL_RAPIDA;
+  try{ sessionStorage.setItem(NS+"rapida", rapida?String(Date.now()+VEL_VIGENCIA):"0"); }catch(_){}
+  return rapida; }
+function topeLote(){ return (admCargaActiva() || navigator.onLine===false || conexionRapida()) ? Infinity : LOTE_MAX; }
+/* v49.9 (23-nov): respaldo en el carrete del iPhone. Safari no deja escribir en Fotos sin un toque: se abre la hoja de
+   compartir con las fotos del lote y la persona elige «Guardar imágenes». Obligatorio sin señal (cada 12 sin guardar) y
+   cuando un envío falla; botón «Guardar en Fotos» siempre a mano. Android ya descarga una copia de cada captura. */
+var ES_IOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+function archivosFotos(lista){ calcularNombres(); return lista.filter(e=>e.status==="listo"&&e.blob).map(e=>new File([e.blob], e.filename||("evidencia_"+e.id+"."+(e.tipo==="video"?(e.ext||"mp4"):"jpg")), {type:e.tipo==="video"?((e.file&&e.file.type)||"video/mp4"):"image/jpeg"})); }
+async function guardarEnFotos(lista){ const fs=archivosFotos(lista); if(!fs.length) return "nada";
+  if(!(navigator.canShare&&navigator.canShare({files:fs}))) return "nosoporta";
+  try{ await navigator.share({files:fs}); lista.forEach(e=>{ if(e.status==="listo") e.enFotos=true; }); return "ok"; }
+  catch(err){ return (err&&err.name==="AbortError")?"cancelado":"error"; } }
+let fotLista=[];
+function pedirGuardarFotos(lista, motivo){ if(!ES_IOS || admCargaActiva()) return;
+  const pend=lista.filter(e=>e.status==="listo"&&e.blob&&!e.enFotos); if(!pend.length) return; fotLista=pend;
+  $("fotDet").innerHTML=motivo+`<br><br>Toca «Guardar en Fotos» y luego <b>«Guardar ${pend.length===1?"imagen":pend.length+" imágenes"}»</b>.`;
+  $("fotMsg").textContent=""; $("fotm").classList.remove("hide"); }
 const MSG_LLENO=`Lote máximo ${LOTE_MAX} fotos. Envía y sigue.`;
 function agregar(fileList, meta, metaResp){
   const cod=selIid(), fSel=selFecha();
@@ -2081,7 +2114,7 @@ function agregar(fileList, meta, metaResp){
   if(arr.length>libres){ if(libres<=0){ alert(MSG_LLENO); return; }
     const fuera=arr.length-libres; arr=arr.slice(0,libres);
     setTimeout(()=>alert(`${libres===1?"Se agregó la primera":"Se agregaron las primeras "+libres}. Lote máximo ${LOTE_MAX} fotos. Quedaron ${fuera} por fuera.`),300); }
-  if(topeLote()===Infinity && !admCargaActiva() && batch.length<=LOTE_MAX && batch.length+arr.length>LOTE_MAX)
+  if(!ES_IOS && navigator.onLine===false && !admCargaActiva() && batch.length<=LOTE_MAX && batch.length+arr.length>LOTE_MAX)
     setTimeout(()=>alert(`Sin señal: se guardan en el celular y se envían de a ${LOTE_MAX} cuando vuelva la señal.`),300);   /* v49.8 */
   arr.forEach(file=>{
     const video=/^video\//.test(file.type)||/\.(mp4|mov|m4v|3gp|webm|avi|mkv)$/i.test(file.name);
@@ -2090,7 +2123,10 @@ function agregar(fileList, meta, metaResp){
     if(admCargaActiva() && $("admSinHora") && $("admSinHora").checked){ e.sinHora=true; e.declPor=admCorreo()||"admin"; }   /* v40 */
     batch.push(e); nuevos.push(e); ps.push(procesar(e)); });
   renderLista();
-  Promise.all(ps).then(()=>{   /* v34: avisos del lote — fotos rechazadas por fecha y galería sin metadatos */
+  Promise.all(ps).then(()=>{
+    if(ES_IOS && navigator.onLine===false && batch.filter(e=>e.status==="listo"&&e.blob&&!e.enFotos).length>=LOTE_MAX)   /* v49.9 */
+      pedirGuardarFotos(batch, `<b>Sin señal.</b> Las fotos se envían de a ${LOTE_MAX} cuando vuelva la señal. Guarda una copia por si acaso.`);
+    /* v34: avisos del lote — fotos rechazadas por fecha y galería sin metadatos */
     const rechR=nuevos.filter(e=>e.rechazoRep), rech=nuevos.filter(e=>e.rechazo && !e.rechazoMeta && !e.rechazoRep), rechM=nuevos.filter(e=>e.rechazoMeta), sm=meta?[]:nuevos.filter(e=>!e.rechazo && e.sinMeta); const msg=[];
     if(rechR.length) msg.push((rechR.length===1?"Esta foto NO se cargó: ":"Estas "+rechR.length+" fotos NO se cargaron:\n• ")+rechR.map(e=>e.rechazo).join("\n• ")+".\n\nCada evidencia de un requerimiento debe ser una foto distinta. Si una misma foto muestra varios requerimientos, sí la puedes cargar en cada uno.");
     if(rechM.length) msg.push((rechM.length===1?"Esta foto NO se cargó: ":"Estas "+rechM.length+" fotos NO se cargaron:\n• ")+rechM.map(e=>e.rechazo).join("\n• ")+".\n\nEste evento solo acepta fotos con sus datos originales. Se pierden cuando la foto se envía por WhatsApp o correo, o se toma con otra app.\n\nTómala en el sitio con «Capturar foto».");   /* v42 */
@@ -2244,12 +2280,14 @@ function renderLista(){
   const sinReq=batch.filter(e=>e.status==="listo"&&!e.itemCodigo).length;
   const tope=topeLote();   /* v49.8: contador del lote */
   const muchas=!admCargaActiva()&&batch.length>LOTE_MAX;   /* v49.8: contador del lote */
-  const pref=muchas?`<b>${batch.length} en el celular · ${tope<Infinity?"se envían de a "+LOTE_MAX:"sin señal"}</b> · `:(tope<Infinity?`<b>${batch.length} de ${LOTE_MAX}</b> · `:"");
+  const rapida=!admCargaActiva()&&navigator.onLine!==false&&conexionRapida();
+  const pref=rapida?`<b>Conexión rápida · sin límite</b> · `:(muchas?`<b>${batch.length} en el celular · ${tope<Infinity?"se envían de a "+LOTE_MAX:"sin señal"}</b> · `:(tope<Infinity?`<b>${batch.length} de ${LOTE_MAX}</b> · `:""));
   $("cnt").innerHTML = batch.length ? (pref+`${listas}/${batch.length} listas`+(sinReq?` · <span style="color:#b3261e">${sinReq} sin requerimiento</span>`:"")) : "Aún no agregas evidencias.";
   const pendFecha=batch.filter(pendienteFecha).length;
   $("enviar").disabled=listas===0 || pendFecha>0;
   let envAhora=false; try{ envAhora=enviando; }catch(_){}
-  if(!envAhora) $("enviar").textContent=!listas?"Enviar evidencias":((listas>LOTE_MAX&&!admCargaActiva())?`Enviar ${LOTE_MAX} de ${listas}`:`Enviar ${listas} ${listas===1?"evidencia":"evidencias"}`);   /* v49.8 */
+  if($("fotos")) $("fotos").classList.toggle("hide", !(ES_IOS && listas>0 && !admCargaActiva()));   /* v49.9 */
+  if(!envAhora) $("enviar").textContent=!listas?"Enviar evidencias":((listas>topeLote())?`Enviar ${LOTE_MAX} de ${listas}`:`Enviar ${listas} ${listas===1?"evidencia":"evidencias"}`);   /* v49.8 */
   if(pendFecha && $("sendInfo")) $("sendInfo").innerHTML=`<span style="color:#b3261e">${pendFecha} foto${pendFecha===1?"":"s"} con el día sin resolver (fecha de la foto distinta a la línea elegida, o galería sin fecha). Corrígelo para poder enviar.</span>`;
   else if($("sendInfo") && /sin resolver/.test($("sendInfo").textContent)) $("sendInfo").textContent="";
   batch.forEach(e=>{
@@ -2360,7 +2398,7 @@ async function descargarZIP(listas, csv, exito){
 async function empaquetar(accion, saltarMin){   // accion: "supabase" | "compartir" | "zip"; saltarMin: reintento de las que fallaron
   if(enviando){ $("sendInfo").innerHTML='<b style="color:#b3261e">Ya hay un envío en curso.</b> Espera a que termine (verás el resultado aquí).'; return; }
   let listas=batch.filter(e=>e.status==="listo");
-  if(accion!=="zip" && !admCargaActiva() && listas.length>LOTE_MAX) listas=listas.slice(0,LOTE_MAX);   /* v49.8: de a 12 (lo acumulado sin señal) */
+  if(accion!=="zip" && listas.length>topeLote()) listas=listas.slice(0,LOTE_MAX);   /* v49.8: de a 12 (lo acumulado sin señal) */
   if(!listas.length){
     const est=batch.map(e=>(e.status||"?")).join(", ");
     $("sendInfo").innerHTML = batch.length
@@ -2393,7 +2431,7 @@ async function empaquetar(accion, saltarMin){   // accion: "supabase" | "compart
     const det=((err&&(err.message||err.name))||err);
     $("sendInfo").innerHTML=`<span style="color:#b3261e">⚠️ Error al enviar. Detalle: ${det}</span>`;
     $("failDet").innerHTML=`Ocurrió un error al enviar.<br><span class="mut" style="font-size:12px">Detalle: ${det}</span>`;
-    $("failm").classList.remove("hide");
+    $("failm").classList.remove("hide"); pedirGuardarFotos(batch, "<b>El envío no salió.</b> Guarda una copia antes de seguir.");   /* v49.9 */
   } finally { enviando=false; $("enviar").textContent="Enviar evidencias"; renderLista(); }
 }
 /* Marca como enviadas SOLO las evidencias dadas: suma consecutivos y las saca del lote. */
@@ -2477,6 +2515,7 @@ function nuevoRadicado(){ const t=new Date(); const ev=(cfg&&cfg.consec)?String(
 async function enviarASupabase(listas, exito){
   const radicado=nuevoRadicado(); const csv=construirCSV(listas, radicado);
   const fallidos=[]; let ok=0; ultimoErr="";
+  const t0=Date.now(), bytes=listas.reduce((a,e)=>a+((e.blob&&e.blob.size)||0),0);   /* v49.9: medición de velocidad */
   /* v49.6 (23-nov): 3 evidencias a la vez (antes de a una). Por datos móviles cada foto hace 3-4 peticiones con ~0,35 s
      de ida y vuelta cada una; en paralelo esa espera se solapa. El orden de «fallidos» no importa (se reintentan todas). */
   const N=listas.length; let sig=0, hechas=0;
@@ -2494,7 +2533,9 @@ async function enviarASupabase(listas, exito){
     $("okRad").textContent="Radicado: "+radicado;
     $("okDet").innerHTML=htmlResumen(r);
     $("okm").classList.remove("hide");
+    const eraRapida=conexionRapida(); const rap=(listas.length>=3 && !admCargaActiva())?registrarVelocidad(bytes, Date.now()-t0):null;
     exito();
+    if(rap===true && !eraRapida) $("sendInfo").innerHTML+=`<br><b style="color:#1a7f37">Conexión rápida: puedes cargar sin límite.</b>`;
     if(batch.length) $("sendInfo").innerHTML+=`<br><b>Quedan ${batch.length} por enviar.</b> Toca Enviar otra vez.`;   /* v49.8 */
   }
   else{
@@ -2507,7 +2548,7 @@ async function enviarASupabase(listas, exito){
       + (ultimoErr?`<br><span class="mut" style="font-size:12px">Motivo: ${ultimoErr}</span>`:"");
     $("sendInfo").innerHTML=`<span style="color:#b3261e">⚠️ ${txt}</span>`;
     $("failDet").innerHTML = txt;
-    $("failm").classList.remove("hide");
+    $("failm").classList.remove("hide"); pedirGuardarFotos(batch, "<b>El envío no salió.</b> Guarda una copia antes de seguir.");   /* v49.9 */
   }
 }
 /* Resumen del envío: lo que el ejecutivo necesita para dar por recibido el soporte sin
@@ -2583,6 +2624,12 @@ $("okTexto").addEventListener("click", compartirResumen);
 $("okCopiar").addEventListener("click", copiarResumen);
 $("okZip").addEventListener("click", ()=>{ if(envioActual) descargarZIP(envioActual.listas, envioActual.csv, ()=>{}); });
 $("failClose").addEventListener("click", ()=>$("failm").classList.add("hide"));
+$("fotGuardar").addEventListener("click", async()=>{ const r=await guardarEnFotos(fotLista);   /* v49.9 */
+  if(r==="ok"||r==="nada"){ $("fotm").classList.add("hide"); renderLista(); }
+  else if(r==="nosoporta"){ $("fotMsg").textContent="Este iPhone no permite guardar desde aquí. Usa «Descargar respaldo (ZIP)»."; setTimeout(()=>$("fotm").classList.add("hide"),4000); }
+  else $("fotMsg").innerHTML='<b style="color:#b3261e">No se guardaron.</b> Toca otra vez y elige «Guardar imágenes».'; });
+$("fotos").addEventListener("click", async()=>{ const r=await guardarEnFotos(batch.filter(e=>e.status==="listo"));
+  $("sendInfo").textContent = r==="ok"?"Copia guardada en Fotos.":(r==="nosoporta"?"Este iPhone no permite guardar desde aquí.":""); renderLista(); });
 $("failRetry").addEventListener("click", ()=>{ $("failm").classList.add("hide"); empaquetar("supabase", true); });
 $("failZip").addEventListener("click", ()=>{ if(envioActual) descargarZIP(envioActual.listas, envioActual.csv, ()=>{}); });
 function bajar(blob,nombre){ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=nombre; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); }
