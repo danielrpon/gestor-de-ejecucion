@@ -295,7 +295,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v49.4 · 12nov · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v49.5 · 22nov · foto de «Capturar foto» que no abría en Safari iPhone · vista previa con marca · v49.4 · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -405,6 +405,14 @@
 
 <div id="toast" class="toast"></div>
 
+<!-- v49.5 · VISTA PREVIA del proveedor (foto con la marca de agua, antes de enviar) -->
+<div id="previa" class="modal hide" style="background:rgba(6,12,22,.93)" role="dialog" aria-modal="true" aria-label="Vista previa de la foto">
+  <div style="width:100%;max-width:660px;text-align:center">
+    <img id="pvImg" alt="Foto con la marca de agua" style="max-width:100%;max-height:74vh;border-radius:10px;background:#000;display:block;margin:0 auto">
+    <div id="pvName" style="color:#e7edf5;font-family:var(--mono);font-size:11.5px;word-break:break-all;margin-top:10px;background:rgba(0,0,0,.35);padding:8px 10px;border-radius:8px"></div>
+    <div style="display:flex;justify-content:center;margin-top:12px"><button class="btn" id="pvClose" style="max-width:170px">Cerrar</button></div>
+  </div>
+</div>
 <!-- LIGHTBOX (ver foto grande) -->
 <div id="lightbox" class="modal hide" style="background:rgba(6,12,22,.93)">
   <div style="width:100%;max-width:660px;text-align:center">
@@ -2029,12 +2037,16 @@ $("btnGal").addEventListener("click", ()=>{ if(cfg&&cfg.gal===false) return; con
 function esNum(v){ return typeof v==="number" ? isFinite(v) : (v!=null && v!=="" && isFinite(+v)); }
 function num(v){ return esNum(v) ? +v : null; }
 function metaDispositivo(coords){ const now=new Date(); return coords?{fecha:`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`,hora:`${z(now.getHours())}:${z(now.getMinutes())}`,lat:coords.latitude,lon:coords.longitude}:null; }
-$("capf").addEventListener("change", async e=>{ const files=[...e.target.files]; e.target.value=""; const coords=await posActual(); agregar(files, metaDispositivo(coords)); });
+/* v49.5: copia en memoria de lo elegido antes de vaciar el campo: en iOS, vaciarlo puede borrar el archivo temporal de la
+   cámara y la foto queda ilegible («No se pudo abrir esta foto»). Si la copia falla se usa el archivo tal cual. */
+async function copiarArchivos(list){ const out=[]; for(const f of list){ if(/^video\//.test(f.type)){ out.push(f); continue; }
+  try{ const buf=await f.arrayBuffer(); out.push(new File([buf], f.name||"foto.jpg", {type:f.type||"image/jpeg", lastModified:f.lastModified||Date.now()})); }catch(_){ out.push(f); } } return out; }
+$("capf").addEventListener("change", async e=>{ const files=await copiarArchivos([...e.target.files]); e.target.value=""; const coords=await posActual(); agregar(files, metaDispositivo(coords)); });
 $("vidf").addEventListener("change", async e=>{ const files=[...e.target.files]; e.target.value=""; const coords=await posActual(); agregar(files, metaDispositivo(coords)); });
 /* Android borra el GPS del EXIF al compartir, y varias cámaras de terceros (Timestamp y
    similares) nunca lo escriben: sin este respaldo, toda foto subida desde la galería llega
    sin ubicación. Se usa la posición actual sólo si la foto es del día — no para una foto vieja. */
-$("gal").addEventListener("change", async e=>{ const files=[...e.target.files]; e.target.value="";
+$("gal").addEventListener("change", async e=>{ const files=await copiarArchivos([...e.target.files]); e.target.value="";
   const coords=await posActual(); agregar(files, null, metaDispositivo(coords)); });
 ["pos","esc","marca"].forEach(id=>$(id).addEventListener("change", redibujarTodas));   /* auto-refresh de la marca */
 $("who").addEventListener("click", ()=>{ if(!operador) return; $("onom").value=operador.nombre; $("oced").value=operador.cedula; $("ocel").value=operador.celular;
@@ -2203,7 +2215,9 @@ async function procesar(entry){
     const sl=selloDe(entry);
     const out=await enColaPesada(async()=>dibujar(await decodificar(entry.file),sl.texto,sl.con,{conOrig:true}));   /* v49.4: de a una foto */
     entry.blob=out.blob; entry.thumb=out.thumb; entry.origBlob=out.orig||null;
-    entry.status = out.vacio ? "⚠ salió en negro — vuelve a tomarla" : "listo";
+    /* v49.5: se comprueba que la foto sellada de la cámara de la app SÍ abre, para no subir nunca una evidencia ilegible. */
+    if(entry.file && entry.file._lienzo && !(await sePuedeAbrir(out.blob))){ entry.blob=null; entry.status="⚠ Este navegador no generó una foto legible. Quítala y usa Chrome para «Capturar foto»"; }
+    else entry.status = out.vacio ? "⚠ salió en negro — vuelve a tomarla" : "listo";
     if(!lugar && ex.lat!=null) programarCompletado();   // se resella sola en cuanto haya dirección
   }catch(err){ entry.status=msgDecode(err); }
   renderLista();
@@ -2227,7 +2241,7 @@ function renderLista(){
     const opts=`<option value="" ${!e.itemCodigo?"selected":""}>— Selecciona requerimiento —</option>`+itemsDelOperador().flatMap(it=>lineasDe(it).map(L=>`<option value="${escAttr(L.value)}" ${L.value===curVal?"selected":""} ${(L.fecha&&L.fecha>isoHoy())?"disabled":""}>${it.cat?escAttr(it.cat)+" · ":""}${escAttr(it.codigo)}${it.req?" · "+escAttr(it.req.slice(0,22)):""}${L.fecha?` · día ${L.k} · ${fmtDia(L.fecha)}`:""}</option>`)).join("");
     const d=document.createElement("div"); d.className="ev";
     const badge=e.tipo==="video"?`<span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-size:22px;text-shadow:0 1px 4px #000">▶</span>`:"";
-    const thumbHtml=e.thumb?`<div style="position:relative;flex:none;width:66px;height:66px"><img src="${e.thumb}" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#000">${badge}</div>`
+    const thumbHtml=e.thumb?`<div style="position:relative;flex:none;width:66px;height:66px${e.tipo!=="video"&&e.blob?";cursor:zoom-in":""}" ${e.tipo!=="video"&&e.blob?`onclick="verPrevia(${e.id})" role="button" aria-label="Ver la foto con la marca de agua"`:""}><img src="${e.thumb}" alt="" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#000">${badge}</div>`
       :`<div style="width:66px;height:66px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px;background:#f0f0f0;border-radius:7px">${e.tipo==="video"?"▶":"…"}</div>`;
     const sinUbi = (e.status==="listo" && e.datos && !esNum(e.datos.lat) && !(admDeclara(e) && e.datos.lugar)) ? ' <span style="color:#b3261e" title="Sin coordenadas: el sello no lleva dirección">⚠ sin ubicación</span>'
       : ((e.status==="listo" && e.datos && !e.datos.lugar) ? ' <span style="color:#7a4a12" title="Hay GPS pero ningún geocoder respondió; el sello quedó con coordenadas. Se reintenta al recuperar señal.">⚠ sin dirección</span>' : '');
@@ -2242,7 +2256,7 @@ function renderLista(){
     const etiqueta=(e.status==="listo"&&e.itemCodigo&&!pend)?etiquetaFecha(e):"";
     d.innerHTML=thumbHtml+
       `<div class="in"><select onchange="cambiarItem(${e.id},this.value)">${opts}</select>${selFecha}${admFila(e)}${etiqueta}<div class="fn">${fnHtml}</div>
-       <div class="ac">${e.status==="listo"&&e.itemCodigo?`<a class="lnk" onclick="descargarUno(${e.id})">descargar</a>`:""}<a class="lnk" onclick="quitar(${e.id})">quitar</a></div></div>`;
+       <div class="ac">${e.status==="listo"&&e.tipo!=="video"&&e.blob?`<a class="lnk" onclick="verPrevia(${e.id})">vista previa</a>`:""}${e.status==="listo"&&e.itemCodigo?`<a class="lnk" onclick="descargarUno(${e.id})">descargar</a>`:""}<a class="lnk" onclick="quitar(${e.id})">quitar</a></div></div>`;
     c.appendChild(d);
   });
   pintarProgreso(); admPanelVisible();
@@ -2254,7 +2268,16 @@ window.cambiarItem=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e) return;
   if(e.fechaOrigen==="declarada"){ e.fechaDecl=e.fechaSel||e.fechaDecl||""; if(e.datos) e.datos.fecha=e.fechaDecl||""; }
   if(admDeclara(e)){ admAplicar(e); resellar(e).then(renderLista); }   /* v39 */
   renderLista(); if(e.fechaOrigen==="declarada" && fechaEfectiva(e)!==antes && typeof redibujarTodas==="function") redibujarTodas(); };
-window.quitar=(id)=>{ batch=batch.filter(x=>x.id!==id); renderLista(); };
+window.quitar=(id)=>{ const e=batch.find(x=>x.id===id); if(e && e.file && e.file._lienzo){ e.file._lienzo.width=e.file._lienzo.height=1; }
+  batch=batch.filter(x=>x.id!==id); renderLista(); };
+/* v49.5 · vista previa de la foto tal como se enviará (con la marca de agua). */
+let previaURL="";
+window.verPrevia=(id)=>{ const e=batch.find(x=>x.id===id); if(!e||!e.blob) return; if(previaURL) URL.revokeObjectURL(previaURL);
+  previaURL=URL.createObjectURL(e.blob); $("pvImg").src=previaURL; $("pvName").textContent=e.filename||""; $("previa").classList.remove("hide"); };
+function cerrarPrevia(){ $("previa").classList.add("hide"); $("pvImg").removeAttribute("src"); if(previaURL){ URL.revokeObjectURL(previaURL); previaURL=""; } }
+$("pvClose").addEventListener("click", cerrarPrevia);
+$("previa").addEventListener("click", ev=>{ if(ev.target.id==="previa") cerrarPrevia(); });
+document.addEventListener("keydown", ev=>{ if(ev.key==="Escape" && !$("previa").classList.contains("hide")) cerrarPrevia(); });
 window.descargarUno=(id)=>{ const e=batch.find(x=>x.id===id); if(e&&e.blob) bajar(e.blob,e.filename); };
 /* Re-dibuja la marca (posición/tamaño/on-off) reusando datos; y si a una foto le faltó la
    dirección (geocode falló por señal), la reintenta aquí. Reemplaza el antiguo botón Re-procesar. */
@@ -2656,11 +2679,18 @@ function posActual(){ return pedirUbicacion(); }
 async function capturar(){
   const v=$("video"); if(!v.videoWidth) return;
   const c=document.createElement("canvas"); c.width=v.videoWidth; c.height=v.videoHeight; c.getContext("2d").drawImage(v,0,0);
-  const blob=await new Promise(r=>c.toBlob(r,"image/jpeg",0.92));
-  try{ const t=new Date(); bajar(blob, `foto_${slug(cfg.ev)}_${z(t.getHours())}${z(t.getMinutes())}${z(t.getSeconds())}.jpg`); }catch(_){}   // respaldo en el dispositivo (siempre activo)
+  let blob=await new Promise(r=>{ try{ c.toBlob(r,"image/jpeg",0.92); }catch(_){ r(null); } });
+  /* v49.5 (22-nov): en iPhone (sobre todo en navegación privada) toBlob puede devolver null sin error; new File([null])
+     daba un archivo de 4 bytes con el texto "null" y la foto quedaba en «…» con «No se pudo abrir esta foto». */
+  if(!blob || blob.size<1024){ try{ const u=c.toDataURL("image/jpeg",0.92); if(u && u.length>2000){ const bin=atob(u.split(",")[1]); const a=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i); blob=new Blob([a],{type:"image/jpeg"}); } }catch(_){} }
+  /* v49.5 (22-nov): en Safari de iPhone el JPG que sale de aquí no se deja volver a abrir (<img> y createImageBitmap
+     fallan; en Chrome del mismo iPhone sí abre). Ya tenemos los píxeles: el lienzo se pasa tal cual al sellado y no se re-abre. */
+  if(!blob || blob.size<1024){ c.width=c.height=1; cerrarCamara(); alert("La cámara de la app no entregó la foto.\n\nSi estás en navegación privada, abre el enlace en una pestaña normal. Si sigue, cierra y vuelve a abrir la app."); return; }
+  { const t=new Date(), nb=`foto_${slug(cfg.ev)}_${z(t.getHours())}${z(t.getMinutes())}${z(t.getSeconds())}.jpg`; setTimeout(()=>{ try{ bajar(blob, nb); }catch(_){} }, 2500); }   /* v49.5: respaldo en el dispositivo después de procesar la foto */   // respaldo en el dispositivo (siempre activo)
   $("camhint").textContent="Ubicando…"; const coords=await posActual(); const now=new Date();
   const meta={fecha:`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`,hora:`${z(now.getHours())}:${z(now.getMinutes())}`,lat:coords?coords.latitude:null,lon:coords?coords.longitude:null};
-  agregar([new File([blob],"captura.jpg",{type:"image/jpeg"})], meta);
+  const fCap=new File([blob],"captura.jpg",{type:"image/jpeg"}); fCap._lienzo=c;
+  agregar([fCap], meta);
   cerrarCamara();   // salir a la vista de clasificación tras cada foto
   $("sendInfo").textContent = coords ? "" : (geoDenied ? "Última foto SIN GPS: toca «Toca aquí para activar la ubicación»." : "Última foto SIN GPS: aún sin señal, reintenta.");
 }
@@ -2679,9 +2709,13 @@ let colaPesada=Promise.resolve();
 function enColaPesada(fn){ const p=colaPesada.then(fn); colaPesada=p.catch(()=>{}); return p; }
 function msgDecode(err){ const m=err&&err.message;
   if(m==="vacio") return "La foto llegó vacía (¿estaba en iCloud?). Ábrela primero en Fotos y vuelve a elegirla";
-  if(m==="no-decode") return "No se pudo abrir esta foto. Quítala y elígela de nuevo sola; si sigue, tómala con «Capturar foto»";
+  if(m==="no-decode") return "No se pudo abrir esta foto"+(err.det?" ("+err.det+")":"")+". Quítala y elígela de nuevo sola; si sigue, tómala con «Capturar foto»";
   return "error: "+(m||err); }
+async function sePuedeAbrir(b){ if(!b || b.size<1024) return false;   /* v49.5 */
+  try{ const bm=await createImageBitmap(b); if(bm.close) bm.close(); return true; }catch(_){}
+  try{ const i=await imgFromBlob(b); if(i.src) URL.revokeObjectURL(i.src); return true; }catch(_){ return false; } }
 async function decodificar(file){
+  if(file && file._lienzo && file._lienzo.width>1) return file._lienzo;   /* v49.5: foto de la cámara de la app = ya está en píxeles */
   if(!file || !file.size) throw new Error("vacio");                    // foto de iCloud sin descargar / selección interrumpida
   const heic=/heic|heif/i.test(file.type)||/\.hei[cf]$/i.test(file.name);
   for(let i=0;i<2;i++){
@@ -2689,7 +2723,8 @@ async function decodificar(file){
     try{ return await imgFromBlob(file); }catch(_){}                    // <img> nativo: Safari/iOS decodifican HEIC sin createImageBitmap
     if(heic&&typeof heic2any==="function"){ try{ const b=await heic2any({blob:file,toType:"image/jpeg",quality:0.92}); return await imgFromBlob(b); }catch(_){} }
   }
-  throw new Error("no-decode");
+  if(typeof createImageBitmap==="function"){ try{ return await createImageBitmap(file); }catch(_){} }   /* v49.5 */
+  const er=new Error("no-decode"); er.det=(file.type||"sin tipo")+" · "+(file.size<2048?file.size+" B":Math.round(file.size/1024)+" KB"); throw er;
 }
 function wrap(ctx,t,mw){ const w=t.split(" "),l=[]; let c=""; for(const x of w){ const q=c?c+" "+x:x; if(ctx.measureText(q).width<=mw||!c)c=q; else{ l.push(c); c=x; } } if(c)l.push(c); return l; }
 /* Tope de área del lienzo: por encima de ~16,7 MP iOS Safari devuelve un canvas VACÍO sin
