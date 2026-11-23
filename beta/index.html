@@ -299,7 +299,7 @@
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <button class="btn sec hide" id="fotos" style="margin-top:8px">Guardar en Fotos</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v50.10 · 23nov · computador sin tope · v50.9 · 23nov · guardar en Fotos (iPhone) · sin tope con conexión rápida · v50.8 · 23nov · lote máximo 12 · v50.7 · 23nov · copia sin sello solo si la foto llega incompleta · v50.6 · fotos a 8 MP y 3 a la vez · v50.5 · enlace «vista previa» · v50.4 · comprobación de que la foto sellada abre · v50.3 · cámara de la app sin re-abrir la foto (Safari iPhone) · v50.2 · foto de «Capturar foto» que no abría en iPhone · vista previa con marca (toca la miniatura) · v50.1 · arrastrar el CSV o el Tablero de eventos (.xlsx, hoja «CSV app») · código del evento (EGE) e importador del evento completo · CSV leído como texto («001» y fechas) · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v50.11 · 23nov · pendientes arriba y siguiente al enviar · proveedor sin volver a digitar · sesión que se renueva sola · v50.10 · computador sin tope · v50.9 · 23nov · guardar en Fotos (iPhone) · sin tope con conexión rápida · v50.8 · 23nov · lote máximo 12 · v50.7 · 23nov · copia sin sello solo si la foto llega incompleta · v50.6 · fotos a 8 MP y 3 a la vez · v50.5 · enlace «vista previa» · v50.4 · comprobación de que la foto sellada abre · v50.3 · cámara de la app sin re-abrir la foto (Safari iPhone) · v50.2 · foto de «Capturar foto» que no abría en iPhone · vista previa con marca (toca la miniatura) · v50.1 · arrastrar el CSV o el Tablero de eventos (.xlsx, hoja «CSV app») · código del evento (EGE) e importador del evento completo · CSV leído como texto («001» y fechas) · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -643,7 +643,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     if(rec&&rec.config){
       cfg=rec.config; cfg.uid=evUid; cfg.consec=rec.consec; saveJSON(NS+"config",cfg); cacheEvento(rec);
       pintarWho();
-      irALogin();                                            // proveedor -> capturar
+      if(operadorListo()) irACaptura(); else irALogin();     // proveedor -> capturar (v49.11: sin volver a digitar)
     } else { cfg=loadJSON(NS+"config",null); pintarWho(); if($("homeHint")) $("homeHint").textContent="No pude cargar el evento. Revisa tu conexión y vuelve a abrir el enlace."; show("home"); }
     return;
   }
@@ -652,7 +652,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   pintarWho();
   const hash = location.hash.replace(/^#/,"");
   if(fromExec){ irAConfig({tipo:"legado"}); }               // link viejo del EJECUTIVO (compatibilidad) — ahora exige sesión
-  else if(fromLink) irALogin();                            // link viejo de OPERADOR (compatibilidad)
+  else if(fromLink) (operadorListo()?irACaptura():irALogin());                            // link viejo de OPERADOR (compatibilidad)
   else if(hash==="admin"){ irAConfig({tipo:"legado"}); }    // URL de administrador -> configuración (exige sesión)
   else show("home");                                       // URL base -> elegir rol
 });
@@ -1075,11 +1075,17 @@ function invitacionTexto(){
 }
 
 /* ---- OPERADOR: login ---- */
+/* v49.11 · El proveedor no vuelve a digitar: si en este teléfono ya entró con nombre, cédula, celular y una empresa
+   (con su NIT verificado) que existe en este evento, el enlace abre directo en la captura. Cambiar de persona: tocar su
+   nombre arriba o «Salir». Los datos viven en el navegador: en navegación privada o en el navegador de WhatsApp se pierden. */
+function operadorListo(){ const o=operador; if(!o||!o.nombre||!o.cedula||!o.celular) return false; if(!hayProv()) return true;
+  if(!o.prov||!opcionesProv().includes(o.prov)) return false; const req=nitDeProveedor(o.prov); return !req || nitCoincide(o.nit||"",req); }
+function pedirPersistencia(){ try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{}); }catch(_){} }
 function irALogin(){
   $("lbCli").textContent = "Cliente: "+(cfg.cl||"—");
   $("lbEv").textContent = "Evento: "+(cfg.ev||"—")+"  ·  "+itemsCfg().length+" evidencias";
   if(hayProv()){ $("lprovWrap").classList.remove("hide"); llenarSelectProv($("lprov"), operador&&operador.prov);
-    if(hayNits()){ $("lnitWrap").classList.remove("hide"); $("lnit").value=""; } else $("lnitWrap").classList.add("hide"); }
+    if(hayNits()){ $("lnitWrap").classList.remove("hide"); $("lnit").value=(operador&&operador.nit)||""; } else $("lnitWrap").classList.add("hide"); }
   else { $("lprovWrap").classList.add("hide"); $("lnitWrap").classList.add("hide"); }
   if(operador){ $("lnom").value=operador.nombre; $("lced").value=operador.cedula; $("lcel").value=operador.celular; }
   show("login");
@@ -1090,8 +1096,8 @@ $("lentrar").addEventListener("click", ()=>{
   if(hayProv()){ const p=$("lprov").value; if(!p){ alert("Selecciona tu empresa proveedora."); return; }
     const nitReq=nitDeProveedor(p);
     if(nitReq && !nitCoincide($("lnit").value, nitReq)){ alert("El NIT no corresponde a la empresa seleccionada.\n\nIngresa el NIT del proveedor (sin dígito de verificación) para continuar."); return; }
-    o.prov=p; }
-  operador=o; saveJSON(NS+"operador",o); pintarWho(); irACaptura();
+    o.prov=p; if(nitReq) o.nit=$("lnit").value.trim(); }
+  operador=o; saveJSON(NS+"operador",o); pedirPersistencia(); pintarWho(); irACaptura();
 });
 $("reconfig").addEventListener("click", ()=>{ nuevoExec(); show("exec"); });
 $("salir").addEventListener("click", ()=>{ detenerWatch(); admSalirModo(); if(operador){ $("lnom").value=operador.nombre; $("lced").value=operador.cedula; $("lcel").value=operador.celular; } show("login"); });
@@ -1114,7 +1120,9 @@ function sesGuardar(){ saveJSON(NS+"admin_ses", adminSes); }
 function sesCerrar(){ adminSes=null; localStorage.removeItem(NS+"admin_ses"); adminOlvidarFiltros(); }
 /* Renueva el token con el refresh_token si le quedan menos de 5 min (o ya venció): una sesión de configuración larga no
    pierde lo que se está guardando. Sin señal no hace nada. */
-async function sesRenovar(){ if(!adminSes||!adminSes.refresh) return; if((adminSes.exp||0)-Date.now() > 5*60e3) return;
+let _sesRenov=null;
+async function sesRenovar(forzar){ if(_sesRenov) return _sesRenov; _sesRenov=sesRenovar1(forzar); try{ return await _sesRenov; } finally{ _sesRenov=null; } }   /* v49.11: una sola renovación a la vez */
+async function sesRenovar1(forzar){ if(!adminSes||!adminSes.refresh) return; if(!forzar && (adminSes.exp||0)-Date.now() > 5*60e3) return;
   try{ const r=await fetch(SB_URL+"/auth/v1/token?grant_type=refresh_token",{method:"POST",headers:{apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({refresh_token:adminSes.refresh})});
     if(r.ok){ const d=await r.json(); if(d.access_token){ adminSes.token=d.access_token; adminSes.refresh=d.refresh_token||adminSes.refresh; adminSes.exp=Date.now()+((d.expires_in||3600)*1000); sesGuardar(); } }
     else if(r.status===400||r.status===401){ sesCerrar(); } }catch(_){} }
@@ -1128,7 +1136,15 @@ async function sesCompletar(){ await sesRenovar(); if(!adminValido()||adminSes.r
 /* El filtro del tablero (Capa 14) vive con la sesión: al salir o al vencer se olvida,
    para no volver a entrar viendo un recorte viejo sin darse cuenta. */
 function adminOlvidarFiltros(){ adminSeg={}; try{ localStorage.removeItem(NS+"admin_seg"); }catch(_){} }
-function adminSesExpirada(){ sesCerrar(); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent="Tu sesión expiró. Ingresa de nuevo."; show("admin"); }
+/* v49.11 · La sesión no se cae a la hora: se renueva sola cada 4 min y al volver a la app, y ante un 401 se intenta
+   renovar antes de pedir la contraseña. Solo se pide de nuevo si el servidor rechaza la renovación (usuario desactivado,
+   sesión revocada) o si se tocó «Cerrar sesión». */
+setInterval(()=>{ if(adminSes&&adminSes.refresh) sesRenovar(); }, 4*60e3);
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible" && adminSes&&adminSes.refresh) sesRenovar(); });
+let _sesAviso=0;
+async function adminSesExpirada(){ if(adminSes&&adminSes.refresh){ await sesRenovar(true); if(adminValido()){ if(Date.now()-_sesAviso>5000){ _sesAviso=Date.now(); toast("Se renovó tu sesión. Repite la acción."); } return; } }
+  adminSesSalir(); }
+function adminSesSalir(){ sesCerrar(); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent="Tu sesión expiró. Ingresa de nuevo."; show("admin"); }
 /* A dónde seguir después de ingresar: {tipo:"editar",uid} | {tipo:"nuevo"} | {tipo:"legado"} | null (= panel). */
 let sesDestino=null;
 function pedirIngreso(destino, msg){ sesDestino=destino||null; show("admin"); $("adPanel").classList.add("hide"); $("adLogin").classList.remove("hide"); $("adMsg").textContent=msg||""; }
@@ -1873,16 +1889,30 @@ function poblarItemTop(){
     if(L.fecha>hoy){ o.disabled=true; o.textContent+="  · aún no llega"; }   // v34: a un día que no ha llegado no se le cargan fotos
     return o; };
   if(cfg&&cfg.pd && todos.some(esPorDia)){   // agrupado por lo que importa HOY
-    const g={hoy:[],atras:[],hechos:[],resto:[]};
-    todos.forEach(it=>{ if(!esPorDia(it)){ g.resto.push(opcionItem(it)); return; }
+    const g={hoy:[],atras:[],hechos:[],resto:[],comp:[]};
+    todos.forEach(it=>{ if(!esPorDia(it)){ (fotosDeItem(it.iid)>=minDe(it)?g.comp:g.resto).push(opcionItem(it)); return; }
       lineasDe(it).forEach(L=>{ const n=fotosDeItemDia(it.iid,L.fecha); const o=opcionLinea(L);
-        if(L.fecha===hoy && !n) g.hoy.push(o); else if(L.fecha<hoy && !n) g.atras.push(o); else if(L.fecha===hoy && n) g.hechos.push(o); else g.resto.push(o); }); });
-    [["⏰ PENDIENTES DE HOY",g.hoy],["⚠ DÍAS ATRASADOS",g.atras],["✓ HECHOS HOY",g.hechos],["DEMÁS LÍNEAS",g.resto]].forEach(([t,arr])=>{ if(!arr.length) return;
+        if(L.fecha===hoy && !n) g.hoy.push(o); else if(L.fecha<hoy && !n) g.atras.push(o); else if(L.fecha===hoy && n) g.hechos.push(o); else if(L.fecha<hoy && n) g.comp.push(o); else g.resto.push(o); }); });
+    /* v49.11: lo completo va al final; arriba solo lo pendiente */
+    [["⏰ PENDIENTES DE HOY",g.hoy],["⚠ DÍAS ATRASADOS",g.atras],["DEMÁS LÍNEAS",g.resto],["✓ HECHOS HOY",g.hechos],["✓ COMPLETOS",g.comp]].forEach(([t,arr])=>{ if(!arr.length) return;
       const og=document.createElement("optgroup"); og.label=`${t} (${arr.length})`; arr.forEach(o=>og.appendChild(o)); s.appendChild(og); });
-  } else todos.forEach(it=>s.appendChild(opcionItem(it)));
+  } else { const pend=[], comp=[]; todos.forEach(it=>(fotosDeItem(it.iid)>=minDe(it)?comp:pend).push(opcionItem(it)));   /* v49.11: completos al final */
+    if(!comp.length) pend.forEach(o=>s.appendChild(o));
+    else [["○ PENDIENTES",pend],["✓ COMPLETOS",comp]].forEach(([t,arr])=>{ if(!arr.length) return;
+      const og=document.createElement("optgroup"); og.label=`${t} (${arr.length})`; arr.forEach(o=>og.appendChild(o)); s.appendChild(og); }); }
   s.value = (cur && valores.includes(cur)) ? cur : "";
   itemAnterior = s.value;   // sincroniza el guardián de "mínimo 3 antes de cambiar"
 }
+/* v49.11 · Después de enviar, el selector pasa al siguiente requerimiento PENDIENTE en el orden de la plantilla
+   (se salta los completos y los días que no han llegado; al llegar al final vuelve al inicio). Si el que se envió
+   aún no cumple su mínimo, se queda en ese. */
+function lineaPendiente(L){ if(L.fecha) return L.fecha<=isoHoy() && fotosDeItemDia(L.it.iid,L.fecha)<1; return fotosDeItem(L.it.iid)<minDe(L.it); }
+function siguientePendiente(prev){ const L=[]; itemsDelOperador().forEach(it=>lineasDe(it).forEach(x=>L.push(x))); const n=L.length; if(!n) return "";
+  const i=L.findIndex(x=>x.value===prev); if(i>=0 && lineaPendiente(L[i])) return prev;
+  for(let k=1;k<=n;k++){ const x=L[(i+k+n)%n]; if(lineaPendiente(x)) return x.value; } return ""; }
+function irASiguientePendiente(prev){ if(!prev||batch.length) return; const sg=siguientePendiente(prev); if(!sg||sg===prev) return;
+  poblarItemTop(); $("item").value=sg; if($("item").value!==sg) return; itemAnterior=sg; actualizarGuia();
+  const o=$("item").selectedOptions[0]; $("sendInfo").innerHTML+=`<br>Siguiente: <b>${escAttr(o?o.textContent.replace(/^[○◔⚠✓➕ ]+/,""):"")}</b>`; }
 function irACaptura(){
   poblarItemTop();
   const mk=(cfg&&cfg.marca)||{}; $("pos").value=mk.pos||"bl"; $("esc").value=mk.esc||"3.4"; $("marca").checked=mk.on!==false;   // marca fijada por el ejecutivo
@@ -2102,7 +2132,7 @@ $("gal").addEventListener("change", async e=>{ const files=await copiarArchivos(
 ["pos","esc","marca"].forEach(id=>$(id).addEventListener("change", redibujarTodas));   /* auto-refresh de la marca */
 $("who").addEventListener("click", ()=>{ if(!operador) return; $("onom").value=operador.nombre; $("oced").value=operador.cedula; $("ocel").value=operador.celular;
   if(hayProv()){ $("oprovWrap").classList.remove("hide"); llenarSelectProv($("oprov"), operador.prov);
-    if(hayNits()){ $("onitWrap").classList.remove("hide"); $("onit").value=""; } else $("onitWrap").classList.add("hide"); }
+    if(hayNits()){ $("onitWrap").classList.remove("hide"); $("onit").value=operador.nit||""; } else $("onitWrap").classList.add("hide"); }
   else { $("oprovWrap").classList.add("hide"); $("onitWrap").classList.add("hide"); }
   $("opm").classList.remove("hide"); });
 $("opClose").addEventListener("click", ()=>$("opm").classList.add("hide"));
@@ -2110,7 +2140,7 @@ $("opSave").addEventListener("click", ()=>{ const n=$("onom").value.trim(),c=$("
   const nuevo={nombre:n,cedula:c,celular:ce}; if(hayProv()){ const p=$("oprov").value; if(!p){ alert("Selecciona tu empresa proveedora."); return; }
     const nitReq=nitDeProveedor(p);
     if(nitReq && !nitCoincide($("onit").value, nitReq)){ alert("El NIT no corresponde a la empresa seleccionada.\n\nIngresa el NIT del proveedor (sin dígito de verificación) para continuar."); return; }
-    nuevo.prov=p; }
+    nuevo.prov=p; if(nitReq) nuevo.nit=$("onit").value.trim(); }
   operador=nuevo; saveJSON(NS+"operador",operador); pintarWho(); $("opm").classList.add("hide"); poblarItemTop(); $("ctx").textContent=(cfg.cl||"—")+" · "+(cfg.ev||"—")+(operador.prov?("  ·  "+operador.prov):""); renderLista(); });
 $("enviar").addEventListener("click", ()=>empaquetar("supabase"));
 /* Si el geocoder falló por falta de señal, al reconectar se completan las direcciones y se re-sella. */
@@ -2559,6 +2589,7 @@ async function subirEvidencia(e, radicado){
 let envioActual=null;
 function nuevoRadicado(){ const t=new Date(); const ev=(cfg&&cfg.consec)?String(cfg.consec).padStart(3,"0"):"000"; return `RAD-${ev}-${String(t.getFullYear()).slice(2)}${z(t.getMonth()+1)}${z(t.getDate())}-${z(t.getHours())}${z(t.getMinutes())}${z(t.getSeconds())}`; }
 async function enviarASupabase(listas, exito){
+  const selPrev=$("item")?$("item").value:"";   /* v49.11 */
   const radicado=nuevoRadicado(); const csv=construirCSV(listas, radicado);
   const fallidos=[]; let ok=0; ultimoErr="";
   const t0=Date.now(), bytes=listas.reduce((a,e)=>a+((e.blob&&e.blob.size)||0),0);   /* v49.9: medición de velocidad */
@@ -2583,6 +2614,7 @@ async function enviarASupabase(listas, exito){
     exito();
     if(rap===true && !eraRapida) $("sendInfo").innerHTML+=`<br><b style="color:#1a7f37">Conexión rápida: puedes cargar sin límite.</b>`;
     if(batch.length) $("sendInfo").innerHTML+=`<br><b>Quedan ${batch.length} por enviar.</b> Toca Enviar otra vez.`;   /* v49.8 */
+    irASiguientePendiente(selPrev);   /* v49.11 */
   }
   else{
     const subidas=listas.filter(e=>!fallidos.includes(e));
