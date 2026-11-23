@@ -298,7 +298,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v50.3 · 22nov · cámara de la app sin re-abrir la foto (Safari iPhone) · v50.2 · foto de «Capturar foto» que no abría en iPhone · vista previa con marca (toca la miniatura) · v50.1 · arrastrar el CSV o el Tablero de eventos (.xlsx, hoja «CSV app») · código del evento (EGE) e importador del evento completo · CSV leído como texto («001» y fechas) · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v50.4 · 22nov · comprobación de que la foto sellada abre · v50.3 · cámara de la app sin re-abrir la foto (Safari iPhone) · v50.2 · foto de «Capturar foto» que no abría en iPhone · vista previa con marca (toca la miniatura) · v50.1 · arrastrar el CSV o el Tablero de eventos (.xlsx, hoja «CSV app») · código del evento (EGE) e importador del evento completo · CSV leído como texto («001» y fechas) · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -2257,7 +2257,10 @@ async function procesar(entry){
     const sl=selloDe(entry);
     const out=await enColaPesada(async()=>dibujar(await decodificar(entry.file),sl.texto,sl.con,{conOrig:true}));   /* v49.4: de a una foto */
     entry.blob=out.blob; entry.thumb=out.thumb; entry.origBlob=out.orig||null;
-    entry.status = out.vacio ? "⚠ salió en negro — vuelve a tomarla" : "listo";
+    /* v50.4: la foto de la cámara de la app se sella sin re-abrir el JPG (v50.3); se comprueba que la sellada SÍ abre,
+       para no subir nunca una evidencia ilegible (riesgo en Safari iPhone con la protección contra huella digital). */
+    if(entry.file && entry.file._lienzo && !(await sePuedeAbrir(out.blob))){ entry.blob=null; entry.status="⚠ Este navegador no generó una foto legible. Quítala y usa Chrome para «Capturar foto»"; }
+    else entry.status = out.vacio ? "⚠ salió en negro — vuelve a tomarla" : "listo";
     if(!lugar && ex.lat!=null) programarCompletado();   // se resella sola en cuanto haya dirección
   }catch(err){ entry.status=msgDecode(err); }
   renderLista();
@@ -2308,7 +2311,8 @@ window.cambiarItem=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e) return;
   if(e.fechaOrigen==="declarada"){ e.fechaDecl=e.fechaSel||e.fechaDecl||""; if(e.datos) e.datos.fecha=e.fechaDecl||""; }
   if(admDeclara(e)){ admAplicar(e); resellar(e).then(renderLista); }   /* v39 */
   renderLista(); if(e.fechaOrigen==="declarada" && fechaEfectiva(e)!==antes && typeof redibujarTodas==="function") redibujarTodas(); };
-window.quitar=(id)=>{ batch=batch.filter(x=>x.id!==id); renderLista(); };
+window.quitar=(id)=>{ const e=batch.find(x=>x.id===id); if(e && e.file && e.file._lienzo){ e.file._lienzo.width=e.file._lienzo.height=1; }   /* v50.4: libera el lienzo de la captura */
+  batch=batch.filter(x=>x.id!==id); renderLista(); };
 /* v49.5 · vista previa de la foto tal como se enviará (con la marca de agua). */
 let previaURL="";
 window.verPrevia=(id)=>{ const e=batch.find(x=>x.id===id); if(!e||!e.blob) return; if(previaURL) URL.revokeObjectURL(previaURL);
@@ -2750,6 +2754,9 @@ function msgDecode(err){ const m=err&&err.message;
   if(m==="vacio") return "La foto llegó vacía (¿estaba en iCloud?). Ábrela primero en Fotos y vuelve a elegirla";
   if(m==="no-decode") return "No se pudo abrir esta foto"+(err.det?" ("+err.det+")":"")+". Quítala y elígela de nuevo sola; si sigue, tómala con «Capturar foto»";
   return "error: "+(m||err); }
+async function sePuedeAbrir(b){ if(!b || b.size<1024) return false;   /* v50.4 */
+  try{ const bm=await createImageBitmap(b); if(bm.close) bm.close(); return true; }catch(_){}
+  try{ const i=await imgFromBlob(b); if(i.src) URL.revokeObjectURL(i.src); return true; }catch(_){ return false; } }
 async function decodificar(file){
   if(file && file._lienzo && file._lienzo.width>1) return file._lienzo;   /* v50.3: foto de la cámara de la app = ya está en píxeles */
   if(!file || !file.size) throw new Error("vacio");                    // foto de iCloud sin descargar / selección interrumpida
