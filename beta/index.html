@@ -298,7 +298,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v50.7 · 23nov · copia sin sello solo si la foto llega incompleta · v50.6 · fotos a 8 MP y 3 a la vez · v50.5 · enlace «vista previa» · v50.4 · comprobación de que la foto sellada abre · v50.3 · cámara de la app sin re-abrir la foto (Safari iPhone) · v50.2 · foto de «Capturar foto» que no abría en iPhone · vista previa con marca (toca la miniatura) · v50.1 · arrastrar el CSV o el Tablero de eventos (.xlsx, hoja «CSV app») · código del evento (EGE) e importador del evento completo · CSV leído como texto («001» y fechas) · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v50.8 · 23nov · lote máximo 12 · v50.7 · 23nov · copia sin sello solo si la foto llega incompleta · v50.6 · fotos a 8 MP y 3 a la vez · v50.5 · enlace «vista previa» · v50.4 · comprobación de que la foto sellada abre · v50.3 · cámara de la app sin re-abrir la foto (Safari iPhone) · v50.2 · foto de «Capturar foto» que no abría en iPhone · vista previa con marca (toca la miniatura) · v50.1 · arrastrar el CSV o el Tablero de eventos (.xlsx, hoja «CSV app») · código del evento (EGE) e importador del evento completo · CSV leído como texto («001» y fechas) · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -2109,12 +2109,23 @@ window.addEventListener("online", ()=>{ if(batch.some(e=>e.status==="listo"&&e.d
 
 
 /* ---- lote ---- */
+/* v49.8 (23-nov): lote máximo de 12 evidencias por envío (~40 s por datos móviles). Sin señal no hay tope (no se pierde
+   evidencia) y la «Carga de administrador» tampoco lo tiene. */
+const LOTE_MAX=12;
+function topeLote(){ return (admCargaActiva() || navigator.onLine===false) ? Infinity : LOTE_MAX; }
+const MSG_LLENO=`Lote máximo ${LOTE_MAX} fotos. Envía y sigue.`;
 function agregar(fileList, meta, metaResp){
   const cod=selIid(), fSel=selFecha();
   if(fSel && fSel>isoHoy()){ alert("Ese día todavía no llega.\n\nElige la línea de HOY para cargar la foto."); return; }   // v34
   const now=new Date(); const cargada={fecha:`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`, hora:`${z(now.getHours())}:${z(now.getMinutes())}`};
   const ps=[], nuevos=[];
-  [...fileList].forEach(file=>{
+  let arr=[...fileList]; const libres=topeLote()-batch.length;
+  if(arr.length>libres){ if(libres<=0){ alert(MSG_LLENO); return; }
+    const fuera=arr.length-libres; arr=arr.slice(0,libres);
+    setTimeout(()=>alert(`${libres===1?"Se agregó la primera":"Se agregaron las primeras "+libres}. Lote máximo ${LOTE_MAX} fotos. Quedaron ${fuera} por fuera.`),300); }
+  if(topeLote()===Infinity && !admCargaActiva() && batch.length<=LOTE_MAX && batch.length+arr.length>LOTE_MAX)
+    setTimeout(()=>alert(`Sin señal: se guardan en el celular y se envían de a ${LOTE_MAX} cuando vuelva la señal.`),300);   /* v49.8 */
+  arr.forEach(file=>{
     const video=/^video\//.test(file.type)||/\.(mp4|mov|m4v|3gp|webm|avi|mkv)$/i.test(file.name);
     const ext=video?((file.name.split(".").pop()||"mp4").toLowerCase()):"jpg";
     const e={id:++seq,file,itemCodigo:cod,fechaSel:fSel||"",tipo:video?"video":"foto",ext,status:"procesando",blob:null,thumb:"",datos:{},filename:"",meta:meta||null,metaResp:metaResp||null,cargada};
@@ -2274,9 +2285,14 @@ function renderLista(){
   calcularNombres(); if(typeof actualizarGuia==="function") actualizarGuia(); const c=$("list"); c.innerHTML="";
   const listas=batch.filter(e=>e.status==="listo").length;
   const sinReq=batch.filter(e=>e.status==="listo"&&!e.itemCodigo).length;
-  $("cnt").innerHTML = batch.length ? (`${listas}/${batch.length} listas`+(sinReq?` · <span style="color:#b3261e">${sinReq} sin requerimiento</span>`:"")) : "Aún no agregas evidencias.";
+  const tope=topeLote();   /* v49.8: contador del lote */
+  const muchas=!admCargaActiva()&&batch.length>LOTE_MAX;   /* v49.8: contador del lote */
+  const pref=muchas?`<b>${batch.length} en el celular · ${tope<Infinity?"se envían de a "+LOTE_MAX:"sin señal"}</b> · `:(tope<Infinity?`<b>${batch.length} de ${LOTE_MAX}</b> · `:"");
+  $("cnt").innerHTML = batch.length ? (pref+`${listas}/${batch.length} listas`+(sinReq?` · <span style="color:#b3261e">${sinReq} sin requerimiento</span>`:"")) : "Aún no agregas evidencias.";
   const pendFecha=batch.filter(pendienteFecha).length;
   $("enviar").disabled=listas===0 || pendFecha>0;
+  let envAhora=false; try{ envAhora=enviando; }catch(_){}
+  if(!envAhora) $("enviar").textContent=!listas?"Enviar evidencias":((listas>LOTE_MAX&&!admCargaActiva())?`Enviar ${LOTE_MAX} de ${listas}`:`Enviar ${listas} ${listas===1?"evidencia":"evidencias"}`);   /* v49.8 */
   if(pendFecha && $("sendInfo")) $("sendInfo").innerHTML=`<span style="color:#b3261e">${pendFecha} foto${pendFecha===1?"":"s"} con el día sin resolver (fecha de la foto distinta a la línea elegida, o galería sin fecha). Corrígelo para poder enviar.</span>`;
   else if($("sendInfo") && /sin resolver/.test($("sendInfo").textContent)) $("sendInfo").textContent="";
   batch.forEach(e=>{
@@ -2386,7 +2402,8 @@ async function descargarZIP(listas, csv, exito){
 }
 async function empaquetar(accion, saltarMin){   // accion: "supabase" | "compartir" | "zip"; saltarMin: reintento de las que fallaron
   if(enviando){ $("sendInfo").innerHTML='<b style="color:#b3261e">Ya hay un envío en curso.</b> Espera a que termine (verás el resultado aquí).'; return; }
-  const listas=batch.filter(e=>e.status==="listo");
+  let listas=batch.filter(e=>e.status==="listo");
+  if(accion!=="zip" && !admCargaActiva() && listas.length>LOTE_MAX) listas=listas.slice(0,LOTE_MAX);   /* v49.8: de a 12 (lo acumulado sin señal) */
   if(!listas.length){
     const est=batch.map(e=>(e.status||"?")).join(", ");
     $("sendInfo").innerHTML = batch.length
@@ -2521,6 +2538,7 @@ async function enviarASupabase(listas, exito){
     $("okDet").innerHTML=htmlResumen(r);
     $("okm").classList.remove("hide");
     exito();
+    if(batch.length) $("sendInfo").innerHTML+=`<br><b>Quedan ${batch.length} por enviar.</b> Toca Enviar otra vez.`;   /* v49.8 */
   }
   else{
     const subidas=listas.filter(e=>!fallidos.includes(e));
@@ -2730,6 +2748,7 @@ function cerrarCamara(){ if(grabando){ descartarGrab=true; try{ mediaRec.stop();
 function posActual(){ return pedirUbicacion(); }
 async function capturar(){
   const v=$("video"); if(!v.videoWidth) return;
+  if(batch.length>=topeLote()){ alert(MSG_LLENO); return; }   /* v49.8 */
   const c=document.createElement("canvas"); c.width=v.videoWidth; c.height=v.videoHeight; c.getContext("2d").drawImage(v,0,0);
   let blob=await new Promise(r=>{ try{ c.toBlob(r,"image/jpeg",0.92); }catch(_){ r(null); } });
   /* v49.5 (22-nov): en iPhone (sobre todo en navegación privada) toBlob puede devolver null sin error; new File([null])
