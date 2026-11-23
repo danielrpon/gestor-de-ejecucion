@@ -296,7 +296,7 @@
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <button class="btn sec hide" id="fotos" style="margin-top:8px">Guardar en Fotos</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v49.9 · 23nov · guardar en Fotos (iPhone) · sin tope con conexión rápida · v49.8 · 23nov · lote máximo 12 · v49.7 · 23nov · copia sin sello solo si la foto llega incompleta · v49.6 · fotos a 8 MP y 3 a la vez · 22nov · foto de «Capturar foto» que no abría en Safari iPhone · vista previa con marca · v49.4 · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v49.10 · 23nov · computador sin tope · v49.9 · 23nov · guardar en Fotos (iPhone) · sin tope con conexión rápida · v49.8 · 23nov · lote máximo 12 · v49.7 · 23nov · copia sin sello solo si la foto llega incompleta · v49.6 · fotos a 8 MP y 3 a la vez · 22nov · foto de «Capturar foto» que no abría en Safari iPhone · vista previa con marca · v49.4 · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -2089,7 +2089,10 @@ function conexionRapida(){ return wifiAndroid() || rapidaHasta()>Date.now(); }
 function registrarVelocidad(bytes, ms){ if(!(bytes>0&&ms>0)) return null; const bps=bytes/(ms/1000), rapida=bps>=VEL_RAPIDA;
   try{ sessionStorage.setItem(NS+"rapida", rapida?String(Date.now()+VEL_VIGENCIA):"0"); }catch(_){}
   return rapida; }
-function topeLote(){ return (admCargaActiva() || navigator.onLine===false || conexionRapida()) ? Infinity : LOTE_MAX; }
+/* v49.10 (23-nov): un computador (mouse, sin pantalla táctil) no está en la calle con datos móviles: sin tope desde el
+   inicio. Tablets y portátiles táctiles siguen la regla de velocidad. */
+function esPC(){ try{ return navigator.maxTouchPoints===0 && matchMedia("(pointer:fine)").matches && !matchMedia("(any-pointer:coarse)").matches; }catch(_){ return false; } }
+function topeLote(){ return (admCargaActiva() || navigator.onLine===false || esPC() || conexionRapida()) ? Infinity : LOTE_MAX; }
 /* v49.9 (23-nov): respaldo en el carrete del iPhone. Safari no deja escribir en Fotos sin un toque: se abre la hoja de
    compartir con las fotos del lote y la persona elige «Guardar imágenes». Obligatorio sin señal (cada 12 sin guardar) y
    cuando un envío falla; botón «Guardar en Fotos» siempre a mano. Android ya descarga una copia de cada captura. */
@@ -2280,8 +2283,8 @@ function renderLista(){
   const sinReq=batch.filter(e=>e.status==="listo"&&!e.itemCodigo).length;
   const tope=topeLote();   /* v49.8: contador del lote */
   const muchas=!admCargaActiva()&&batch.length>LOTE_MAX;   /* v49.8: contador del lote */
-  const rapida=!admCargaActiva()&&navigator.onLine!==false&&conexionRapida();
-  const pref=rapida?`<b>Conexión rápida · sin límite</b> · `:(muchas?`<b>${batch.length} en el celular · ${tope<Infinity?"se envían de a "+LOTE_MAX:"sin señal"}</b> · `:(tope<Infinity?`<b>${batch.length} de ${LOTE_MAX}</b> · `:""));
+  const pc=!admCargaActiva()&&navigator.onLine!==false&&esPC(), rapida=!pc&&!admCargaActiva()&&navigator.onLine!==false&&conexionRapida();
+  const pref=pc?`<b>${batch.length} ${batch.length===1?"foto":"fotos"} · sin límite</b> · `:rapida?`<b>Conexión rápida · sin límite</b> · `:(muchas?`<b>${batch.length} en el celular · ${tope<Infinity?"se envían de a "+LOTE_MAX:"sin señal"}</b> · `:(tope<Infinity?`<b>${batch.length} de ${LOTE_MAX}</b> · `:""));
   $("cnt").innerHTML = batch.length ? (pref+`${listas}/${batch.length} listas`+(sinReq?` · <span style="color:#b3261e">${sinReq} sin requerimiento</span>`:"")) : "Aún no agregas evidencias.";
   const pendFecha=batch.filter(pendienteFecha).length;
   $("enviar").disabled=listas===0 || pendFecha>0;
@@ -2533,7 +2536,7 @@ async function enviarASupabase(listas, exito){
     $("okRad").textContent="Radicado: "+radicado;
     $("okDet").innerHTML=htmlResumen(r);
     $("okm").classList.remove("hide");
-    const eraRapida=conexionRapida(); const rap=(listas.length>=3 && !admCargaActiva())?registrarVelocidad(bytes, Date.now()-t0):null;
+    const eraRapida=conexionRapida()||esPC(); const rap=(listas.length>=3 && !admCargaActiva())?registrarVelocidad(bytes, Date.now()-t0):null;
     exito();
     if(rap===true && !eraRapida) $("sendInfo").innerHTML+=`<br><b style="color:#1a7f37">Conexión rápida: puedes cargar sin límite.</b>`;
     if(batch.length) $("sendInfo").innerHTML+=`<br><b>Quedan ${batch.length} por enviar.</b> Toca Enviar otra vez.`;   /* v49.8 */
