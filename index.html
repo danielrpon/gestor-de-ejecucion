@@ -295,7 +295,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v49.5 · 22nov · foto de «Capturar foto» que no abría en Safari iPhone · vista previa con marca · v49.4 · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v49.6 · 22nov · foto de «Capturar foto» que no abría en Safari iPhone · vista previa con marca · v49.4 · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -2213,7 +2213,7 @@ async function procesar(entry){
     let lugar="",lugLin=[]; if(ex.lat!=null&&ex.lon!=null){ const d=await geocodeThrottled(ex.lat,ex.lon); if(d){ lugar=d.txt; lugLin=d.lineas; } }
     entry.datos={fecha:ex.fecha,hora:ex.hora,lugar,lugLin,lat:ex.lat,lon:ex.lon,sinMeta:!!entry.sinMeta,origen:entry.fechaOrigen||"",fcarga:(entry.cargada&&entry.cargada.fecha)||""};
     const sl=selloDe(entry);
-    const out=await enColaPesada(async()=>dibujar(await decodificar(entry.file),sl.texto,sl.con,{conOrig:true}));   /* v49.4: de a una foto */
+    const out=await enColaPesada(async()=>dibujar(await decodificar(entry.file),sl.texto,sl.con,{conOrig:true,cap:true}));   /* v49.4: de a una foto */
     entry.blob=out.blob; entry.thumb=out.thumb; entry.origBlob=out.orig||null;
     /* v49.5: se comprueba que la foto sellada de la cámara de la app SÍ abre, para no subir nunca una evidencia ilegible. */
     if(entry.file && entry.file._lienzo && !(await sePuedeAbrir(out.blob))){ entry.blob=null; entry.status="⚠ Este navegador no generó una foto legible. Quítala y usa Chrome para «Capturar foto»"; }
@@ -2288,14 +2288,14 @@ async function redibujarTodas(){
     try{
       if(esNum(e.datos.lat) && !e.datos.lugar){ const d=await geocodeThrottled(e.datos.lat,e.datos.lon); if(d){ e.datos.lugar=d.txt; e.datos.lugLin=d.lineas; if(e.orig&&e.orig.datos){ e.orig.datos.lugar=d.txt; e.orig.datos.lugLin=d.lineas; } } }
       const sl=selloDe(e);
-      const out=await enColaPesada(async()=>dibujar(await decodificar(e.file),sl.texto,sl.con));   /* v49.4 */ e.blob=out.blob; e.thumb=out.thumb;
+      const out=await enColaPesada(async()=>dibujar(await decodificar(e.file),sl.texto,sl.con,{cap:true}));   /* v49.4 */ e.blob=out.blob; e.thumb=out.thumb;
     }catch(_){} } }
   finally{ redibujando=false; renderLista(); }
 }
 
 /* Re-sella UNA evidencia con los datos que ya tiene (no vuelve a pedir nada a la red). */
 async function resellar(e){
-  try{ const sl=selloDe(e); const out=await enColaPesada(async()=>dibujar(await decodificar(e.file), sl.texto, sl.con));   /* v49.4 */
+  try{ const sl=selloDe(e); const out=await enColaPesada(async()=>dibujar(await decodificar(e.file), sl.texto, sl.con, {cap:true}));   /* v49.4 */
     e.blob=out.blob; e.thumb=out.thumb; return true; }catch(_){ return false; }
 }
 /* Completa las direcciones que faltaron y vuelve a sellar sólo esas fotos. Barato: si la
@@ -2417,7 +2417,7 @@ async function subirEvidencia(e, radicado){
       let dup=false; try{ const t=await up.json(); dup=!!(t&&(t.statusCode==="409"||t.error==="Duplicate"||t.code==="KeyAlreadyExists")); }catch(_){}
       if(!dup){ ultimoErr="subir foto: HTTP "+up.status; return false; }
     }
-    if((e.tipo||"foto")!=="video"){ try{ const mini=await miniatura(e.blob,220); if(mini) await fetchTO(SB_URL+"/storage/v1/object/evidencias/thumbs/"+encodeURI(path), {method:"POST",
+    if((e.tipo||"foto")!=="video"){ try{ const mini=await enColaPesada(()=>miniatura(e.blob,220));   /* v49.6: decodificar de a una aunque se suba de a 3 */ if(mini) await fetchTO(SB_URL+"/storage/v1/object/evidencias/thumbs/"+encodeURI(path), {method:"POST",
       headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":"image/jpeg"}, body:mini}, 12000); }catch(_){} }
     if(e.origBlob){ try{ await fetchTO(SB_URL+"/storage/v1/object/evidencias/orig/"+encodeURI(path), {method:"POST", headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":"image/jpeg"}, body:e.origBlob}, 20000); }catch(_){} }   /* v43: original sin sello; si falla no pasa nada */   // Capa 14: miniatura (~6 KB) para el visor del admin; si falla, el visor usa la original
     const ad=itemAdic(e.itemCodigo)||{};
@@ -2456,10 +2456,15 @@ function nuevoRadicado(){ const t=new Date(); const ev=(cfg&&cfg.consec)?String(
 async function enviarASupabase(listas, exito){
   const radicado=nuevoRadicado(); const csv=construirCSV(listas, radicado);
   const fallidos=[]; let ok=0; ultimoErr="";
-  for(let i=0;i<listas.length;i++){
-    const et=`Enviando ${i+1}/${listas.length}…`; $("sendInfo").textContent=et; $("enviar").textContent=et;
-    if(await subirEvidencia(listas[i], radicado)) ok++; else fallidos.push(listas[i]);
-  }
+  /* v49.6 (23-nov): 3 evidencias a la vez (antes de a una). Por datos móviles cada foto hace 3-4 peticiones con ~0,35 s
+     de ida y vuelta cada una; en paralelo esa espera se solapa. El orden de «fallidos» no importa (se reintentan todas). */
+  const N=listas.length; let sig=0, hechas=0;
+  const pinta=()=>{ const et=`Enviando ${Math.min(hechas+1,N)}/${N}…`; $("sendInfo").textContent=et; $("enviar").textContent=et; };
+  pinta();
+  const worker=async()=>{ while(sig<N){ const e=listas[sig++];
+    if(await subirEvidencia(e, radicado)) ok++; else fallidos.push(e);
+    hechas++; pinta(); } };
+  await Promise.all(Array.from({length:Math.min(3,N)},worker));
   if(!fallidos.length){
     const r=resumenEnvio(radicado, listas);   // se calcula ANTES de que marcarSubidas() vacíe el lote
     envioActual={radicado, listas:listas.slice(), csv, texto:textoResumen(r)};
@@ -2730,7 +2735,10 @@ function wrap(ctx,t,mw){ const w=t.split(" "),l=[]; let c=""; for(const x of w){
 /* Tope de área del lienzo: por encima de ~16,7 MP iOS Safari devuelve un canvas VACÍO sin
    lanzar error. Red de seguridad para equipos de 48-50 MP; se reduce SÓLO si la imagen lo
    supera, así que una foto normal de 12 MP (4032x3024) no se toca. */
-const LIM_PX=16e6, DEST_PX=12e6;   // 16 MP = umbral (una foto de 12 MP, 4032x3024, no se toca); 12 MP = destino, con margen bajo el tope
+const LIM_PX=16e6, DEST_PX=12e6;
+/* v49.6 (23-nov): fotos de captura (proveedor) a ~8 MP — 3264x2448 desde 12 MP — para subir rápido por datos móviles.
+   Punto medio alto pedido por Daniel: sobra para evidencia, informe y zoom normal. El re-sellado del admin no usa esto. */
+const CAP_PX=8.5e6, CAP_DEST=8e6, CAP_Q=0.88;   // 16 MP = umbral (una foto de 12 MP, 4032x3024, no se toca); 12 MP = destino, con margen bajo el tope
 /* Un lienzo fallido sale de un color plano; una foto real, aunque sea de noche, tiene ruido.
    Se muestrea la miniatura (barato) por fuera de la zona del sello. */
 function lienzoPlano(ctx,W,H){
@@ -2744,7 +2752,8 @@ function lienzoPlano(ctx,W,H){
 async function dibujar(src,texto,conMarca,op){   /* v43: op = {esc,pos,minW,minH,fondo,conOrig} */
   if(src&&typeof src.decode==="function"){ try{ await src.decode(); }catch(_){} }   // nunca estampar sobre una imagen a medio decodificar
   const W0=src.naturalWidth||src.width, H0=src.naturalHeight||src.height;
-  const k=(W0*H0>LIM_PX)?Math.sqrt(DEST_PX/(W0*H0)):1;                              // k=1 => no se toca nada
+  const cap=!!(op&&op.cap); const lim=cap?CAP_PX:LIM_PX, dst=cap?CAP_DEST:DEST_PX;   /* v49.6 */
+  const k=(W0*H0>lim)?Math.sqrt(dst/(W0*H0)):1;                              // k=1 => no se toca nada
   const W=Math.round(W0*k), H=Math.round(H0*k);
   const cv=document.createElement("canvas"); cv.width=W; cv.height=H; const ctx=cv.getContext("2d"); ctx.drawImage(src,0,0,W,H);
   if(src&&typeof src.src==="string"&&src.src.indexOf("blob:")===0) URL.revokeObjectURL(src.src);
@@ -2760,7 +2769,7 @@ async function dibujar(src,texto,conMarca,op){   /* v43: op = {esc,pos,minW,minH
     ctx.fillStyle="#fff"; ctx.textBaseline="top"; lines.forEach((l,i)=>ctx.fillText(l,x+pad,y+pad+i*lh+(lh-fpx)/2));
   }
   const s=Math.min(1,420/Math.max(W,H)); const tc=document.createElement("canvas"); tc.width=Math.round(W*s); tc.height=Math.round(H*s); tc.getContext("2d").drawImage(cv,0,0,tc.width,tc.height);
-  const thumb=tc.toDataURL("image/jpeg",0.7); const blob=await new Promise(res=>cv.toBlob(res,"image/jpeg",0.9));
+  const thumb=tc.toDataURL("image/jpeg",0.7); const blob=await new Promise(res=>cv.toBlob(res,"image/jpeg",cap?CAP_Q:0.9));
   const vacio=lienzoPlano(tc.getContext("2d"),tc.width,tc.height);
   /* iOS sólo libera la memoria de un canvas cuando se encoge. Sin esto, un lote de 12 fotos
      de 12 MP retiene ~48 MB por lienzo, se pasa del techo de canvas del dispositivo y a partir
