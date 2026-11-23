@@ -298,7 +298,7 @@
       <div style="height:14px"></div>
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v50.2 · 22nov · foto de «Capturar foto» que no abría en iPhone · vista previa con marca (toca la miniatura) · v50.1 · arrastrar el CSV o el Tablero de eventos (.xlsx, hoja «CSV app») · código del evento (EGE) e importador del evento completo · CSV leído como texto («001» y fechas) · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v50.3 · 22nov · cámara de la app sin re-abrir la foto (Safari iPhone) · v50.2 · foto de «Capturar foto» que no abría en iPhone · vista previa con marca (toca la miniatura) · v50.1 · arrastrar el CSV o el Tablero de eventos (.xlsx, hoja «CSV app») · código del evento (EGE) e importador del evento completo · CSV leído como texto («001» y fechas) · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -2722,12 +2722,14 @@ async function capturar(){
   /* v49.5 (22-nov): en iPhone (sobre todo en navegación privada) toBlob puede devolver null sin error; new File([null])
      daba un archivo de 4 bytes con el texto "null" y la foto quedaba en «…» con «No se pudo abrir esta foto». */
   if(!blob || blob.size<1024){ try{ const u=c.toDataURL("image/jpeg",0.92); if(u && u.length>2000){ const bin=atob(u.split(",")[1]); const a=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i); blob=new Blob([a],{type:"image/jpeg"}); } }catch(_){} }
-  c.width=c.height=1;
-  if(!blob || blob.size<1024){ cerrarCamara(); alert("La cámara de la app no entregó la foto.\n\nSi estás en navegación privada, abre el enlace en una pestaña normal. Si sigue, cierra y vuelve a abrir la app."); return; }
-  try{ const t=new Date(); bajar(blob, `foto_${slug(cfg.ev)}_${z(t.getHours())}${z(t.getMinutes())}${z(t.getSeconds())}.jpg`); }catch(_){}   // respaldo en el dispositivo (siempre activo)
+  /* v50.3 (22-nov): en Safari de iPhone el JPG de 114 KB que sale de aquí no se deja volver a abrir (<img> y createImageBitmap
+     fallan; en Chrome del mismo iPhone sí abre). Ya tenemos los píxeles: el lienzo se pasa tal cual al sellado y no se re-abre. */
+  if(!blob || blob.size<1024){ c.width=c.height=1; cerrarCamara(); alert("La cámara de la app no entregó la foto.\n\nSi estás en navegación privada, abre el enlace en una pestaña normal. Si sigue, cierra y vuelve a abrir la app."); return; }
+  { const t=new Date(), nb=`foto_${slug(cfg.ev)}_${z(t.getHours())}${z(t.getMinutes())}${z(t.getSeconds())}.jpg`; setTimeout(()=>{ try{ bajar(blob, nb); }catch(_){} }, 2500); }   /* v50.3: respaldo en el dispositivo después de procesar la foto (en Safari la descarga del blob podía cruzarse) */   // respaldo en el dispositivo (siempre activo)
   $("camhint").textContent="Ubicando…"; const coords=await posActual(); const now=new Date();
   const meta={fecha:`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`,hora:`${z(now.getHours())}:${z(now.getMinutes())}`,lat:coords?coords.latitude:null,lon:coords?coords.longitude:null};
-  agregar([new File([blob],"captura.jpg",{type:"image/jpeg"})], meta);
+  const fCap=new File([blob],"captura.jpg",{type:"image/jpeg"}); fCap._lienzo=c;   /* v50.3 */
+  agregar([fCap], meta);
   cerrarCamara();   // salir a la vista de clasificación tras cada foto
   $("sendInfo").textContent = coords ? "" : (geoDenied ? "Última foto SIN GPS: toca «Toca aquí para activar la ubicación»." : "Última foto SIN GPS: aún sin señal, reintenta.");
 }
@@ -2749,6 +2751,7 @@ function msgDecode(err){ const m=err&&err.message;
   if(m==="no-decode") return "No se pudo abrir esta foto"+(err.det?" ("+err.det+")":"")+". Quítala y elígela de nuevo sola; si sigue, tómala con «Capturar foto»";
   return "error: "+(m||err); }
 async function decodificar(file){
+  if(file && file._lienzo && file._lienzo.width>1) return file._lienzo;   /* v50.3: foto de la cámara de la app = ya está en píxeles */
   if(!file || !file.size) throw new Error("vacio");                    // foto de iCloud sin descargar / selección interrumpida
   const heic=/heic|heif/i.test(file.type)||/\.hei[cf]$/i.test(file.name);
   for(let i=0;i<2;i++){
