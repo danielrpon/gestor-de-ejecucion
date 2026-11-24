@@ -299,7 +299,7 @@
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <button class="btn sec hide" id="fotos" style="margin-top:8px">Guardar en Fotos</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v50.11 · 23nov · pendientes arriba y siguiente al enviar · proveedor sin volver a digitar · sesión que se renueva sola · v50.10 · computador sin tope · v50.9 · 23nov · guardar en Fotos (iPhone) · sin tope con conexión rápida · v50.8 · 23nov · lote máximo 12 · v50.7 · 23nov · copia sin sello solo si la foto llega incompleta · v50.6 · fotos a 8 MP y 3 a la vez · v50.5 · enlace «vista previa» · v50.4 · comprobación de que la foto sellada abre · v50.3 · cámara de la app sin re-abrir la foto (Safari iPhone) · v50.2 · foto de «Capturar foto» que no abría en iPhone · vista previa con marca (toca la miniatura) · v50.1 · arrastrar el CSV o el Tablero de eventos (.xlsx, hoja «CSV app») · código del evento (EGE) e importador del evento completo · CSV leído como texto («001» y fechas) · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v50.12 · 23nov · video de hasta 1 min con portada sellada · v50.11 · pendientes arriba y siguiente al enviar · proveedor sin volver a digitar · sesión que se renueva sola · v50.10 · computador sin tope · v50.9 · 23nov · guardar en Fotos (iPhone) · sin tope con conexión rápida · v50.8 · 23nov · lote máximo 12 · v50.7 · 23nov · copia sin sello solo si la foto llega incompleta · v50.6 · fotos a 8 MP y 3 a la vez · v50.5 · enlace «vista previa» · v50.4 · comprobación de que la foto sellada abre · v50.3 · cámara de la app sin re-abrir la foto (Safari iPhone) · v50.2 · foto de «Capturar foto» que no abría en iPhone · vista previa con marca (toca la miniatura) · v50.1 · arrastrar el CSV o el Tablero de eventos (.xlsx, hoja «CSV app») · código del evento (EGE) e importador del evento completo · CSV leído como texto («001» y fechas) · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -1515,7 +1515,7 @@ window.adminBorrarEvento=async(i)=>{ if(!esAdmin()){ toast("Solo un administrado
     const r=await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid)+"&select=storage_path",{headers:adminHeaders()});
     if(r.status===401){ adminSesExpirada(); return; }
     const evs = r.ok ? await r.json() : [];
-    for(const e of evs){ if(e.storage_path){ try{ const p=e.storage_path.replace(/^evidencias\//,"").split("/").map(encodeURIComponent).join("/"); await fetch(SB_URL+"/storage/v1/object/evidencias/"+p,{method:"DELETE",headers:adminHeaders()}); for(const pre of ["thumbs/","orig/","prev/"]) await fetch(SB_URL+"/storage/v1/object/evidencias/"+pre+p,{method:"DELETE",headers:adminHeaders()}); }catch(_){} } }
+    for(const e of evs){ if(e.storage_path){ try{ const p=e.storage_path.replace(/^evidencias\//,"").split("/").map(encodeURIComponent).join("/"); await fetch(SB_URL+"/storage/v1/object/evidencias/"+p,{method:"DELETE",headers:adminHeaders()}); for(const pre of ["thumbs/","orig/","prev/"]) await fetch(SB_URL+"/storage/v1/object/evidencias/"+pre+p,{method:"DELETE",headers:adminHeaders()}); if((e.tipo||"foto")==="video") await fetch(SB_URL+"/storage/v1/object/evidencias/portada/"+p+".jpg",{method:"DELETE",headers:adminHeaders()}); }catch(_){} } }
     await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid),{method:"DELETE",headers:Object.assign({},adminHeaders(),{Prefer:"return=representation",Accept:"application/json"})});
     const de=await fetch(SB_URL+"/rest/v1/eventos?uid=eq."+encodeURIComponent(ev.uid),{method:"DELETE",headers:Object.assign({},adminHeaders(),{Prefer:"return=representation",Accept:"application/json"})});
     if(!de.ok){ alert("No se pudo borrar el evento (HTTP "+de.status+").\n\nCorre las Capas 5 y 6 en Supabase y reintenta."); return; }
@@ -1571,7 +1571,7 @@ function eviKey(e){ return e.item_id || ((e.evento_uid||"")+"|"+iidDe(e.item,e.c
 function cargarJS(src){ return new Promise((ok,ko)=>{ if(document.querySelector('script[data-src="'+src+'"]')) return ok(); const s=document.createElement("script"); s.src=src; s.dataset.src=src; s.onload=()=>ok(); s.onerror=()=>ko(new Error("No se pudo cargar "+src)); document.head.appendChild(s); }); }
 window.adminInforme=async()=>{
   const ev=adminEventos[adminEventoActual]; if(!ev||!adminEvidencias.length){ toast("Abre un evento con evidencias"); return; }
-  try{ if(!window.InformeEstrella) await cargarJS("informe.js?v=29"); }catch(e){ toast("No cargó el generador de informes (revisa la conexión)"); return; }
+  try{ if(!window.InformeEstrella) await cargarJS("informe.js?v=30"); }catch(e){ toast("No cargó el generador de informes (revisa la conexión)"); return; }
   adminDlCancel=false;
   InformeEstrella.abrir({ev, evidencias:adminEvidencias, visibles:adminVis, contenedor:$("adInf"), bajarBlob:adminBajarBlob,
     deps:{anotarIids, iidDe, fechasDeItem, candidatoPorDia, isoHoy, slug, bajar, loadJSON, saveJSON, NS}});
@@ -1751,7 +1751,7 @@ function renderAdminEvidencias(){
   if(!adminVis.length) cont.innerHTML='<div class="mut" style="padding:8px 2px">Ninguna evidencia coincide con el filtro.</div>'; else adminMostrarMas();
   if($("adFltInfo")){ const f=q||fp||fo||fc||fr||fi; $("adFltInfo").textContent = f ? `Mostrando ${adminVis.length} de ${adminEvidencias.length}` : `${adminEvidencias.length} evidencia(s)`; }
 }
-function adminFilaHTML(e,j){ return `<div class="ev">${(esAdmin()&&$("adCorr")&&(e.tipo||"foto")!=="video"&&eviFaltantes(e).length)?`<input type="checkbox" class="adSel" data-j="${j}" ${adminSel.has(j)?"checked":""} onchange="adminSelToggle(${j},this.checked)" style="width:auto;margin:0 4px 0 0;flex:none;align-self:center" aria-label="Seleccionar para corregir">`:""}<div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})">${(e.tipo||"foto")==="video"?`<div style="width:66px;height:66px;border-radius:7px;background:#e9eef5;display:flex;align-items:center;justify-content:center;font-size:24px">🎬</div>`:`<img id="adimg${j}" data-j="${j}" alt="" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5">`}</div><div class="in">${e.categoria?`<span class="cchip">${escAttr(e.categoria)}</span> `:""}<b>${escAttr(e.item||"")}</b> · ${escAttr((e.requerimiento||"").slice(0,38))}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${escAttr(e.operador_nombre||"")}${e.operador_cedula?" · "+escAttr(e.operador_cedula):""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+escAttr(e.radicado):""}</div><div class="fn" style="margin-top:3px">${escAttr(e.archivo||"")}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${escAttr((e.lugar||"").slice(0,60))}</div>`:""}${eviFaltantes(e).length?`<div class="mut" style="margin:2px 0 0;color:#b3261e">⚠ sin ${eviFaltantes(e).join(" · sin ")}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a>${esAdmin()?`<a class="lnk" style="color:#b3261e" onclick="adminBorrarEvidencia(${j})">borrar</a>`:""}</div></div></div>`; }
+function adminFilaHTML(e,j){ return `<div class="ev">${(esAdmin()&&$("adCorr")&&(e.tipo||"foto")!=="video"&&eviFaltantes(e).length)?`<input type="checkbox" class="adSel" data-j="${j}" ${adminSel.has(j)?"checked":""} onchange="adminSelToggle(${j},this.checked)" style="width:auto;margin:0 4px 0 0;flex:none;align-self:center" aria-label="Seleccionar para corregir">`:""}<div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})">${(e.tipo||"foto")==="video"?`<div style="position:relative;width:66px;height:66px;border-radius:7px;background:#e9eef5;display:flex;align-items:center;justify-content:center;font-size:24px">🎬<img id="adimg${j}" data-j="${j}" alt="" style="position:absolute;inset:0;width:66px;height:66px;object-fit:cover;border-radius:7px;opacity:0" onload="this.style.opacity=1"><span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-size:20px;text-shadow:0 1px 4px #000">▶</span></div>`:`<img id="adimg${j}" data-j="${j}" alt="" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5">`}</div><div class="in">${e.categoria?`<span class="cchip">${escAttr(e.categoria)}</span> `:""}<b>${escAttr(e.item||"")}</b> · ${escAttr((e.requerimiento||"").slice(0,38))}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${escAttr(e.operador_nombre||"")}${e.operador_cedula?" · "+escAttr(e.operador_cedula):""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+escAttr(e.radicado):""}</div><div class="fn" style="margin-top:3px">${escAttr(e.archivo||"")}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${escAttr((e.lugar||"").slice(0,60))}</div>`:""}${eviFaltantes(e).length?`<div class="mut" style="margin:2px 0 0;color:#b3261e">⚠ sin ${eviFaltantes(e).join(" · sin ")}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a>${esAdmin()?`<a class="lnk" style="color:#b3261e" onclick="adminBorrarEvidencia(${j})">borrar</a>`:""}</div></div></div>`; }
 function adminMostrarMas(){
   const cont=$("adEviList"); if(!cont) return; const btn=$("adMas"); if(btn) btn.remove();
   const fin=Math.min(adminVis.length, adminMostrados+AD_PAGINA); let html="";
@@ -1766,7 +1766,7 @@ function adminEncolar(j){ if(adminFotoURLs[j] || adminCola.includes(j)) return; 
 function adminBombear(){ while(adminEnCurso<AD_CONC && adminCola.length){ const j=adminCola.shift(); adminEnCurso++; const g=adminGen; adminCargarMiniatura(j).finally(()=>{ if(g===adminGen){ adminEnCurso--; adminBombear(); } }); } }
 async function adminCargarMiniatura(j){
   const e=adminEvidencias[j]; const img=$("adimg"+j); if(!e||!img||!e.storage_path) return; const g=adminGen;
-  const intentos = (String(e.creado||"")>=THUMB_DESDE) ? [thumbPath(e), e.storage_path] : [e.storage_path];   // fotos viejas: no hay miniatura, va la original
+  const intentos = ((e.tipo||"foto")==="video") ? [thumbPath(e)] : (String(e.creado||"")>=THUMB_DESDE) ? [thumbPath(e), e.storage_path] : [e.storage_path];   /* v50.12: el video nunca baja el original como imagen */   // fotos viejas: no hay miniatura, va la original
   for(const p of intentos){
     try{ const r=await fetchTO(adminUrlObjeto(p),{headers:adminHeaders()},25000); if(g!==adminGen) return; if(r.status===401){ adminSesExpirada(); return; } if(!r.ok) continue;
       const b=await r.blob(); if(g!==adminGen) return; const u=URL.createObjectURL(b); adminFotoURLs[j]={url:u,nombre:e.archivo||"",mini:p!==e.storage_path}; adminCacheOrden.push(j); img.src=u; adminPodarCache(); return;
@@ -1795,7 +1795,8 @@ window.adminBorrarEvidencia=async(j)=>{ if(!esAdmin()){ toast("Solo un administr
     if(e.storage_path){ try{ const p=e.storage_path.replace(/^evidencias\//,"").split("/").map(encodeURIComponent).join("/");
       await fetch(SB_URL+"/storage/v1/object/evidencias/"+p, {method:"DELETE", headers:adminHeaders()});
       await fetch(SB_URL+"/storage/v1/object/evidencias/thumbs/"+p, {method:"DELETE", headers:adminHeaders()});
-      for(const pre of ["orig/","prev/"]) await fetch(SB_URL+"/storage/v1/object/evidencias/"+pre+p, {method:"DELETE", headers:adminHeaders()}); }catch(_){} }   // Capa 14: miniatura · v43: original y respaldo
+      for(const pre of ["orig/","prev/"]) await fetch(SB_URL+"/storage/v1/object/evidencias/"+pre+p, {method:"DELETE", headers:adminHeaders()});
+      if((e.tipo||"foto")==="video") await fetch(SB_URL+"/storage/v1/object/evidencias/portada/"+p+".jpg", {method:"DELETE", headers:adminHeaders()}); }catch(_){} }   // Capa 14: miniatura · v43: original y respaldo
     toast("Evidencia borrada ✓");
     if(adminEventoActual!=null) adminAbrir(adminEventoActual);   // refresca la vista del evento
   }catch(_){ toast("Error al borrar"); }
@@ -2151,6 +2152,27 @@ window.addEventListener("online", ()=>{ if(batch.some(e=>e.status==="listo"&&e.d
 /* v49.8 (23-nov): lote máximo de 12 evidencias por envío (~40 s por datos móviles). Sin señal no hay tope (no se pierde
    evidencia) y la «Carga de administrador» tampoco lo tiene. */
 const LOTE_MAX=12;
+/* v50.12 (23-nov) · VIDEO: hasta 1 min, 720p (~11 MB/min), máx. 3 por lote; los de la cámara del celular, máx. 1 min y 50 MB.
+   Al video NO se le graba la marca (habría que re-codificarlo cuadro a cuadro); lleva una PORTADA sellada (primer cuadro +
+   sello) que se sube a thumbs/ (visor del admin) y a portada/<archivo>.jpg. */
+const VID_MAX_SEG=60, VID_MAX_MB=50, VID_MAX_LOTE=3, VID_BPS=1500000;
+const MSG_VID_LOTE=`Máximo ${VID_MAX_LOTE} videos por envío. Envía estos y luego graba los demás.`;
+function durVideo(file){ return new Promise(res=>{ try{ const v=document.createElement("video"); v.preload="metadata"; v.muted=true; const u=URL.createObjectURL(file);
+  let ok=false; const fin=d=>{ if(ok) return; ok=true; URL.revokeObjectURL(u); res(d); };
+  v.onloadedmetadata=()=>fin(isFinite(v.duration)?v.duration:NaN); v.onerror=()=>fin(NaN); setTimeout(()=>fin(NaN),5000); v.src=u; }catch(_){ res(NaN); } }); }
+/* Primer cuadro útil del video en un lienzo de lado máximo `lado` (para la portada sellada). null si el navegador no puede. */
+function frameVideo(file, lado){ return new Promise(res=>{ try{ const v=document.createElement("video"); v.preload="auto"; v.muted=true; v.playsInline=true;
+  const u=URL.createObjectURL(file); let ok=false; const fin=c=>{ if(ok) return; ok=true; URL.revokeObjectURL(u); res(c||null); };
+  v.onloadeddata=()=>{ try{ const d=isFinite(v.duration)&&v.duration>0?v.duration:2; v.currentTime=Math.min(0.8,d/2); }catch(_){ fin(null); } };
+  v.onseeked=()=>{ try{ const W=v.videoWidth, H=v.videoHeight; if(!W||!H) return fin(null); const k=Math.min(1,lado/Math.max(W,H));
+    const c=document.createElement("canvas"); c.width=Math.round(W*k); c.height=Math.round(H*k); c.getContext("2d").drawImage(v,0,0,c.width,c.height); fin(c); }catch(_){ fin(null); } };
+  v.onerror=()=>fin(null); setTimeout(()=>fin(null),8000); v.src=u; }catch(_){ res(null); } }); }
+function toSubida(e){ return (e.tipo==="video" && e.blob) ? Math.min(240000, Math.max(20000, Math.round(e.blob.size/150))) : 20000; }   // video: piso de ~150 KB/s
+let grabT0=0, grabTimer=null;
+function pararReloj(){ if(grabTimer){ clearInterval(grabTimer); grabTimer=null; } }
+function tickGrab(){ const s=Math.floor((Date.now()-grabT0)/1000), r=Math.max(0,VID_MAX_SEG-s);
+  if($("camhint")) $("camhint").textContent=`Grabando… ${Math.floor(s/60)}:${z(s%60)} de 1:00 · quedan ${r} s`;
+  if(s>=VID_MAX_SEG) detenerGrabacion(); }
 /* v49.9 (23-nov): tope según la velocidad REAL. Cada envío mide bytes/segundo; si fue rápido (≥ 1 MB/s ≈ 12 fotos en
    menos de 20 s, típico de WiFi) se quita el tope por 30 min; un envío lento lo vuelve a poner. Android en WiFi: sin tope
    desde el primero (navigator.connection.type; Safari de iPhone no lo informa). */
@@ -2191,8 +2213,10 @@ function agregar(fileList, meta, metaResp){
     setTimeout(()=>alert(`${libres===1?"Se agregó la primera":"Se agregaron las primeras "+libres}. Lote máximo ${LOTE_MAX} fotos. Quedaron ${fuera} por fuera.`),300); }
   if(!ES_IOS && navigator.onLine===false && !admCargaActiva() && batch.length<=LOTE_MAX && batch.length+arr.length>LOTE_MAX)
     setTimeout(()=>alert(`Sin señal: se guardan en el celular y se envían de a ${LOTE_MAX} cuando vuelva la señal.`),300);   /* v49.8 */
+  let vidsLote=batch.filter(x=>x.tipo==="video").length, avisoVid=false;   /* v50.12 */
   arr.forEach(file=>{
     const video=/^video\//.test(file.type)||/\.(mp4|mov|m4v|3gp|webm|avi|mkv)$/i.test(file.name);
+    if(video && !admCargaActiva()){ if(vidsLote>=VID_MAX_LOTE){ if(!avisoVid){ avisoVid=true; setTimeout(()=>alert(MSG_VID_LOTE),300); } return; } vidsLote++; }
     const ext=video?((file.name.split(".").pop()||"mp4").toLowerCase()):"jpg";
     const e={id:++seq,file,itemCodigo:cod,fechaSel:fSel||"",tipo:video?"video":"foto",ext,status:"procesando",blob:null,thumb:"",datos:{},filename:"",meta:meta||null,metaResp:metaResp||null,cargada};
     if(admCargaActiva() && $("admSinHora") && $("admSinHora").checked){ e.sinHora=true; e.declPor=admCorreo()||"admin"; }   /* v40 */
@@ -2310,7 +2334,16 @@ async function procesar(entry){
       const mla=num(m.lat), mlo=num(m.lon);
       let lugar="",lugLin=[]; if(mla!=null&&mlo!=null){ const d=await geocodeThrottled(mla,mlo); if(d){ lugar=d.txt; lugLin=d.lineas; } }
       entry.datos={fecha:m.fecha||"",hora:m.hora||"",lugar,lugLin,lat:mla,lon:mlo};
-      entry.thumb=await videoThumb(entry.file); entry.blob=entry.file;   // el video va sin marca (sin re-encode)
+      if(!(entry.file&&entry.file._app)){   /* v50.12: video de la cámara del celular → máx. 1 min y 50 MB */
+        const mb=(entry.file.size||0)/1048576, dur=await durVideo(entry.file);
+        const motivo = mb>VID_MAX_MB ? `pesa ${Math.round(mb)} MB (máximo ${VID_MAX_MB} MB)` : (dur>VID_MAX_SEG+1 ? `dura ${Math.floor(dur/60)}:${z(Math.round(dur%60))} (máximo 1:00)` : "");
+        if(motivo){ batch=batch.filter(x=>x!==entry); renderLista(); setTimeout(()=>alert(`El video ${motivo}. No se agregó.\n\nGrábalo desde la app (botón Video, se detiene solo al minuto) o recórtalo y vuelve a intentar.`),50); return; }
+      }
+      entry.blob=entry.file;   // el video va sin marca (sin re-encode)
+      try{ const cv=await enColaPesada(()=>frameVideo(entry.file,1280));   /* v50.12: portada = primer cuadro + sello */
+        if(cv){ const sl=selloDe(entry); const out=await enColaPesada(async()=>dibujar(cv,sl.texto,sl.con,{})); cv.width=cv.height=1;
+          if(out && out.blob && !out.vacio){ entry.portada=out.blob; entry.thumb=out.thumb||""; } } }catch(_){}
+      if(!entry.thumb) entry.thumb=await videoThumb(entry.file);
       entry.status="listo"; renderLista(); return;
     }
     let ex;
@@ -2543,13 +2576,16 @@ async function subirEvidencia(e, radicado){
     const HE=Object.assign({}, (adm&&adminValido()) ? sesHeaders() : SB_H, {Prefer:"return=minimal"});
     const path=(cfg.uid||"sinuid")+"/"+e.filename;
     const up=await fetchTO(SB_URL+"/storage/v1/object/evidencias/"+encodeURI(path), {method:"POST",
-      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":(e.tipo==="video"?((e.file&&e.file.type)||"video/mp4"):"image/jpeg")}, body:e.blob}, 20000);
+      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":(e.tipo==="video"?((e.file&&e.file.type)||"video/mp4"):"image/jpeg")}, body:e.blob}, toSubida(e));   /* v50.12 */
     if(!up.ok){   // 409 "Duplicate" (reintento de una foto ya subida) cuenta como OK; cualquier otro error sí falla
       let dup=false; try{ const t=await up.json(); dup=!!(t&&(t.statusCode==="409"||t.error==="Duplicate"||t.code==="KeyAlreadyExists")); }catch(_){}
       if(!dup){ ultimoErr="subir foto: HTTP "+up.status; return false; }
     }
-    if((e.tipo||"foto")!=="video"){ try{ const mini=await enColaPesada(()=>miniatura(e.blob,220));   /* v49.6: decodificar de a una aunque se suba de a 3 */ if(mini) await fetchTO(SB_URL+"/storage/v1/object/evidencias/thumbs/"+encodeURI(path), {method:"POST",
+    const fuenteMini=((e.tipo||"foto")==="video")?e.portada:e.blob;   /* v50.12: el video usa su portada sellada */
+    if(fuenteMini){ try{ const mini=await enColaPesada(()=>miniatura(fuenteMini,220));   /* v49.6: decodificar de a una aunque se suba de a 3 */ if(mini) await fetchTO(SB_URL+"/storage/v1/object/evidencias/thumbs/"+encodeURI(path), {method:"POST",
       headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":"image/jpeg"}, body:mini}, 12000); }catch(_){} }
+    if(e.tipo==="video" && e.portada){ try{ await fetchTO(SB_URL+"/storage/v1/object/evidencias/portada/"+encodeURI(path)+".jpg", {method:"POST",
+      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":"image/jpeg"}, body:e.portada}, 20000); }catch(_){} }   /* v50.12 */
     /* v49.7 (23-nov): la copia sin sello solo la usa «Corregir datos de fotos» del admin, y ese botón solo actúa sobre
        fotos incompletas (eviFaltantes). Se sube SOLO si la foto llega incompleta: misma regla que el panel. */
     const incompleta=(e.tipo||"foto")!=="video" && eviFaltantes({tipo:e.tipo||"foto", hora:e.sinHora?"":((e.datos&&e.datos.hora)||""),
@@ -2806,27 +2842,30 @@ $("modoFoto").addEventListener("click", ()=>{ if(grabando||modo==="foto") return
 $("modoVideo").addEventListener("click", ()=>{ if(grabando||modo==="video") return; modo="video"; setModoUI(); abrirStream(true); });
 function setModoUI(){ $("modoFoto").classList.toggle("on",modo==="foto"); $("modoVideo").classList.toggle("on",modo==="video");
   const b=$("camShot"); if(modo==="foto"){ b.textContent="Capturar"; b.style.background=""; b.style.color=""; $("camhint").textContent="Encuadra la evidencia y captura."; }
-  else{ b.textContent=grabando?"Detener":"Grabar"; b.style.background=grabando?"#d33":""; b.style.color=grabando?"#fff":""; $("camhint").textContent=grabando?"Grabando… toca Detener":"Toca Grabar para iniciar el video"; } }
+  else{ b.textContent=grabando?"Detener":"Grabar"; b.style.background=grabando?"#d33":""; b.style.color=grabando?"#fff":""; if(!grabando) $("camhint").textContent="Toca Grabar · video de hasta 1 min, con sonido"; } }
 async function abrirCamara(){ pedirUbicacion(); if(gpsFresco()) precalentarDireccion(lastCoords); modo="foto"; setModoUI(); if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ $("capf").click(); return; } $("camm").classList.remove("hide"); if(!await abrirStream(false)){ $("camm").classList.add("hide"); $("sendInfo").textContent="Cámara de la app bloqueada; se abrirá la cámara del teléfono. Para usar la guía, permite la cámara en Ajustes del navegador."; $("capf").click(); } }
-async function abrirStream(conAudio){ try{ if(stream)stream.getTracks().forEach(t=>t.stop()); stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing}},audio:!!conAudio}); $("video").srcObject=stream; return true; }
+async function abrirStream(conAudio){ try{ if(stream)stream.getTracks().forEach(t=>t.stop()); stream=await navigator.mediaDevices.getUserMedia({video:conAudio?{facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:720}}:{facingMode:{ideal:facing}},audio:!!conAudio}); $("video").srcObject=stream; return true; }
   catch(_){ if(conAudio){ try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing}},audio:false}); $("video").srcObject=stream; return true; }catch(__){} } return false; } }
 function iniciarGrabacion(){
+  if(batch.length>=topeLote()){ alert(MSG_LLENO); return; }   /* v50.12 */
+  if(!admCargaActiva() && batch.filter(e=>e.tipo==="video").length>=VID_MAX_LOTE){ alert(MSG_VID_LOTE); return; }
   if(!window.MediaRecorder||!stream){ cerrarCamara(); $("vidf").click(); return; }   // respaldo: cámara nativa
-  chunks=[]; let mr=null; for(const t of ["video/mp4","video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"]){ try{ if(!MediaRecorder.isTypeSupported||MediaRecorder.isTypeSupported(t)){ mr=new MediaRecorder(stream,{mimeType:t}); break; } }catch(_){} }
-  if(!mr){ try{ mr=new MediaRecorder(stream); }catch(_){ cerrarCamara(); $("vidf").click(); return; } }
+  chunks=[]; let mr=null; for(const t of ["video/mp4","video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"]){ try{ if(!MediaRecorder.isTypeSupported||MediaRecorder.isTypeSupported(t)){ mr=new MediaRecorder(stream,{mimeType:t,videoBitsPerSecond:VID_BPS,audioBitsPerSecond:64000}); break; } }catch(_){} }
+  if(!mr){ try{ mr=new MediaRecorder(stream,{videoBitsPerSecond:VID_BPS}); }catch(_){ try{ mr=new MediaRecorder(stream); }catch(__){ cerrarCamara(); $("vidf").click(); return; } } }
   mediaRec=mr; descartarGrab=false;
   mr.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
-  mr.onstop=async()=>{ grabando=false;
+  mr.onstop=async()=>{ grabando=false; pararReloj();
     if(descartarGrab){ descartarGrab=false; return; }
     const type=(mr.mimeType||"video/mp4").split(";")[0]; const ext=/mp4/.test(type)?"mp4":(/webm/.test(type)?"webm":"mp4");
     const blob=new Blob(chunks,{type}); const coords=(gpsFresco()?lastCoords:await posActual()); const now=new Date();
     const meta=coords?{fecha:`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`,hora:`${z(now.getHours())}:${z(now.getMinutes())}`,lat:coords.latitude,lon:coords.longitude}:null;
-    agregar([new File([blob],"video."+ext,{type})], meta); cerrarCamara();
+    const fv=new File([blob],"video."+ext,{type}); fv._app=true;   /* v50.12: grabado en la app (ya trae tope de 1 min) */
+    agregar([fv], meta); cerrarCamara();
   };
-  pedirUbicacion(); mr.start(); grabando=true; setModoUI();
+  pedirUbicacion(); mr.start(); grabando=true; setModoUI(); grabT0=Date.now(); pararReloj(); grabTimer=setInterval(tickGrab,250); tickGrab();
 }
 function detenerGrabacion(){ if(mediaRec&&grabando){ try{ mediaRec.stop(); }catch(_){ grabando=false; } } }
-function cerrarCamara(){ if(grabando){ descartarGrab=true; try{ mediaRec.stop(); }catch(_){} grabando=false; } if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } $("camm").classList.add("hide"); }
+function cerrarCamara(){ pararReloj(); if(grabando){ descartarGrab=true; try{ mediaRec.stop(); }catch(_){} grabando=false; } if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } $("camm").classList.add("hide"); }
 function posActual(){ return pedirUbicacion(); }
 async function capturar(){
   const v=$("video"); if(!v.videoWidth) return;

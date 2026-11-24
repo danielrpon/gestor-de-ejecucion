@@ -154,12 +154,14 @@
       <div class="guia neutro hide" id="execNuevo" style="margin-bottom:10px">Evento <b>nuevo</b>, en blanco. Para modificar uno que ya existe, ábrelo desde tu panel con <b>✏️ Editar evento</b>.</div>
       <div class="fld"><label>Cliente</label><input id="ecliente" type="text" autocomplete="off"></div>
       <div class="fld"><label>Evento</label><input id="eevento" type="text" autocomplete="off"></div>
+      <div class="fld"><label>Código del evento <span style="font-weight:500">(opcional · el EGE del tablero)</span></label><input id="eege" type="text" autocomplete="off" placeholder="EGE-2026-0179" style="text-transform:uppercase"><div class="mut hide" id="eegeInfo" style="margin:4px 0 0;color:#b3261e">Formato esperado: EGE-AAAA-NNNN. Se guarda igual, revisa que esté bien escrito.</div></div>
       <div class="row fechas"><div class="fld"><label>Fecha de inicio</label><input id="efecha" type="date"></div><div class="fld"><label>Fecha fin <span style="font-weight:500">(si son varios días)</span></label><input id="efechafin" type="date"></div></div>
       <div class="fld"><label>Ciudad</label><input id="eciudad" type="text" autocomplete="off"></div>
       <div class="fld hide" id="eEjWrap"><label>Ejecutivo asignado</label><select id="eEj"><option value="">— Sin asignar —</option></select>
         <div class="mut" style="margin:4px 0 0">El ejecutivo ve y administra solo los eventos que tiene asignados.</div></div>
       <div style="height:14px"></div>
       <button class="btn sec" id="ebtnReq">Cargar lista de evidencias (Excel / CSV)</button>
+      <div id="eDrop" class="mut" style="border:2px dashed #b9c3d6;border-radius:10px;padding:12px;text-align:center;margin:8px 0 4px">… o <b>arrastra aquí</b> el CSV o el <b>Tablero de eventos</b> (.xlsx): se lee su hoja «CSV app», con el evento elegido en Inicio.</div>
       <input id="efileReq" type="file" accept=".xlsx,.xls,.csv">
       <div class="mut" id="ereqInfo">Carga un Excel/CSV o agrega manualmente. Columnas: proveedor · requerimiento · cantidad · días · fechas (2026-09-08 o D1;D2;D4) · por día (SI/NO). El código lo asigna la app.</div>
       <div style="height:8px"></div>
@@ -296,7 +298,7 @@
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <button class="btn sec hide" id="fotos" style="margin-top:8px">Guardar en Fotos</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v49.11 · 23nov · pendientes arriba y siguiente al enviar · proveedor sin volver a digitar · sesión que se renueva sola · v49.10 · computador sin tope · v49.9 · 23nov · guardar en Fotos (iPhone) · sin tope con conexión rápida · v49.8 · 23nov · lote máximo 12 · v49.7 · 23nov · copia sin sello solo si la foto llega incompleta · v49.6 · fotos a 8 MP y 3 a la vez · 22nov · foto de «Capturar foto» que no abría en Safari iPhone · vista previa con marca · v49.4 · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v50.12 · 23nov · video de hasta 1 min con portada sellada · v50.11 · pendientes arriba y siguiente al enviar · proveedor sin volver a digitar · sesión que se renueva sola · v50.10 · computador sin tope · v50.9 · 23nov · guardar en Fotos (iPhone) · sin tope con conexión rápida · v50.8 · 23nov · lote máximo 12 · v50.7 · 23nov · copia sin sello solo si la foto llega incompleta · v50.6 · fotos a 8 MP y 3 a la vez · v50.5 · enlace «vista previa» · v50.4 · comprobación de que la foto sellada abre · v50.3 · cámara de la app sin re-abrir la foto (Safari iPhone) · v50.2 · foto de «Capturar foto» que no abría en iPhone · vista previa con marca (toca la miniatura) · v50.1 · arrastrar el CSV o el Tablero de eventos (.xlsx, hoja «CSV app») · código del evento (EGE) e importador del evento completo · CSV leído como texto («001» y fechas) · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -548,6 +550,27 @@ function decCfg(s){ try{ return JSON.parse(decodeURIComponent(escape(atob(s))));
 function eventos(){ return loadJSON(NS+"eventos", {}); }                 // cache local por uid (respaldo si no hay señal)
 function cacheEvento(rec){ try{ if(rec&&rec.uid){ const all=eventos(); all[rec.uid]=rec; saveJSON(NS+"eventos",all); } }catch(_){} }
 function evConsecTag(n){ return "EV-"+String(n).padStart(3,"0"); }
+/* v50 · código del evento del tablero (EGE-AAAA-NNNN). Vive SOLO en eventos.config.ege: no toca uid, consecutivo ni la llave de las evidencias. */
+const EGE_RX=/^EGE-\d{4}-\d{4}$/;
+function normEge(v){ return String(v||"").trim().toUpperCase().replace(/\s+/g,""); }
+function egeDeUid(uid){ const e=(adminEventos||[]).find(x=>x&&x.uid===uid); return (e&&e.config&&e.config.ege)||""; }
+function idItemEge(ege, codigo, adicional){ return (ege && !adicional && String(codigo||"").trim()) ? ege+"-"+String(codigo).trim() : ""; }
+/* CSV se lee como TEXTO (raw): así "001" no se vuelve 1 y las fechas ISO no se vuelven número. Excel se lee igual que siempre. */
+/* v50.1 · si el archivo es el Tablero de eventos completo (.xlsx), se lee su hoja «CSV app»: la del evento elegido en Inicio. */
+function hojaDatos(wb){ const n=(wb.SheetNames||[]).find(x=>String(x).trim().toLowerCase()==="csv app"); return wb.Sheets[n||wb.SheetNames[0]]; }
+function esTablero(wb){ return (wb.SheetNames||[]).some(x=>String(x).trim().toLowerCase()==="csv app"); }
+function esCSV(file){ return /\.csv$/i.test((file&&file.name)||"") || /csv/i.test((file&&file.type)||""); }
+/* CSV en UTF-8 (con o sin BOM) se decodifica aquí; si no es UTF-8 válido (CSV de Excel Windows, ANSI) se lee como siempre. */
+async function leerLibro(file){ const buf=await file.arrayBuffer();
+  if(!esCSV(file)) return XLSX.read(buf, {type:"array"});
+  try{ const txt=new TextDecoder("utf-8",{fatal:true}).decode(buf).replace(/^\ufeff/,""); return XLSX.read(txt, {type:"string",raw:true}); }catch(_){}
+  return XLSX.read(buf, {type:"array",raw:true}); }
+/* Si el evento ya tiene el código "1" y el archivo trae "001", se conserva "1": cambiarlo cambiaría la llave y dejaría fotos huérfanas. */
+function ajustarCodigos(nuevos, actuales){ const ya=new Set((actuales||[]).map(i=>String(i.codigo||"")));
+  (nuevos||[]).forEach(it=>{ const c=String(it.codigo||""); if(/^0+\d+$/.test(c) && !ya.has(c) && ya.has(String(+c))) it.codigo=String(+c); }); return nuevos; }
+function fechaISO(v){ v=String(v||"").trim(); if(!v) return "";
+  if(/^\d{5}(\.\d+)?$/.test(v)){ const d=new Date(Math.round((parseFloat(v)-25569)*864e5)); return d.toISOString().slice(0,10); }   // serial de Excel
+  const f=parseFechas([v])[0]||""; return /^\d{4}-\d{2}-\d{2}$/.test(f)?f:""; }
 /* Capa 11b: 8 caracteres aleatorios criptográficos (antes 4 de Math.random): con la hora de creación a la vista, 4 se
    adivinaban. Solo aplica a eventos NUEVOS: el uid va dentro de item_id y los existentes no se pueden cambiar. */
 function nuevoUid(){ const a="abcdefghijklmnopqrstuvwxyz0123456789", r=new Uint8Array(8); crypto.getRandomValues(r);
@@ -639,9 +662,20 @@ $("brandWord").addEventListener("click", ()=>show("home"));
 /* ---- EJECUTIVO ---- */
 $("ebtnReq").addEventListener("click", ()=>$("efileReq").click());
 $("efileReq").addEventListener("change", e=>{ if(e.target.files[0]) cargarReq(e.target.files[0]); });
+/* v50.1 · arrastrar y soltar: solo con la pantalla del productor abierta. En un evento ya publicado pide confirmación,
+   porque cargar una lista REEMPLAZA sus requerimientos (para completar datos sin tocar la lista está «Completar ficha»). */
+(()=>{ const ex=$("exec"), dz=$("eDrop"); if(!ex||!dz) return; const visible=()=>!ex.classList.contains("hide");
+  const marca=on=>{ dz.style.borderColor=on?"var(--azul)":"#b9c3d6"; dz.style.background=on?"#eef3fb":""; };
+  ["dragenter","dragover"].forEach(t=>document.addEventListener(t, e=>{ if(!visible()||!e.dataTransfer||![...(e.dataTransfer.types||[])].includes("Files")) return; e.preventDefault(); marca(true); }));
+  document.addEventListener("dragleave", e=>{ if(!e.relatedTarget) marca(false); });
+  document.addEventListener("drop", async e=>{ if(!visible()||!e.dataTransfer||!e.dataTransfer.files.length) return; e.preventDefault(); marca(false);
+    const f=e.dataTransfer.files[0]; if(!/\.(csv|xlsx|xls)$/i.test(f.name)){ toast("Solo CSV o Excel"); return; }
+    if(editandoId && execItems.length && !confirm("Este evento ya está publicado. Cargar «"+f.name+"» REEMPLAZA su lista de requerimientos.\n\nPara solo completar datos sin tocar la lista, usa «Completar ficha desde plantilla».\n\n¿Reemplazar la lista?")) return;
+    await cargarReq(f); }); })();
 $("ebtnFicha").addEventListener("click", ()=>$("efileFicha").click());
 $("efileFicha").addEventListener("change", e=>{ if(e.target.files[0]) completarFicha(e.target.files[0]); e.target.value=""; });
 ["ecliente","eevento"].forEach(id=>$(id).addEventListener("input", chequearGen));
+if($("eege")) $("eege").addEventListener("input", ()=>{ const v=normEge($("eege").value); $("eegeInfo").classList.toggle("hide", !v || EGE_RX.test(v)); });
 $("egen").addEventListener("click", generarAcceso);
 $("acCopy").addEventListener("click", ()=>{ if(navigator.clipboard) navigator.clipboard.writeText(invitacionTexto()); $("acCopy").textContent="Invitación copiada ✓"; toast("Invitación copiada ✓"); });
 $("acGo").addEventListener("click", ()=>{ saveConfigDesdeExec(); irALogin(); });
@@ -656,7 +690,7 @@ async function renderHistorial(){
   else arr=Object.values(eventos());                           // respaldo: cache local si no hay señal
   arr=arr.slice().sort((a,b)=>(b.consec||0)-(a.consec||0));
   if(!arr.length){ l.innerHTML='<div class="mut">Aún no hay eventos configurados.</div>'; return; }
-  l.innerHTML=arr.map(e=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${escAttr(e.cl||"")} — ${escAttr(e.ev||"")}${e.fe?` <span class="mut" style="margin:0">(${escAttr(e.fe)})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.n_items||0} evidencias</div><div class="ac"><a class="lnk" onclick="copiarLinkEv('${uidSeguro(e.uid)}','oper')">link proveedor</a><a class="lnk" onclick="copiarLinkEv('${uidSeguro(e.uid)}','exec')">link para editar</a><a class="lnk" onclick="editarEventoId('${uidSeguro(e.uid)}')">editar</a></div></div></div>`).join("");
+  l.innerHTML=arr.map(e=>`<div class="ev"><div class="in"><b style="color:var(--azul)">${evConsecTag(e.consec)}</b> · ${escAttr(e.cl||"")} — ${escAttr(e.ev||"")}${e.config&&e.config.ege?` <span style="color:var(--azul)">· ${escAttr(e.config.ege)}</span>`:""}${e.fe?` <span class="mut" style="margin:0">(${escAttr(e.fe)})</span>`:""}<div class="mut" style="margin:2px 0 0">${e.n_items||0} evidencias</div><div class="ac"><a class="lnk" onclick="copiarLinkEv('${uidSeguro(e.uid)}','oper')">link proveedor</a><a class="lnk" onclick="copiarLinkEv('${uidSeguro(e.uid)}','exec')">link para editar</a><a class="lnk" onclick="editarEventoId('${uidSeguro(e.uid)}')">editar</a></div></div></div>`).join("");
 }
 window.copiarLinkEv=(uid,tipo)=>{ const u=tipo==="exec"?linkExec(uid):linkOper(uid); copiarAlPortapapeles(u, (tipo==="exec"?"Enlace para editar":"Enlace del proveedor")); };   // siempre el enlace directo ?ev=
 window.editarEventoId=(uid)=>{ editarEvento(uid); };
@@ -675,7 +709,7 @@ window.grupoExec=(idx,v)=>{ const it=execItems[idx]; if(!it) return; it.grupo=St
    que no eran de su evento. Para partir de una copia está "Duplicar como evento nuevo". */
 function nuevoExec(){
   epdAuto=false;   /* v38: el auto-encendido de «por día» es solo para eventos nuevos */
-  $("ecliente").value=""; $("eevento").value=""; $("efecha").value=""; $("efechafin").value=""; $("epd").checked=false; $("eciudad").value="";
+  $("ecliente").value=""; $("eevento").value=""; $("efecha").value=""; $("efechafin").value=""; $("epd").checked=false; $("eciudad").value=""; if($("eege")){ $("eege").value=""; $("eegeInfo").classList.add("hide"); }
   execItems=[]; renderExecItems();
   $("emPos").value="bl"; $("emEsc").value="3.4"; $("emOn").checked=true; $("emGal").checked=true; $("emVf").checked=true; $("emMm").value="fh";   /* v42.1: eventos nuevos exigen fecha y hora originales (decisión de Daniel 29-sep) */
   if($("acWrap")) $("acWrap").classList.add("hide");
@@ -686,7 +720,7 @@ function nuevoExec(){
   if($("execNuevo")) $("execNuevo").classList.remove("hide");
   window.scrollTo(0,0);
 }
-function prefillExec(){ if(cfg){ epdAuto=true;   /* v38: evento existente = se respeta su cfg.pd guardado; antes se prendía solo al abrir el enlace del productor */ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("efechafin").value=cfg.ff||""; $("epd").checked=!!cfg.pd; $("eciudad").value=cfg.ci||""; execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",grupo:i.grupo||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null)),mn:parseMin(i.mn)})); renderExecItems();
+function prefillExec(){ if(cfg){ epdAuto=true;   /* v38: evento existente = se respeta su cfg.pd guardado; antes se prendía solo al abrir el enlace del productor */ $("ecliente").value=cfg.cl||""; $("eevento").value=cfg.ev||""; $("efecha").value=cfg.fe||""; $("efechafin").value=cfg.ff||""; $("epd").checked=!!cfg.pd; $("eciudad").value=cfg.ci||""; if($("eege")){ $("eege").value=cfg.ege||""; $("eegeInfo").classList.add("hide"); } execItems=itemsCfg().map(i=>({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",grupo:i.grupo||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null)),mn:parseMin(i.mn)})); renderExecItems();
     const mk=cfg.marca||{}; $("emPos").value=mk.pos||"bl"; $("emEsc").value=mk.esc||"3.4"; $("emOn").checked=mk.on!==false; $("emGal").checked=cfg.gal!==false; $("emVf").checked=cfg.vf!==false; $("emMm").value=cfg.mm||""; } if(typeof renderHistorial==="function") renderHistorial();
   editandoId=null; aplicarModoExec(); }   // por defecto: modo NUEVO (los que editan fijan editandoId DESPUÉS y llaman aplicarModoExec)
 /* Modo de la vista ejecutivo: EDITAR (editandoId fijado) muestra solo "Guardar cambios" + "Duplicar";
@@ -911,8 +945,8 @@ let execItems = [];
 /* Lee la plantilla y devuelve {filas, items} con los mismos criterios de columnas.
    Se usa tanto para CARGAR la lista como para COMPLETAR la ficha de un evento ya publicado. */
 async function parsearPlantilla(file){
-  const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
-  const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:""});
+  const wb = await leerLibro(file);
+  const rows = XLSX.utils.sheet_to_json(hojaDatos(wb), {defval:""});
   const get=(o,n)=>{ for(const k in o){ if(n.includes(k.trim().toLowerCase())) return String(o[k]).trim(); } return ""; };
   const items = rows.map(r=>({
       codigo:get(r,["item_codigo","codigo","código","item","ítem","id","cod"]), req:get(r,["requerimiento","descripcion","descripción","detalle","concepto"]), cant:get(r,["cantidad","cant","qty","unidades"]), prov:get(r,["nombre proveedores","nombre proveedor","proveedor","provider","prov","proveedor_nombre","empresa","contratista"]), nit:get(r,["nit proveedor","nit","nit_proveedor","identificacion proveedor","identificación proveedor"]),
@@ -931,7 +965,7 @@ async function completarFicha(file){
   const inf=$("efichaInfo");
   try{
     if(!execItems.length){ inf.textContent="Primero abre o carga un evento con requerimientos."; return; }
-    const {items} = await parsearPlantilla(file);
+    const {items} = await parsearPlantilla(file); ajustarCodigos(items, execItems);
     if(!items.length){ inf.textContent="No pude leer requerimientos en ese archivo."; return; }
     const mapa={}; anotarIids(items).forEach(it=>{ mapa[it.iid]=it; });
     let ok=0, sin=0;
@@ -956,21 +990,27 @@ async function completarFicha(file){
 }
 async function cargarReq(file){
   try{
-    const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
-    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:""});
+    const wb = await leerLibro(file);
+    const rows = XLSX.utils.sheet_to_json(hojaDatos(wb), {defval:""});
     const get=(o,n)=>{ for(const k in o){ if(n.includes(k.trim().toLowerCase())) return String(o[k]).trim(); } return ""; };
+    const previos=execItems.slice();
     execItems = rows.map(r=>({ codigo:get(r,["item_codigo","codigo","código","item","ítem","id","cod"]), req:get(r,["requerimiento","descripcion","descripción","detalle","concepto"]), cant:get(r,["cantidad","cant","qty","unidades"]), prov:get(r,["nombre proveedores","nombre proveedor","proveedor","provider","prov","proveedor_nombre","empresa","contratista"]), nit:get(r,["nit proveedor","nit","nit_proveedor","identificacion proveedor","identificación proveedor"]), cat:get(r,["categoria","categoría","modulo","módulo","grupo","hoja"]),
       car:get(r,["caracteristicas","características","especificaciones","observaciones","nota"]),
       um:get(r,["unidad de medida","unidad_de_medida","unidad","um","medida"]),
       dias:get(r,["dias","días","dias_servicio"]), fechas:parseFechas(get(r,["fechas","fechas requeridas","dias especificos","días específicos","fechas_evidencia"])), pd:parseBool(get(r,["por dia","por día","por_dia","evidencia por dia","evidencia por día","evidencia diaria","diaria"])), mn:parseMin(get(r,["evidencias minimas","evidencias mínimas","evidencia minima","evidencia mínima","minimo evidencias","mínimo evidencias","min evidencias","evidencias_minimas","min_evidencias","minimo","mínimo","fotos minimas","fotos mínimas"])) })).filter(x=>x.req||x.codigo);
     let mx=0; execItems.forEach(it=>{ const n=parseInt(String(it.codigo).replace(/\D/g,""),10); if(!isNaN(n)&&n>mx)mx=n; });
     execItems.forEach(it=>{ if(!String(it.codigo).trim()){ mx++; it.codigo=String(mx).padStart(2,"0"); } });   // la app asigna código a los ítems sin código
-    const c=rows.map(r=>get(r,["cliente","client"])).find(Boolean), e=rows.map(r=>get(r,["evento","nombre_evento"])).find(Boolean), ci=rows.map(r=>get(r,["ciudad","municipio"])).find(Boolean);
-    if(c && !$("ecliente").value) $("ecliente").value=c;
-    if(e && !$("eevento").value) $("eevento").value=e;
-    if(ci && !$("eciudad").value) $("eciudad").value=ci;
-    if(!execItems.length) $("ereqInfo").textContent="No se encontró la columna de código (item_codigo / codigo / id).";
-    renderExecItems();
+    ajustarCodigos(execItems, previos);
+    /* v50 · cabecera del evento: llena lo vacío; si el formulario ya trae otro valor, NO lo pisa y avisa. */
+    const col=n=>rows.map(r=>get(r,n)).find(Boolean)||"", avisos=[];
+    const pon=(id,val,nom)=>{ const el=$(id); if(!val||!el) return; if(!el.value) el.value=val; else if(el.value.trim()!==val) avisos.push(`${nom}: se dejó «${el.value.trim()}» (el archivo dice «${val}»)`); };
+    pon("ecliente",col(["cliente","client"]),"Cliente"); pon("eevento",col(["evento","nombre_evento","nombre del evento"]),"Evento"); pon("eciudad",col(["ciudad","municipio"]),"Ciudad");
+    const ege=normEge(col(["codigo_evento","código_evento","codigo evento","código evento","codigo del evento","código del evento","ege"]));
+    pon("eege",ege,"Código"); pon("efecha",fechaISO(col(["fecha_inicio","fecha inicio","fecha de inicio","fecha"])),"Fecha de inicio"); pon("efechafin",fechaISO(col(["fecha_fin","fecha fin","fecha de fin"])),"Fecha fin");
+    if($("eege")&&$("eegeInfo")){ const v=normEge($("eege").value); $("eegeInfo").classList.toggle("hide", !v || EGE_RX.test(v)); }
+    if(!execItems.length) $("ereqInfo").textContent = esTablero(wb) ? "El tablero no trae renglones en la hoja «CSV app». Elige el evento en Inicio (celda C4), espera que se calcule y vuelve a descargar el archivo." : "No se encontró la columna de código (item_codigo / codigo / id).";
+    renderExecItems(); if(typeof chequearGen==="function") chequearGen();
+    if(execItems.length && (ege||avisos.length)){ const inf=$("ereqInfo"); inf.textContent=(inf.textContent?inf.textContent+" · ":"")+(ege?"Código "+ege+" cargado.":"")+(avisos.length?" ⚠ "+avisos.join(" · "):""); }   // v50: después de renderExecItems, que reescribe este texto
   }catch(err){ $("ereqInfo").textContent="No se pudo leer: "+err.message; }
 }
 function chequearGen(){ $("egen").disabled = !(execItems.length && $("ecliente").value.trim() && $("eevento").value.trim()); }
@@ -980,6 +1020,7 @@ function saveConfigDesdeExec(){
           it:execItems.map(i=>Object.assign({codigo:i.codigo,req:i.req,cant:i.cant||"",prov:i.prov||"",nit:i.nit||"",cat:i.cat||"",car:i.car||"",um:i.um||"",dias:i.dias||"",fechas:parseFechas(i.fechas||[]),pd:(i.pd===true?true:(i.pd===false?false:null)),mn:parseMin(i.mn)}, i.grupo?{grupo:i.grupo}:{})),
           marca:{pos:$("emPos").value, esc:$("emEsc").value, on:$("emOn").checked}, gal:$("emGal").checked, vf:$("emVf").checked, mm:$("emMm").value };   /* v42: mm = qué hacer con fotos de galería sin metadatos ("" aceptar y marcar · fh · fhu) */   /* v38: vf=false → no se exige que la foto sea de las fechas del evento */   // marca definida por el ejecutivo, igual para todos
   if(uid) cfg.uid=uid; if(consec) cfg.consec=consec;
+  const ege=normEge($("eege")?$("eege").value:""); if(ege) cfg.ege=ege;   // v50: solo si hay código (los eventos sin código quedan idénticos)
   saveJSON(NS+"config", cfg);
 }
 let accesoLink="", accesoExec="", accesoCorto="", editandoId=null;
@@ -993,7 +1034,7 @@ async function generarAcceso(){
 }
 /* Panel de acceso: consecutivo + ambos enlaces (operador + ejecutivo) acortados; guarda en Supabase. */
 async function mostrarAcceso(consec){
-  $("invCli").textContent = evConsecTag(consec)+" · "+(cfg.cl || "—");
+  $("invCli").textContent = evConsecTag(consec)+(cfg.ege?" · "+cfg.ege:"")+" · "+(cfg.cl || "—");
   $("invEv").textContent = [cfg.ev, cfg.fe?(cfg.fe+(cfg.ff&&cfg.ff!==cfg.fe?" → "+cfg.ff:"")):"", cfg.ci, cfg.pd?"evidencia por día":""].filter(Boolean).join("  ·  ");
   $("acWrap").classList.remove("hide"); $("acCopy").textContent="Copiar invitación (proveedor)";
   accesoCorto=accesoLink;   // sin acortador: el enlace ?ev= ya es corto, DIRECTO y estable (sin página intermedia)
@@ -1029,7 +1070,7 @@ async function guardarEventoEditado(){
 function invitacionTexto(){
   const link = accesoCorto || accesoLink;
   const l2 = [cfg.ev, cfg.fe, cfg.ci].filter(Boolean).join(" · ");
-  return `Invitación — Captura de evidencias\nCliente: ${cfg.cl}\n${l2?("Evento: "+l2+"\n"):""}\nIngresa a la plataforma para cargar tus evidencias:\n${link}\n\nÁbrelo en tu celular, regístrate (nombre, cédula y celular) y comienza a capturar.`;
+  return `Invitación — Captura de evidencias\nCliente: ${cfg.cl}\n${l2?("Evento: "+l2+"\n"):""}${cfg.ege?("Código: "+cfg.ege+"\n"):""}\nIngresa a la plataforma para cargar tus evidencias:\n${link}\n\nÁbrelo en tu celular, regístrate (nombre, cédula y celular) y comienza a capturar.`;
 }
 
 /* ---- OPERADOR: login ---- */
@@ -1346,7 +1387,7 @@ function adminRenderDash(){
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:12px;color:var(--azul)">🔎 Ver: ${activos.length?"filtrado":"todo"}</b>${activos.length?`<a class="lnk" id="segTodo">Todo (limpiar filtros)</a>`:""}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">`
     +sel("segCl",opt(clientes,"Todos los clientes",s.cl))
-    +sel("segEv",opt(eventosOpc.map(e=>[e.uid,evConsecTag(e.consec)+" · "+(e.ev||"")]),"Todos los eventos",s.ev),150)
+    +sel("segEv",opt(eventosOpc.map(e=>[e.uid,evConsecTag(e.consec)+(e.config&&e.config.ege?" · "+e.config.ege:"")+" · "+(e.ev||"")]),"Todos los eventos",s.ev),150)
     +sel("segMes",opt(meses,"Todos los meses",s.mes,fmtMes),110)
     +sel("segEstado",opt([["curso","En curso"],["cerrado","Cerrados"],["proximo","Próximos"]],"Cualquier estado",s.estado),110)
     +sel("segProv",opt(provs,"Todas las empresas proveedoras",s.prov),150)
@@ -1383,7 +1424,7 @@ function adminRenderDash(){
   l.innerHTML=seg+dash+(visibles.length?visibles.map(i=>{
       const e=adminEventos[i], m=adminMetricas[i];
       const est=(v,t,c)=>`<div${c?` class="${c}"`:""}><b>${v}</b><span>${t}</span></div>`;
-      return `<div class="ev adEv"><div class="t1"><b>${evConsecTag(e.consec)}</b> · ${escAttr(e.cl)}${e.fe?` · ${escAttr(e.fe)}${e.config&&e.config.ff&&e.config.ff!==e.fe?" → "+escAttr(e.config.ff):""}`:""}${e.config&&e.config.pd?` · <span style="color:var(--azul);font-weight:600">por día</span>`:""}</div>`
+      return `<div class="ev adEv"><div class="t1"><b>${evConsecTag(e.consec)}</b>${e.config&&e.config.ege?` · <span style="color:var(--azul)">${escAttr(e.config.ege)}</span>`:""} · ${escAttr(e.cl)}${e.fe?` · ${escAttr(e.fe)}${e.config&&e.config.ff&&e.config.ff!==e.fe?" → "+escAttr(e.config.ff):""}`:""}${e.config&&e.config.pd?` · <span style="color:var(--azul);font-weight:600">por día</span>`:""}</div>`
         +`<div class="t2">${escAttr(e.ev)}</div>`
         +`<div class="av">${bar(m.av)}<b style="color:${m.av>=100?'#1a9e56':'var(--azul)'}">${m.av}%</b></div>`
         +`<div class="st">${est(m.n+(m.n!==m.tot?`<small class="mut" style="margin:0;font-weight:500"> de ${m.tot}</small>`:""),"Requerimientos")}${est(m.conEvi,"Con evidencia")}${est(m.comp,"Completos")}${est(m.pend,"Pendientes",m.pend?"pend":"")}${est(m.reg.toLocaleString("es-CO"),"Evidencias")}${est(m.extras,"Extras en sitio",m.extras?"ext":"")}</div>`
@@ -1473,7 +1514,7 @@ window.adminBorrarEvento=async(i)=>{ if(!esAdmin()){ toast("Solo un administrado
     const r=await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid)+"&select=storage_path",{headers:adminHeaders()});
     if(r.status===401){ adminSesExpirada(); return; }
     const evs = r.ok ? await r.json() : [];
-    for(const e of evs){ if(e.storage_path){ try{ const p=e.storage_path.replace(/^evidencias\//,"").split("/").map(encodeURIComponent).join("/"); await fetch(SB_URL+"/storage/v1/object/evidencias/"+p,{method:"DELETE",headers:adminHeaders()}); for(const pre of ["thumbs/","orig/","prev/"]) await fetch(SB_URL+"/storage/v1/object/evidencias/"+pre+p,{method:"DELETE",headers:adminHeaders()}); }catch(_){} } }
+    for(const e of evs){ if(e.storage_path){ try{ const p=e.storage_path.replace(/^evidencias\//,"").split("/").map(encodeURIComponent).join("/"); await fetch(SB_URL+"/storage/v1/object/evidencias/"+p,{method:"DELETE",headers:adminHeaders()}); for(const pre of ["thumbs/","orig/","prev/"]) await fetch(SB_URL+"/storage/v1/object/evidencias/"+pre+p,{method:"DELETE",headers:adminHeaders()}); if((e.tipo||"foto")==="video") await fetch(SB_URL+"/storage/v1/object/evidencias/portada/"+p+".jpg",{method:"DELETE",headers:adminHeaders()}); }catch(_){} } }
     await fetch(SB_URL+"/rest/v1/evidencias?evento_uid=eq."+encodeURIComponent(ev.uid),{method:"DELETE",headers:Object.assign({},adminHeaders(),{Prefer:"return=representation",Accept:"application/json"})});
     const de=await fetch(SB_URL+"/rest/v1/eventos?uid=eq."+encodeURIComponent(ev.uid),{method:"DELETE",headers:Object.assign({},adminHeaders(),{Prefer:"return=representation",Accept:"application/json"})});
     if(!de.ok){ alert("No se pudo borrar el evento (HTTP "+de.status+").\n\nCorre las Capas 5 y 6 en Supabase y reintenta."); return; }
@@ -1529,7 +1570,7 @@ function eviKey(e){ return e.item_id || ((e.evento_uid||"")+"|"+iidDe(e.item,e.c
 function cargarJS(src){ return new Promise((ok,ko)=>{ if(document.querySelector('script[data-src="'+src+'"]')) return ok(); const s=document.createElement("script"); s.src=src; s.dataset.src=src; s.onload=()=>ok(); s.onerror=()=>ko(new Error("No se pudo cargar "+src)); document.head.appendChild(s); }); }
 window.adminInforme=async()=>{
   const ev=adminEventos[adminEventoActual]; if(!ev||!adminEvidencias.length){ toast("Abre un evento con evidencias"); return; }
-  try{ if(!window.InformeEstrella) await cargarJS("informe.js?v=29"); }catch(e){ toast("No cargó el generador de informes (revisa la conexión)"); return; }
+  try{ if(!window.InformeEstrella) await cargarJS("informe.js?v=30"); }catch(e){ toast("No cargó el generador de informes (revisa la conexión)"); return; }
   adminDlCancel=false;
   InformeEstrella.abrir({ev, evidencias:adminEvidencias, visibles:adminVis, contenedor:$("adInf"), bajarBlob:adminBajarBlob,
     deps:{anotarIids, iidDe, fechasDeItem, candidatoPorDia, isoHoy, slug, bajar, loadJSON, saveJSON, NS}});
@@ -1564,9 +1605,9 @@ function bloqueExtras(arr){
 window.adminExtrasCSV=()=>{
   const x=extrasDeEvidencias(adminEvidencias); if(!x.length){ toast("Sin adicionales"); return; }
   const ev=adminEventos[adminEventoActual]||{};
-  const cols=["item","requerimiento","cantidad","proveedor","proveedor_nit","solicitado_por","justificacion","operador","fotos"];
-  let csv=cols.join(",")+"\n";
-  x.forEach(e=>{ csv+=[e.item,e.req,e.cant,e.prov,e.nit,e.quien,e.nota,e.oper,e.fotos].map(csvCell).join(",")+"\n"; });
+  const cols=["item","requerimiento","cantidad","proveedor","proveedor_nit","solicitado_por","justificacion","operador","fotos","codigo_evento"];
+  let csv=cols.join(",")+"\n"; const g=(ev.config&&ev.config.ege)||"";
+  x.forEach(e=>{ csv+=[e.item,e.req,e.cant,e.prov,e.nit,e.quien,e.nota,e.oper,e.fotos,g].map(csvCell).join(",")+"\n"; });
   bajar(new Blob([csv],{type:"text/csv"}), `extras_${slug(ev.cl||"")}_${slug(ev.ev||"")}.csv`);
 };
 /* ---- Capa 14 · VISOR LIVIANO: filas de a páginas, vista previa sólo de lo que está en pantalla (miniatura si existe,
@@ -1709,7 +1750,7 @@ function renderAdminEvidencias(){
   if(!adminVis.length) cont.innerHTML='<div class="mut" style="padding:8px 2px">Ninguna evidencia coincide con el filtro.</div>'; else adminMostrarMas();
   if($("adFltInfo")){ const f=q||fp||fo||fc||fr||fi; $("adFltInfo").textContent = f ? `Mostrando ${adminVis.length} de ${adminEvidencias.length}` : `${adminEvidencias.length} evidencia(s)`; }
 }
-function adminFilaHTML(e,j){ return `<div class="ev">${(esAdmin()&&$("adCorr")&&(e.tipo||"foto")!=="video"&&eviFaltantes(e).length)?`<input type="checkbox" class="adSel" data-j="${j}" ${adminSel.has(j)?"checked":""} onchange="adminSelToggle(${j},this.checked)" style="width:auto;margin:0 4px 0 0;flex:none;align-self:center" aria-label="Seleccionar para corregir">`:""}<div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})">${(e.tipo||"foto")==="video"?`<div style="width:66px;height:66px;border-radius:7px;background:#e9eef5;display:flex;align-items:center;justify-content:center;font-size:24px">🎬</div>`:`<img id="adimg${j}" data-j="${j}" alt="" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5">`}</div><div class="in">${e.categoria?`<span class="cchip">${escAttr(e.categoria)}</span> `:""}<b>${escAttr(e.item||"")}</b> · ${escAttr((e.requerimiento||"").slice(0,38))}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${escAttr(e.operador_nombre||"")}${e.operador_cedula?" · "+escAttr(e.operador_cedula):""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+escAttr(e.radicado):""}</div><div class="fn" style="margin-top:3px">${escAttr(e.archivo||"")}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${escAttr((e.lugar||"").slice(0,60))}</div>`:""}${eviFaltantes(e).length?`<div class="mut" style="margin:2px 0 0;color:#b3261e">⚠ sin ${eviFaltantes(e).join(" · sin ")}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a>${esAdmin()?`<a class="lnk" style="color:#b3261e" onclick="adminBorrarEvidencia(${j})">borrar</a>`:""}</div></div></div>`; }
+function adminFilaHTML(e,j){ return `<div class="ev">${(esAdmin()&&$("adCorr")&&(e.tipo||"foto")!=="video"&&eviFaltantes(e).length)?`<input type="checkbox" class="adSel" data-j="${j}" ${adminSel.has(j)?"checked":""} onchange="adminSelToggle(${j},this.checked)" style="width:auto;margin:0 4px 0 0;flex:none;align-self:center" aria-label="Seleccionar para corregir">`:""}<div style="flex:none;width:66px;height:66px;cursor:pointer" onclick="adminVerFoto(${j})">${(e.tipo||"foto")==="video"?`<div style="position:relative;width:66px;height:66px;border-radius:7px;background:#e9eef5;display:flex;align-items:center;justify-content:center;font-size:24px">🎬<img id="adimg${j}" data-j="${j}" alt="" style="position:absolute;inset:0;width:66px;height:66px;object-fit:cover;border-radius:7px;opacity:0" onload="this.style.opacity=1"><span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-size:20px;text-shadow:0 1px 4px #000">▶</span></div>`:`<img id="adimg${j}" data-j="${j}" alt="" style="width:66px;height:66px;object-fit:cover;border-radius:7px;background:#e9eef5">`}</div><div class="in">${e.categoria?`<span class="cchip">${escAttr(e.categoria)}</span> `:""}<b>${escAttr(e.item||"")}</b> · ${escAttr((e.requerimiento||"").slice(0,38))}${e.adicional?' <span style="color:var(--oro-d)">[ADIC]</span>':''}<div class="mut" style="margin:2px 0 0">${escAttr(e.operador_nombre||"")}${e.operador_cedula?" · "+escAttr(e.operador_cedula):""}</div><div class="mut" style="margin:0">Cargada: ${fmtFecha(e.creado)}${e.radicado?" · "+escAttr(e.radicado):""}</div><div class="fn" style="margin-top:3px">${escAttr(e.archivo||"")}</div>${e.lugar?`<div class="mut" style="margin:2px 0 0">📍 ${escAttr((e.lugar||"").slice(0,60))}</div>`:""}${eviFaltantes(e).length?`<div class="mut" style="margin:2px 0 0;color:#b3261e">⚠ sin ${eviFaltantes(e).join(" · sin ")}</div>`:""}<div class="ac" style="margin-top:4px"><a class="lnk" onclick="descargarFoto(${j})">descargar foto</a>${esAdmin()?`<a class="lnk" style="color:#b3261e" onclick="adminBorrarEvidencia(${j})">borrar</a>`:""}</div></div></div>`; }
 function adminMostrarMas(){
   const cont=$("adEviList"); if(!cont) return; const btn=$("adMas"); if(btn) btn.remove();
   const fin=Math.min(adminVis.length, adminMostrados+AD_PAGINA); let html="";
@@ -1724,7 +1765,7 @@ function adminEncolar(j){ if(adminFotoURLs[j] || adminCola.includes(j)) return; 
 function adminBombear(){ while(adminEnCurso<AD_CONC && adminCola.length){ const j=adminCola.shift(); adminEnCurso++; const g=adminGen; adminCargarMiniatura(j).finally(()=>{ if(g===adminGen){ adminEnCurso--; adminBombear(); } }); } }
 async function adminCargarMiniatura(j){
   const e=adminEvidencias[j]; const img=$("adimg"+j); if(!e||!img||!e.storage_path) return; const g=adminGen;
-  const intentos = (String(e.creado||"")>=THUMB_DESDE) ? [thumbPath(e), e.storage_path] : [e.storage_path];   // fotos viejas: no hay miniatura, va la original
+  const intentos = ((e.tipo||"foto")==="video") ? [thumbPath(e)] : (String(e.creado||"")>=THUMB_DESDE) ? [thumbPath(e), e.storage_path] : [e.storage_path];   /* v50.12: el video nunca baja el original como imagen */   // fotos viejas: no hay miniatura, va la original
   for(const p of intentos){
     try{ const r=await fetchTO(adminUrlObjeto(p),{headers:adminHeaders()},25000); if(g!==adminGen) return; if(r.status===401){ adminSesExpirada(); return; } if(!r.ok) continue;
       const b=await r.blob(); if(g!==adminGen) return; const u=URL.createObjectURL(b); adminFotoURLs[j]={url:u,nombre:e.archivo||"",mini:p!==e.storage_path}; adminCacheOrden.push(j); img.src=u; adminPodarCache(); return;
@@ -1753,7 +1794,8 @@ window.adminBorrarEvidencia=async(j)=>{ if(!esAdmin()){ toast("Solo un administr
     if(e.storage_path){ try{ const p=e.storage_path.replace(/^evidencias\//,"").split("/").map(encodeURIComponent).join("/");
       await fetch(SB_URL+"/storage/v1/object/evidencias/"+p, {method:"DELETE", headers:adminHeaders()});
       await fetch(SB_URL+"/storage/v1/object/evidencias/thumbs/"+p, {method:"DELETE", headers:adminHeaders()});
-      for(const pre of ["orig/","prev/"]) await fetch(SB_URL+"/storage/v1/object/evidencias/"+pre+p, {method:"DELETE", headers:adminHeaders()}); }catch(_){} }   // Capa 14: miniatura · v43: original y respaldo
+      for(const pre of ["orig/","prev/"]) await fetch(SB_URL+"/storage/v1/object/evidencias/"+pre+p, {method:"DELETE", headers:adminHeaders()});
+      if((e.tipo||"foto")==="video") await fetch(SB_URL+"/storage/v1/object/evidencias/portada/"+p+".jpg", {method:"DELETE", headers:adminHeaders()}); }catch(_){} }   // Capa 14: miniatura · v43: original y respaldo
     toast("Evidencia borrada ✓");
     if(adminEventoActual!=null) adminAbrir(adminEventoActual);   // refresca la vista del evento
   }catch(_){ toast("Error al borrar"); }
@@ -1764,9 +1806,9 @@ $("lightbox").addEventListener("click", e=>{ if(e.target.id==="lightbox") $("lig
 /* Manifiesto CSV del evento (se genera desde la tabla -> siempre al día con todo lo enviado) */
 window.adminManifiesto=()=>{
   const arr=adminEvidencias; if(!arr.length){ toast("Sin evidencias"); return; }
-  const cols=["radicado","evento_consec","cliente","evento","categoria","item","item_id","requerimiento","cantidad","proveedor","adicional","solicitado_por","justificacion","operador_nombre","operador_cedula","operador_celular","tipo","archivo","fecha","hora","lugar","lat","lon","creado"];
+  const cols=["radicado","evento_consec","cliente","evento","categoria","item","item_id","requerimiento","cantidad","proveedor","adicional","solicitado_por","justificacion","operador_nombre","operador_cedula","operador_celular","tipo","archivo","fecha","hora","lugar","lat","lon","creado","codigo_evento","id_item_ege"];
   let csv=cols.join(",")+"\n";
-  arr.forEach(e=>{ csv+=cols.map(c=>{ const v=(c==="evento_consec")?(e.consec?evConsecTag(e.consec):""):(e[c]!=null?e[c]:""); return csvCell(v); }).join(",")+"\n"; });
+  arr.forEach(e=>{ const g=egeDeUid(e.evento_uid); csv+=cols.map(c=>{ const v=(c==="evento_consec")?(e.consec?evConsecTag(e.consec):""):(c==="codigo_evento")?g:(c==="id_item_ege")?idItemEge(g,e.item,e.adicional):(e[c]!=null?e[c]:""); return csvCell(v); }).join(",")+"\n"; });
   bajar(new Blob([csv],{type:"text/csv"}), `manifiesto_${slug(arr[0].cliente||"")}_${slug(arr[0].evento||"")}.csv`);
 };
 /* ZIP con las fotos cargadas + manifiesto */
@@ -1775,7 +1817,7 @@ window.adminManifiesto=()=>{
    Respeta el filtro activo del visor. Reintenta 4 veces cada foto y deja FALLIDAS.txt si alguna no bajó. ---- */
 let adminDlCancel=false; const AD_ZIP_TAM=500;
 function nombreSeguro(n){ n=String(n||"foto.jpg").replace(/[\/\\:*?"<>|\x00-\x1f]/g,"_"); const ext=(n.match(/\.[A-Za-z0-9]{2,5}$/)||[""])[0]; let base=n.slice(0,n.length-ext.length); const enc=new TextEncoder(); while(base.length>1 && enc.encode(base+ext).length>200) base=base.slice(0,-1); return base+ext; }
-function adminManifiestoCSV(lista){ const cols=["radicado","cliente","evento","categoria","item","item_id","requerimiento","proveedor","proveedor_nit","operador_nombre","archivo","tipo","fecha","hora","lugar","creado","fecha_origen","dia_evento","dias_evento","adicional","cantidad","solicitado_por","justificacion","grupo","declarado_por"]; let csv=cols.join(",")+"\n"; lista.forEach(e=>{ csv+=cols.map(c=>csvCell(e[c]!=null?e[c]:"")).join(",")+"\n"; }); return csv; }
+function adminManifiestoCSV(lista){ const cols=["radicado","cliente","evento","categoria","item","item_id","requerimiento","proveedor","proveedor_nit","operador_nombre","archivo","tipo","fecha","hora","lugar","creado","fecha_origen","dia_evento","dias_evento","adicional","cantidad","solicitado_por","justificacion","grupo","declarado_por","codigo_evento","id_item_ege"]; let csv=cols.join(",")+"\n"; lista.forEach(e=>{ const g=egeDeUid(e.evento_uid); csv+=cols.map(c=>csvCell(c==="codigo_evento"?g:c==="id_item_ege"?idItemEge(g,e.item,e.adicional):(e[c]!=null?e[c]:""))).join(",")+"\n"; }); return csv; }
 function adminDlPanel(html){ const p=$("adDl"); if(!p) return; p.classList.remove("hide"); p.innerHTML=html; }
 function adminDlProgreso(t,hechas,total,fall){ adminDlPanel(`<div style="font-weight:700">${escAttr(t)}</div><div style="height:7px;border-radius:6px;background:#e9e9ee;overflow:hidden;margin:5px 0"><div style="height:100%;width:${total?Math.round(hechas/total*100):0}%;background:var(--azul)"></div></div><div class="mut" style="margin:0">${hechas}/${total}${fall?` · <span style="color:#b3261e">fallidas ${fall}</span>`:""} · <a class="lnk" onclick="adminDlCancelar()">cancelar</a></div>`); }
 window.adminDlCancelar=()=>{ adminDlCancel=true; };
@@ -2109,6 +2151,27 @@ window.addEventListener("online", ()=>{ if(batch.some(e=>e.status==="listo"&&e.d
 /* v49.8 (23-nov): lote máximo de 12 evidencias por envío (~40 s por datos móviles). Sin señal no hay tope (no se pierde
    evidencia) y la «Carga de administrador» tampoco lo tiene. */
 const LOTE_MAX=12;
+/* v50.12 (23-nov) · VIDEO: hasta 1 min, 720p (~11 MB/min), máx. 3 por lote; los de la cámara del celular, máx. 1 min y 50 MB.
+   Al video NO se le graba la marca (habría que re-codificarlo cuadro a cuadro); lleva una PORTADA sellada (primer cuadro +
+   sello) que se sube a thumbs/ (visor del admin) y a portada/<archivo>.jpg. */
+const VID_MAX_SEG=60, VID_MAX_MB=50, VID_MAX_LOTE=3, VID_BPS=1500000;
+const MSG_VID_LOTE=`Máximo ${VID_MAX_LOTE} videos por envío. Envía estos y luego graba los demás.`;
+function durVideo(file){ return new Promise(res=>{ try{ const v=document.createElement("video"); v.preload="metadata"; v.muted=true; const u=URL.createObjectURL(file);
+  let ok=false; const fin=d=>{ if(ok) return; ok=true; URL.revokeObjectURL(u); res(d); };
+  v.onloadedmetadata=()=>fin(isFinite(v.duration)?v.duration:NaN); v.onerror=()=>fin(NaN); setTimeout(()=>fin(NaN),5000); v.src=u; }catch(_){ res(NaN); } }); }
+/* Primer cuadro útil del video en un lienzo de lado máximo `lado` (para la portada sellada). null si el navegador no puede. */
+function frameVideo(file, lado){ return new Promise(res=>{ try{ const v=document.createElement("video"); v.preload="auto"; v.muted=true; v.playsInline=true;
+  const u=URL.createObjectURL(file); let ok=false; const fin=c=>{ if(ok) return; ok=true; URL.revokeObjectURL(u); res(c||null); };
+  v.onloadeddata=()=>{ try{ const d=isFinite(v.duration)&&v.duration>0?v.duration:2; v.currentTime=Math.min(0.8,d/2); }catch(_){ fin(null); } };
+  v.onseeked=()=>{ try{ const W=v.videoWidth, H=v.videoHeight; if(!W||!H) return fin(null); const k=Math.min(1,lado/Math.max(W,H));
+    const c=document.createElement("canvas"); c.width=Math.round(W*k); c.height=Math.round(H*k); c.getContext("2d").drawImage(v,0,0,c.width,c.height); fin(c); }catch(_){ fin(null); } };
+  v.onerror=()=>fin(null); setTimeout(()=>fin(null),8000); v.src=u; }catch(_){ res(null); } }); }
+function toSubida(e){ return (e.tipo==="video" && e.blob) ? Math.min(240000, Math.max(20000, Math.round(e.blob.size/150))) : 20000; }   // video: piso de ~150 KB/s
+let grabT0=0, grabTimer=null;
+function pararReloj(){ if(grabTimer){ clearInterval(grabTimer); grabTimer=null; } }
+function tickGrab(){ const s=Math.floor((Date.now()-grabT0)/1000), r=Math.max(0,VID_MAX_SEG-s);
+  if($("camhint")) $("camhint").textContent=`Grabando… ${Math.floor(s/60)}:${z(s%60)} de 1:00 · quedan ${r} s`;
+  if(s>=VID_MAX_SEG) detenerGrabacion(); }
 /* v49.9 (23-nov): tope según la velocidad REAL. Cada envío mide bytes/segundo; si fue rápido (≥ 1 MB/s ≈ 12 fotos en
    menos de 20 s, típico de WiFi) se quita el tope por 30 min; un envío lento lo vuelve a poner. Android en WiFi: sin tope
    desde el primero (navigator.connection.type; Safari de iPhone no lo informa). */
@@ -2149,8 +2212,10 @@ function agregar(fileList, meta, metaResp){
     setTimeout(()=>alert(`${libres===1?"Se agregó la primera":"Se agregaron las primeras "+libres}. Lote máximo ${LOTE_MAX} fotos. Quedaron ${fuera} por fuera.`),300); }
   if(!ES_IOS && navigator.onLine===false && !admCargaActiva() && batch.length<=LOTE_MAX && batch.length+arr.length>LOTE_MAX)
     setTimeout(()=>alert(`Sin señal: se guardan en el celular y se envían de a ${LOTE_MAX} cuando vuelva la señal.`),300);   /* v49.8 */
+  let vidsLote=batch.filter(x=>x.tipo==="video").length, avisoVid=false;   /* v50.12 */
   arr.forEach(file=>{
     const video=/^video\//.test(file.type)||/\.(mp4|mov|m4v|3gp|webm|avi|mkv)$/i.test(file.name);
+    if(video && !admCargaActiva()){ if(vidsLote>=VID_MAX_LOTE){ if(!avisoVid){ avisoVid=true; setTimeout(()=>alert(MSG_VID_LOTE),300); } return; } vidsLote++; }
     const ext=video?((file.name.split(".").pop()||"mp4").toLowerCase()):"jpg";
     const e={id:++seq,file,itemCodigo:cod,fechaSel:fSel||"",tipo:video?"video":"foto",ext,status:"procesando",blob:null,thumb:"",datos:{},filename:"",meta:meta||null,metaResp:metaResp||null,cargada};
     if(admCargaActiva() && $("admSinHora") && $("admSinHora").checked){ e.sinHora=true; e.declPor=admCorreo()||"admin"; }   /* v40 */
@@ -2268,7 +2333,16 @@ async function procesar(entry){
       const mla=num(m.lat), mlo=num(m.lon);
       let lugar="",lugLin=[]; if(mla!=null&&mlo!=null){ const d=await geocodeThrottled(mla,mlo); if(d){ lugar=d.txt; lugLin=d.lineas; } }
       entry.datos={fecha:m.fecha||"",hora:m.hora||"",lugar,lugLin,lat:mla,lon:mlo};
-      entry.thumb=await videoThumb(entry.file); entry.blob=entry.file;   // el video va sin marca (sin re-encode)
+      if(!(entry.file&&entry.file._app)){   /* v50.12: video de la cámara del celular → máx. 1 min y 50 MB */
+        const mb=(entry.file.size||0)/1048576, dur=await durVideo(entry.file);
+        const motivo = mb>VID_MAX_MB ? `pesa ${Math.round(mb)} MB (máximo ${VID_MAX_MB} MB)` : (dur>VID_MAX_SEG+1 ? `dura ${Math.floor(dur/60)}:${z(Math.round(dur%60))} (máximo 1:00)` : "");
+        if(motivo){ batch=batch.filter(x=>x!==entry); renderLista(); setTimeout(()=>alert(`El video ${motivo}. No se agregó.\n\nGrábalo desde la app (botón Video, se detiene solo al minuto) o recórtalo y vuelve a intentar.`),50); return; }
+      }
+      entry.blob=entry.file;   // el video va sin marca (sin re-encode)
+      try{ const cv=await enColaPesada(()=>frameVideo(entry.file,1280));   /* v50.12: portada = primer cuadro + sello */
+        if(cv){ const sl=selloDe(entry); const out=await enColaPesada(async()=>dibujar(cv,sl.texto,sl.con,{})); cv.width=cv.height=1;
+          if(out && out.blob && !out.vacio){ entry.portada=out.blob; entry.thumb=out.thumb||""; } } }catch(_){}
+      if(!entry.thumb) entry.thumb=await videoThumb(entry.file);
       entry.status="listo"; renderLista(); return;
     }
     let ex;
@@ -2295,7 +2369,8 @@ async function procesar(entry){
     const sl=selloDe(entry);
     const out=await enColaPesada(async()=>dibujar(await decodificar(entry.file),sl.texto,sl.con,{conOrig:true,cap:true}));   /* v49.4: de a una foto */
     entry.blob=out.blob; entry.thumb=out.thumb; entry.origBlob=out.orig||null;
-    /* v49.5: se comprueba que la foto sellada de la cámara de la app SÍ abre, para no subir nunca una evidencia ilegible. */
+    /* v50.4: la foto de la cámara de la app se sella sin re-abrir el JPG (v50.3); se comprueba que la sellada SÍ abre,
+       para no subir nunca una evidencia ilegible (riesgo en Safari iPhone con la protección contra huella digital). */
     if(entry.file && entry.file._lienzo && !(await sePuedeAbrir(out.blob))){ entry.blob=null; entry.status="⚠ Este navegador no generó una foto legible. Quítala y usa Chrome para «Capturar foto»"; }
     else entry.status = out.vacio ? "⚠ salió en negro — vuelve a tomarla" : "listo";
     if(!lugar && ex.lat!=null) programarCompletado();   // se resella sola en cuanto haya dirección
@@ -2355,7 +2430,7 @@ window.cambiarItem=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e) return;
   if(e.fechaOrigen==="declarada"){ e.fechaDecl=e.fechaSel||e.fechaDecl||""; if(e.datos) e.datos.fecha=e.fechaDecl||""; }
   if(admDeclara(e)){ admAplicar(e); resellar(e).then(renderLista); }   /* v39 */
   renderLista(); if(e.fechaOrigen==="declarada" && fechaEfectiva(e)!==antes && typeof redibujarTodas==="function") redibujarTodas(); };
-window.quitar=(id)=>{ const e=batch.find(x=>x.id===id); if(e && e.file && e.file._lienzo){ e.file._lienzo.width=e.file._lienzo.height=1; }
+window.quitar=(id)=>{ const e=batch.find(x=>x.id===id); if(e && e.file && e.file._lienzo){ e.file._lienzo.width=e.file._lienzo.height=1; }   /* v50.4: libera el lienzo de la captura */
   batch=batch.filter(x=>x.id!==id); renderLista(); };
 /* v49.5 · vista previa de la foto tal como se enviará (con la marca de agua). */
 let previaURL="";
@@ -2415,10 +2490,10 @@ function programarCompletado(){
 function csvCell(v){ v=String(v==null?"":v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 let enviando=false;
 function construirCSV(listas, radicado){
-  let csv="radicado,operador_cedula,operador_nombre,operador_celular,operador_proveedor,cliente,evento,evento_consec,evento_fecha,evento_ciudad,categoria,item,cantidad,proveedor,proveedor_nit,adicional,solicitado_por,justificacion,tipo,archivo,fecha,hora,lugar,lat,lon\n";
+  let csv="radicado,operador_cedula,operador_nombre,operador_celular,operador_proveedor,cliente,evento,evento_consec,evento_fecha,evento_ciudad,categoria,item,cantidad,proveedor,proveedor_nit,adicional,solicitado_por,justificacion,tipo,archivo,fecha,hora,lugar,lat,lon,codigo_evento,id_item_ege\n";
   const evc=cfg.consec?evConsecTag(cfg.consec):""; const rad=radicado||"";
   listas.forEach(e=>{ const ad=itemAdic(e.itemCodigo);
-    csv+=[rad,operador.cedula,operador.nombre,operador.celular,(operador.prov||""),cfg.cl,cfg.ev,evc,cfg.fe||"",cfg.ci||"",itemCat(e.itemCodigo),itemCod(e.itemCodigo),itemCant(e.itemCodigo),itemProv(e.itemCodigo),itemNit(e.itemCodigo),(ad?"SI":""),(ad?ad.solicitadoPor:""),(ad?ad.justificacion:""),e.tipo||"foto",e.filename,e.datos.fecha,e.datos.hora,e.datos.lugar,e.datos.lat,e.datos.lon].map(csvCell).join(",")+"\n"; });
+    csv+=[rad,operador.cedula,operador.nombre,operador.celular,(operador.prov||""),cfg.cl,cfg.ev,evc,cfg.fe||"",cfg.ci||"",itemCat(e.itemCodigo),itemCod(e.itemCodigo),itemCant(e.itemCodigo),itemProv(e.itemCodigo),itemNit(e.itemCodigo),(ad?"SI":""),(ad?ad.solicitadoPor:""),(ad?ad.justificacion:""),e.tipo||"foto",e.filename,e.datos.fecha,e.datos.hora,e.datos.lugar,e.datos.lat,e.datos.lon,(cfg.ege||""),idItemEge(cfg.ege,itemCod(e.itemCodigo),!!ad)].map(csvCell).join(",")+"\n"; });
   return csv;
 }
 async function descargarZIP(listas, csv, exito){
@@ -2500,13 +2575,16 @@ async function subirEvidencia(e, radicado){
     const HE=Object.assign({}, (adm&&adminValido()) ? sesHeaders() : SB_H, {Prefer:"return=minimal"});
     const path=(cfg.uid||"sinuid")+"/"+e.filename;
     const up=await fetchTO(SB_URL+"/storage/v1/object/evidencias/"+encodeURI(path), {method:"POST",
-      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":(e.tipo==="video"?((e.file&&e.file.type)||"video/mp4"):"image/jpeg")}, body:e.blob}, 20000);
+      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":(e.tipo==="video"?((e.file&&e.file.type)||"video/mp4"):"image/jpeg")}, body:e.blob}, toSubida(e));   /* v50.12 */
     if(!up.ok){   // 409 "Duplicate" (reintento de una foto ya subida) cuenta como OK; cualquier otro error sí falla
       let dup=false; try{ const t=await up.json(); dup=!!(t&&(t.statusCode==="409"||t.error==="Duplicate"||t.code==="KeyAlreadyExists")); }catch(_){}
       if(!dup){ ultimoErr="subir foto: HTTP "+up.status; return false; }
     }
-    if((e.tipo||"foto")!=="video"){ try{ const mini=await enColaPesada(()=>miniatura(e.blob,220));   /* v49.6: decodificar de a una aunque se suba de a 3 */ if(mini) await fetchTO(SB_URL+"/storage/v1/object/evidencias/thumbs/"+encodeURI(path), {method:"POST",
+    const fuenteMini=((e.tipo||"foto")==="video")?e.portada:e.blob;   /* v50.12: el video usa su portada sellada */
+    if(fuenteMini){ try{ const mini=await enColaPesada(()=>miniatura(fuenteMini,220));   /* v49.6: decodificar de a una aunque se suba de a 3 */ if(mini) await fetchTO(SB_URL+"/storage/v1/object/evidencias/thumbs/"+encodeURI(path), {method:"POST",
       headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":"image/jpeg"}, body:mini}, 12000); }catch(_){} }
+    if(e.tipo==="video" && e.portada){ try{ await fetchTO(SB_URL+"/storage/v1/object/evidencias/portada/"+encodeURI(path)+".jpg", {method:"POST",
+      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":"image/jpeg"}, body:e.portada}, 20000); }catch(_){} }   /* v50.12 */
     /* v49.7 (23-nov): la copia sin sello solo la usa «Corregir datos de fotos» del admin, y ese botón solo actúa sobre
        fotos incompletas (eviFaltantes). Se sube SOLO si la foto llega incompleta: misma regla que el panel. */
     const incompleta=(e.tipo||"foto")!=="video" && eviFaltantes({tipo:e.tipo||"foto", hora:e.sinHora?"":((e.datos&&e.datos.hora)||""),
@@ -2550,7 +2628,7 @@ async function enviarASupabase(listas, exito){
   const radicado=nuevoRadicado(); const csv=construirCSV(listas, radicado);
   const fallidos=[]; let ok=0; ultimoErr="";
   const t0=Date.now(), bytes=listas.reduce((a,e)=>a+((e.blob&&e.blob.size)||0),0);   /* v49.9: medición de velocidad */
-  /* v49.6 (23-nov): 3 evidencias a la vez (antes de a una). Por datos móviles cada foto hace 3-4 peticiones con ~0,35 s
+  /* v50.6 (23-nov): 3 evidencias a la vez (antes de a una). Por datos móviles cada foto hace 3-4 peticiones con ~0,35 s
      de ida y vuelta cada una; en paralelo esa espera se solapa. El orden de «fallidos» no importa (se reintentan todas). */
   const N=listas.length; let sig=0, hechas=0;
   const pinta=()=>{ const et=`Enviando ${Math.min(hechas+1,N)}/${N}…`; $("sendInfo").textContent=et; $("enviar").textContent=et; };
@@ -2596,7 +2674,7 @@ function resumenEnvio(radicado, listas){
   const adics=new Set(listas.filter(e=>itemAdic(e.itemCodigo)).map(e=>e.itemCodigo));
   const t=new Date();
   return { cliente:cfg.cl||"—", evento:cfg.ev||"—",
-    consec:(cfg&&cfg.consec)?evConsecTag(cfg.consec):"",
+    consec:(cfg&&cfg.consec)?evConsecTag(cfg.consec)+(cfg.ege?" · "+cfg.ege:""):"",
     ciudad:cfg.ci||"", fechaEv:cfg.fe||"", radicado,
     cuando:`${z(t.getDate())}/${z(t.getMonth()+1)}/${t.getFullYear()} ${hora12(z(t.getHours())+":"+z(t.getMinutes()))}`,
     operador:(operador&&operador.nombre)||"", prov:(operador&&operador.prov)||"",
@@ -2763,27 +2841,30 @@ $("modoFoto").addEventListener("click", ()=>{ if(grabando||modo==="foto") return
 $("modoVideo").addEventListener("click", ()=>{ if(grabando||modo==="video") return; modo="video"; setModoUI(); abrirStream(true); });
 function setModoUI(){ $("modoFoto").classList.toggle("on",modo==="foto"); $("modoVideo").classList.toggle("on",modo==="video");
   const b=$("camShot"); if(modo==="foto"){ b.textContent="Capturar"; b.style.background=""; b.style.color=""; $("camhint").textContent="Encuadra la evidencia y captura."; }
-  else{ b.textContent=grabando?"Detener":"Grabar"; b.style.background=grabando?"#d33":""; b.style.color=grabando?"#fff":""; $("camhint").textContent=grabando?"Grabando… toca Detener":"Toca Grabar para iniciar el video"; } }
+  else{ b.textContent=grabando?"Detener":"Grabar"; b.style.background=grabando?"#d33":""; b.style.color=grabando?"#fff":""; if(!grabando) $("camhint").textContent="Toca Grabar · video de hasta 1 min, con sonido"; } }
 async function abrirCamara(){ pedirUbicacion(); if(gpsFresco()) precalentarDireccion(lastCoords); modo="foto"; setModoUI(); if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ $("capf").click(); return; } $("camm").classList.remove("hide"); if(!await abrirStream(false)){ $("camm").classList.add("hide"); $("sendInfo").textContent="Cámara de la app bloqueada; se abrirá la cámara del teléfono. Para usar la guía, permite la cámara en Ajustes del navegador."; $("capf").click(); } }
-async function abrirStream(conAudio){ try{ if(stream)stream.getTracks().forEach(t=>t.stop()); stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing}},audio:!!conAudio}); $("video").srcObject=stream; return true; }
+async function abrirStream(conAudio){ try{ if(stream)stream.getTracks().forEach(t=>t.stop()); stream=await navigator.mediaDevices.getUserMedia({video:conAudio?{facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:720}}:{facingMode:{ideal:facing}},audio:!!conAudio}); $("video").srcObject=stream; return true; }
   catch(_){ if(conAudio){ try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing}},audio:false}); $("video").srcObject=stream; return true; }catch(__){} } return false; } }
 function iniciarGrabacion(){
+  if(batch.length>=topeLote()){ alert(MSG_LLENO); return; }   /* v50.12 */
+  if(!admCargaActiva() && batch.filter(e=>e.tipo==="video").length>=VID_MAX_LOTE){ alert(MSG_VID_LOTE); return; }
   if(!window.MediaRecorder||!stream){ cerrarCamara(); $("vidf").click(); return; }   // respaldo: cámara nativa
-  chunks=[]; let mr=null; for(const t of ["video/mp4","video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"]){ try{ if(!MediaRecorder.isTypeSupported||MediaRecorder.isTypeSupported(t)){ mr=new MediaRecorder(stream,{mimeType:t}); break; } }catch(_){} }
-  if(!mr){ try{ mr=new MediaRecorder(stream); }catch(_){ cerrarCamara(); $("vidf").click(); return; } }
+  chunks=[]; let mr=null; for(const t of ["video/mp4","video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"]){ try{ if(!MediaRecorder.isTypeSupported||MediaRecorder.isTypeSupported(t)){ mr=new MediaRecorder(stream,{mimeType:t,videoBitsPerSecond:VID_BPS,audioBitsPerSecond:64000}); break; } }catch(_){} }
+  if(!mr){ try{ mr=new MediaRecorder(stream,{videoBitsPerSecond:VID_BPS}); }catch(_){ try{ mr=new MediaRecorder(stream); }catch(__){ cerrarCamara(); $("vidf").click(); return; } } }
   mediaRec=mr; descartarGrab=false;
   mr.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
-  mr.onstop=async()=>{ grabando=false;
+  mr.onstop=async()=>{ grabando=false; pararReloj();
     if(descartarGrab){ descartarGrab=false; return; }
     const type=(mr.mimeType||"video/mp4").split(";")[0]; const ext=/mp4/.test(type)?"mp4":(/webm/.test(type)?"webm":"mp4");
     const blob=new Blob(chunks,{type}); const coords=(gpsFresco()?lastCoords:await posActual()); const now=new Date();
     const meta=coords?{fecha:`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`,hora:`${z(now.getHours())}:${z(now.getMinutes())}`,lat:coords.latitude,lon:coords.longitude}:null;
-    agregar([new File([blob],"video."+ext,{type})], meta); cerrarCamara();
+    const fv=new File([blob],"video."+ext,{type}); fv._app=true;   /* v50.12: grabado en la app (ya trae tope de 1 min) */
+    agregar([fv], meta); cerrarCamara();
   };
-  pedirUbicacion(); mr.start(); grabando=true; setModoUI();
+  pedirUbicacion(); mr.start(); grabando=true; setModoUI(); grabT0=Date.now(); pararReloj(); grabTimer=setInterval(tickGrab,250); tickGrab();
 }
 function detenerGrabacion(){ if(mediaRec&&grabando){ try{ mediaRec.stop(); }catch(_){ grabando=false; } } }
-function cerrarCamara(){ if(grabando){ descartarGrab=true; try{ mediaRec.stop(); }catch(_){} grabando=false; } if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } $("camm").classList.add("hide"); }
+function cerrarCamara(){ pararReloj(); if(grabando){ descartarGrab=true; try{ mediaRec.stop(); }catch(_){} grabando=false; } if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } $("camm").classList.add("hide"); }
 function posActual(){ return pedirUbicacion(); }
 async function capturar(){
   const v=$("video"); if(!v.videoWidth) return;
@@ -2793,13 +2874,13 @@ async function capturar(){
   /* v49.5 (22-nov): en iPhone (sobre todo en navegación privada) toBlob puede devolver null sin error; new File([null])
      daba un archivo de 4 bytes con el texto "null" y la foto quedaba en «…» con «No se pudo abrir esta foto». */
   if(!blob || blob.size<1024){ try{ const u=c.toDataURL("image/jpeg",0.92); if(u && u.length>2000){ const bin=atob(u.split(",")[1]); const a=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i); blob=new Blob([a],{type:"image/jpeg"}); } }catch(_){} }
-  /* v49.5 (22-nov): en Safari de iPhone el JPG que sale de aquí no se deja volver a abrir (<img> y createImageBitmap
+  /* v50.3 (22-nov): en Safari de iPhone el JPG de 114 KB que sale de aquí no se deja volver a abrir (<img> y createImageBitmap
      fallan; en Chrome del mismo iPhone sí abre). Ya tenemos los píxeles: el lienzo se pasa tal cual al sellado y no se re-abre. */
   if(!blob || blob.size<1024){ c.width=c.height=1; cerrarCamara(); alert("La cámara de la app no entregó la foto.\n\nSi estás en navegación privada, abre el enlace en una pestaña normal. Si sigue, cierra y vuelve a abrir la app."); return; }
-  { const t=new Date(), nb=`foto_${slug(cfg.ev)}_${z(t.getHours())}${z(t.getMinutes())}${z(t.getSeconds())}.jpg`; setTimeout(()=>{ try{ bajar(blob, nb); }catch(_){} }, 2500); }   /* v49.5: respaldo en el dispositivo después de procesar la foto */   // respaldo en el dispositivo (siempre activo)
+  { const t=new Date(), nb=`foto_${slug(cfg.ev)}_${z(t.getHours())}${z(t.getMinutes())}${z(t.getSeconds())}.jpg`; setTimeout(()=>{ try{ bajar(blob, nb); }catch(_){} }, 2500); }   /* v50.3: respaldo en el dispositivo después de procesar la foto (en Safari la descarga del blob podía cruzarse) */   // respaldo en el dispositivo (siempre activo)
   $("camhint").textContent="Ubicando…"; const coords=await posActual(); const now=new Date();
   const meta={fecha:`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`,hora:`${z(now.getHours())}:${z(now.getMinutes())}`,lat:coords?coords.latitude:null,lon:coords?coords.longitude:null};
-  const fCap=new File([blob],"captura.jpg",{type:"image/jpeg"}); fCap._lienzo=c;
+  const fCap=new File([blob],"captura.jpg",{type:"image/jpeg"}); fCap._lienzo=c;   /* v50.3 */
   agregar([fCap], meta);
   cerrarCamara();   // salir a la vista de clasificación tras cada foto
   $("sendInfo").textContent = coords ? "" : (geoDenied ? "Última foto SIN GPS: toca «Toca aquí para activar la ubicación»." : "Última foto SIN GPS: aún sin señal, reintenta.");
@@ -2821,11 +2902,11 @@ function msgDecode(err){ const m=err&&err.message;
   if(m==="vacio") return "La foto llegó vacía (¿estaba en iCloud?). Ábrela primero en Fotos y vuelve a elegirla";
   if(m==="no-decode") return "No se pudo abrir esta foto"+(err.det?" ("+err.det+")":"")+". Quítala y elígela de nuevo sola; si sigue, tómala con «Capturar foto»";
   return "error: "+(m||err); }
-async function sePuedeAbrir(b){ if(!b || b.size<1024) return false;   /* v49.5 */
+async function sePuedeAbrir(b){ if(!b || b.size<1024) return false;   /* v50.4 */
   try{ const bm=await createImageBitmap(b); if(bm.close) bm.close(); return true; }catch(_){}
   try{ const i=await imgFromBlob(b); if(i.src) URL.revokeObjectURL(i.src); return true; }catch(_){ return false; } }
 async function decodificar(file){
-  if(file && file._lienzo && file._lienzo.width>1) return file._lienzo;   /* v49.5: foto de la cámara de la app = ya está en píxeles */
+  if(file && file._lienzo && file._lienzo.width>1) return file._lienzo;   /* v50.3: foto de la cámara de la app = ya está en píxeles */
   if(!file || !file.size) throw new Error("vacio");                    // foto de iCloud sin descargar / selección interrumpida
   const heic=/heic|heif/i.test(file.type)||/\.hei[cf]$/i.test(file.name);
   for(let i=0;i<2;i++){
@@ -2841,7 +2922,7 @@ function wrap(ctx,t,mw){ const w=t.split(" "),l=[]; let c=""; for(const x of w){
    lanzar error. Red de seguridad para equipos de 48-50 MP; se reduce SÓLO si la imagen lo
    supera, así que una foto normal de 12 MP (4032x3024) no se toca. */
 const LIM_PX=16e6, DEST_PX=12e6;
-/* v49.6 (23-nov): fotos de captura (proveedor) a ~8 MP — 3264x2448 desde 12 MP — para subir rápido por datos móviles.
+/* v50.6 (23-nov): fotos de captura (proveedor) a ~8 MP — 3264x2448 desde 12 MP — para subir rápido por datos móviles.
    Punto medio alto pedido por Daniel: sobra para evidencia, informe y zoom normal. El re-sellado del admin no usa esto. */
 const CAP_PX=8.5e6, CAP_DEST=8e6, CAP_Q=0.88;   // 16 MP = umbral (una foto de 12 MP, 4032x3024, no se toca); 12 MP = destino, con margen bajo el tope
 /* Un lienzo fallido sale de un color plano; una foto real, aunque sea de noche, tiene ruido.
@@ -2857,7 +2938,7 @@ function lienzoPlano(ctx,W,H){
 async function dibujar(src,texto,conMarca,op){   /* v43: op = {esc,pos,minW,minH,fondo,conOrig} */
   if(src&&typeof src.decode==="function"){ try{ await src.decode(); }catch(_){} }   // nunca estampar sobre una imagen a medio decodificar
   const W0=src.naturalWidth||src.width, H0=src.naturalHeight||src.height;
-  const cap=!!(op&&op.cap); const lim=cap?CAP_PX:LIM_PX, dst=cap?CAP_DEST:DEST_PX;   /* v49.6 */
+  const cap=!!(op&&op.cap); const lim=cap?CAP_PX:LIM_PX, dst=cap?CAP_DEST:DEST_PX;   /* v50.6 */
   const k=(W0*H0>lim)?Math.sqrt(dst/(W0*H0)):1;                              // k=1 => no se toca nada
   const W=Math.round(W0*k), H=Math.round(H0*k);
   const cv=document.createElement("canvas"); cv.width=W; cv.height=H; const ctx=cv.getContext("2d"); ctx.drawImage(src,0,0,W,H);
