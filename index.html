@@ -266,7 +266,7 @@
       <input id="gal" type="file" accept="image/*" multiple>
       <div class="gpschip off" id="gpsChip"><span id="gpsEstado"><b>Toca aquí para activar la ubicación.</b></span></div>
       <div class="mut" id="geoDiag" style="font-size:11px;margin-top:4px"></div>
-      <div class="guia falta hide" id="inAppAviso" style="margin-top:8px">Abriste el enlace <b>dentro de WhatsApp</b>. Ese navegador bloquea la ubicación y la cámara. Toca <b>⋯ → Abrir en Safari</b> (iPhone) o <b>⋮ → Abrir en Chrome</b> (Android) y vuelve a entrar por el mismo enlace.</div>
+      <div class="guia falta hide" id="inAppAviso" style="margin-top:8px">Abriste el enlace <b>dentro de otra app</b> (WhatsApp, Outlook, Teams…). Ese navegador bloquea la ubicación y la cámara, y <b>no guarda tus datos</b>: te los pedirá cada vez. Toca <b>⋯ → Abrir en Safari</b> (iPhone) o <b>⋮ → Abrir en Chrome</b> (Android) y vuelve a entrar por el mismo enlace.</div>
       <!-- posición/tamaño/marca ahora los define el EJECUTIVO; estos inputs quedan ocultos y los lee el dibujo de marca -->
       <div class="opts hide">
         <div class="row">
@@ -298,7 +298,7 @@
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <button class="btn sec hide" id="fotos" style="margin-top:8px">Guardar en Fotos</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v50.12 · 23nov · video de hasta 1 min con portada sellada · v50.11 · pendientes arriba y siguiente al enviar · proveedor sin volver a digitar · sesión que se renueva sola · v50.10 · computador sin tope · v50.9 · 23nov · guardar en Fotos (iPhone) · sin tope con conexión rápida · v50.8 · 23nov · lote máximo 12 · v50.7 · 23nov · copia sin sello solo si la foto llega incompleta · v50.6 · fotos a 8 MP y 3 a la vez · v50.5 · enlace «vista previa» · v50.4 · comprobación de que la foto sellada abre · v50.3 · cámara de la app sin re-abrir la foto (Safari iPhone) · v50.2 · foto de «Capturar foto» que no abría en iPhone · vista previa con marca (toca la miniatura) · v50.1 · arrastrar el CSV o el Tablero de eventos (.xlsx, hoja «CSV app») · código del evento (EGE) e importador del evento completo · CSV leído como texto («001» y fechas) · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">build envío-v50.13 · 24nov · fotos a 6 MP (cámara reducida al capturar) · sin tope de 12 · cámara a resolución completa · aviso Outlook/Teams · v50.12 · 23nov · video de hasta 1 min con portada sellada · v50.11 · pendientes arriba y siguiente al enviar · proveedor sin volver a digitar · sesión que se renueva sola · v50.10 · computador sin tope · v50.9 · 23nov · guardar en Fotos (iPhone) · sin tope con conexión rápida · v50.8 · 23nov · lote máximo 12 · v50.7 · 23nov · copia sin sello solo si la foto llega incompleta · v50.6 · fotos a 8 MP y 3 a la vez · v50.5 · enlace «vista previa» · v50.4 · comprobación de que la foto sellada abre · v50.3 · cámara de la app sin re-abrir la foto (Safari iPhone) · v50.2 · foto de «Capturar foto» que no abría en iPhone · vista previa con marca (toca la miniatura) · v50.1 · arrastrar el CSV o el Tablero de eventos (.xlsx, hoja «CSV app») · código del evento (EGE) e importador del evento completo · CSV leído como texto («001» y fechas) · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -377,6 +377,7 @@
   <div class="cammode" style="display:none"><button id="modoFoto" class="on">Foto</button><button id="modoVideo">Video</button></div>
   <div class="hint" id="camhint">Encuadra la evidencia y captura.</div>
   <div class="bar"><button class="btn sec" id="camClose">Cerrar</button><button class="btn" id="camShot">Capturar</button><button class="btn sec" id="camFlip">Girar</button></div>
+  <button class="btn hide" id="camNativa" style="margin:6px auto 0;display:block">Cámara del teléfono</button>
 </div>
 
 <!-- ENVÍO EXITOSO -->
@@ -2185,7 +2186,10 @@ function registrarVelocidad(bytes, ms){ if(!(bytes>0&&ms>0)) return null; const 
 /* v49.10 (23-nov): un computador (mouse, sin pantalla táctil) no está en la calle con datos móviles: sin tope desde el
    inicio. Tablets y portátiles táctiles siguen la regla de velocidad. */
 function esPC(){ try{ return navigator.maxTouchPoints===0 && matchMedia("(pointer:fine)").matches && !matchMedia("(any-pointer:coarse)").matches; }catch(_){ return false; } }
-function topeLote(){ return (admCargaActiva() || navigator.onLine===false || esPC() || conexionRapida()) ? Infinity : LOTE_MAX; }
+/* v50.13 (24-nov): SIN tope al tomar fotos. El tope de 12 en iPhone nunca se quitaba (Safari no informa WiFi y un envío
+   a 0,26 MB/s nunca llegaba a «rápido»). Cada foto se marca subida por separado y las que fallan quedan para reintentar,
+   así que un lote grande ya no arriesga lo enviado. LOTE_MAX queda solo para el aviso de «Guardar en Fotos» sin señal. */
+function topeLote(){ return Infinity; }
 /* v49.9 (23-nov): respaldo en el carrete del iPhone. Safari no deja escribir en Fotos sin un toque: se abre la hoja de
    compartir con las fotos del lote y la persona elige «Guardar imágenes». Obligatorio sin señal (cada 12 sin guardar) y
    cuando un envío falla; botón «Guardar en Fotos» siempre a mano. Android ya descarga una copia de cada captura. */
@@ -2389,7 +2393,7 @@ function renderLista(){
   const tope=topeLote();   /* v49.8: contador del lote */
   const muchas=!admCargaActiva()&&batch.length>LOTE_MAX;   /* v49.8: contador del lote */
   const pc=!admCargaActiva()&&navigator.onLine!==false&&esPC(), rapida=!pc&&!admCargaActiva()&&navigator.onLine!==false&&conexionRapida();
-  const pref=pc?`<b>${batch.length} ${batch.length===1?"foto":"fotos"} · sin límite</b> · `:rapida?`<b>Conexión rápida · sin límite</b> · `:(muchas?`<b>${batch.length} en el celular · ${tope<Infinity?"se envían de a "+LOTE_MAX:"sin señal"}</b> · `:(tope<Infinity?`<b>${batch.length} de ${LOTE_MAX}</b> · `:""));
+  const pref=`<b>${batch.length} ${batch.length===1?"foto":"fotos"}</b> · `;   /* v50.13: sin tope */
   $("cnt").innerHTML = batch.length ? (pref+`${listas}/${batch.length} listas`+(sinReq?` · <span style="color:#b3261e">${sinReq} sin requerimiento</span>`:"")) : "Aún no agregas evidencias.";
   const pendFecha=batch.filter(pendienteFecha).length;
   $("enviar").disabled=listas===0 || pendFecha>0;
@@ -2647,7 +2651,6 @@ async function enviarASupabase(listas, exito){
     $("okm").classList.remove("hide");
     const eraRapida=conexionRapida()||esPC(); const rap=(listas.length>=3 && !admCargaActiva())?registrarVelocidad(bytes, Date.now()-t0):null;
     exito();
-    if(rap===true && !eraRapida) $("sendInfo").innerHTML+=`<br><b style="color:#1a7f37">Conexión rápida: puedes cargar sin límite.</b>`;
     if(batch.length) $("sendInfo").innerHTML+=`<br><b>Quedan ${batch.length} por enviar.</b> Toca Enviar otra vez.`;   /* v49.8 */
     irASiguientePendiente(selPrev);   /* v49.11 */
   }
@@ -2754,7 +2757,7 @@ let stream=null, facing="environment", modo="foto", mediaRec=null, chunks=[], gr
 let lastCoords=null, lastCoordsT=0, geoDenied=false, geoBuscando=false, geoPromise=null, watchId=null, gpsTras=null, sinGpsHasta=0;
 /* Los navegadores embebidos (WhatsApp, Instagram, Facebook) casi nunca entregan GPS: si el enlace
    se abrió ahí, ninguna cantidad de permisos sirve; hay que mandar al operador a Safari/Chrome. */
-const IN_APP=/(FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|MicroMessenger)/i.test(navigator.userAgent||"");
+const IN_APP=/(FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|MicroMessenger|Outlook|Teams\/|LinkedInApp|GSA\/)/i.test(navigator.userAgent||"");   /* v50.13: + Outlook, Teams, LinkedIn y app de Google */
 function gpsFresco(){ return lastCoords && (Date.now()-lastCoordsT)<120000; }
 function sinGpsVigente(){ return Date.now()<sinGpsHasta; }
 function fijarPos(coords){ lastCoords=coords; lastCoordsT=Date.now(); geoDenied=false; geoBuscando=false; iniciarWatch(); actualizarEstadoGPS(); precalentarDireccion(coords); }
@@ -2836,14 +2839,21 @@ function pedirUbicacion(){
   return geoPromise; }
 $("camClose").addEventListener("click", cerrarCamara);
 $("camFlip").addEventListener("click", ()=>{ if(grabando) return; facing=facing==="environment"?"user":"environment"; abrirStream(modo==="video"); });
+$("camNativa").addEventListener("click", ()=>{ cerrarCamara(); $("capf").click(); });   /* v50.13 */
 $("camShot").addEventListener("click", ()=>{ if(modo==="foto") capturar(); else if(grabando) detenerGrabacion(); else iniciarGrabacion(); });
 $("modoFoto").addEventListener("click", ()=>{ if(grabando||modo==="foto") return; modo="foto"; setModoUI(); abrirStream(false); });
-$("modoVideo").addEventListener("click", ()=>{ if(grabando||modo==="video") return; modo="video"; setModoUI(); abrirStream(true); });
+$("modoVideo").addEventListener("click", ()=>{ if(grabando||modo==="video") return; modo="video"; $("camNativa").classList.add("hide"); setModoUI(); abrirStream(true); });
 function setModoUI(){ $("modoFoto").classList.toggle("on",modo==="foto"); $("modoVideo").classList.toggle("on",modo==="video");
   const b=$("camShot"); if(modo==="foto"){ b.textContent="Capturar"; b.style.background=""; b.style.color=""; $("camhint").textContent="Encuadra la evidencia y captura."; }
   else{ b.textContent=grabando?"Detener":"Grabar"; b.style.background=grabando?"#d33":""; b.style.color=grabando?"#fff":""; if(!grabando) $("camhint").textContent="Toca Grabar · video de hasta 1 min, con sonido"; } }
-async function abrirCamara(){ pedirUbicacion(); if(gpsFresco()) precalentarDireccion(lastCoords); modo="foto"; setModoUI(); if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ $("capf").click(); return; } $("camm").classList.remove("hide"); if(!await abrirStream(false)){ $("camm").classList.add("hide"); $("sendInfo").textContent="Cámara de la app bloqueada; se abrirá la cámara del teléfono. Para usar la guía, permite la cámara en Ajustes del navegador."; $("capf").click(); } }
-async function abrirStream(conAudio){ try{ if(stream)stream.getTracks().forEach(t=>t.stop()); stream=await navigator.mediaDevices.getUserMedia({video:conAudio?{facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:720}}:{facingMode:{ideal:facing}},audio:!!conAudio}); $("video").srcObject=stream; return true; }
+async function abrirCamara(){ pedirUbicacion(); if(gpsFresco()) precalentarDireccion(lastCoords); modo="foto"; setModoUI(); if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ $("capf").click(); return; } $("camm").classList.remove("hide"); $("camNativa").classList.add("hide"); if(!await abrirStream(false)){ $("camm").classList.add("hide"); $("sendInfo").textContent="Cámara de la app bloqueada; se abrirá la cámara del teléfono. Para usar la guía, permite la cámara en Ajustes del navegador."; $("capf").click(); return; } avisoResBaja(); }
+/* v50.13 (24-nov): sin pedir resolución el navegador entregaba 640x480 (~70 KB, fotos de Kevin del 24-nov). Ahora se pide
+   la máxima (4096 ideal; luego dibujar() la deja en 6 MP). Si aun así llega por debajo de 1280 px, se ofrece la cámara del
+   teléfono con un botón (iOS exige un toque para abrirla; no se abre sola). */
+function avisoResBaja(){ const v=$("video"); const chk=()=>{ const W=v.videoWidth,H=v.videoHeight; if(!W||!H) return false;
+    if(Math.max(W,H)<1280 && modo==="foto"){ $("camNativa").classList.remove("hide"); $("camhint").textContent=`La cámara de la app da poca resolución (${W}×${H}). Toca «Cámara del teléfono» para una foto nítida.`; } return true; };
+  if(!chk()) v.addEventListener("loadedmetadata", chk, {once:true}); }
+async function abrirStream(conAudio){ try{ if(stream)stream.getTracks().forEach(t=>t.stop()); stream=await navigator.mediaDevices.getUserMedia({video:conAudio?{facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:720}}:{facingMode:{ideal:facing},width:{ideal:4096},height:{ideal:4096}},audio:!!conAudio}); $("video").srcObject=stream; return true; }
   catch(_){ if(conAudio){ try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing}},audio:false}); $("video").srcObject=stream; return true; }catch(__){} } return false; } }
 function iniciarGrabacion(){
   if(batch.length>=topeLote()){ alert(MSG_LLENO); return; }   /* v50.12 */
@@ -2869,7 +2879,10 @@ function posActual(){ return pedirUbicacion(); }
 async function capturar(){
   const v=$("video"); if(!v.videoWidth) return;
   if(batch.length>=topeLote()){ alert(MSG_LLENO); return; }   /* v49.8 */
-  const c=document.createElement("canvas"); c.width=v.videoWidth; c.height=v.videoHeight; c.getContext("2d").drawImage(v,0,0);
+  /* v50.13: con la resolución máxima el cuadro puede ser de 12 MP; se dibuja ya en 6 MP (CAP_DEST) para no retener un lienzo
+     de ~48 MB en el iPhone (techo de memoria de canvas = fotos negras, 25-ago). */
+  const kC=Math.min(1,Math.sqrt(CAP_DEST/(v.videoWidth*v.videoHeight)));
+  const c=document.createElement("canvas"); c.width=Math.round(v.videoWidth*kC); c.height=Math.round(v.videoHeight*kC); c.getContext("2d").drawImage(v,0,0,c.width,c.height);
   let blob=await new Promise(r=>{ try{ c.toBlob(r,"image/jpeg",0.92); }catch(_){ r(null); } });
   /* v49.5 (22-nov): en iPhone (sobre todo en navegación privada) toBlob puede devolver null sin error; new File([null])
      daba un archivo de 4 bytes con el texto "null" y la foto quedaba en «…» con «No se pudo abrir esta foto». */
@@ -2924,7 +2937,8 @@ function wrap(ctx,t,mw){ const w=t.split(" "),l=[]; let c=""; for(const x of w){
 const LIM_PX=16e6, DEST_PX=12e6;
 /* v50.6 (23-nov): fotos de captura (proveedor) a ~8 MP — 3264x2448 desde 12 MP — para subir rápido por datos móviles.
    Punto medio alto pedido por Daniel: sobra para evidencia, informe y zoom normal. El re-sellado del admin no usa esto. */
-const CAP_PX=8.5e6, CAP_DEST=8e6, CAP_Q=0.88;   // 16 MP = umbral (una foto de 12 MP, 4032x3024, no se toca); 12 MP = destino, con margen bajo el tope
+const CAP_PX=6.5e6, CAP_DEST=6e6, CAP_Q=0.85;   /* v50.13 (24-nov): 6 MP (~3000x2000, ~1 MB) — envío de 12 fotos ~50 s a 0,26 MB/s (antes 8 MP ~1,8 MB, ~80 s) */
+/* v50.6:   // 16 MP = umbral (una foto de 12 MP, 4032x3024, no se toca); 12 MP = destino, con margen bajo el tope
 /* Un lienzo fallido sale de un color plano; una foto real, aunque sea de noche, tiene ruido.
    Se muestrea la miniatura (barato) por fuera de la zona del sello. */
 function lienzoPlano(ctx,W,H){
