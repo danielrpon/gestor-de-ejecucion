@@ -299,7 +299,7 @@
       <button class="btn" id="enviar" disabled>Enviar evidencias</button>
       <button class="btn sec hide" id="fotos" style="margin-top:8px">Guardar en Fotos</button>
       <div class="mut" id="sendInfo" style="margin-top:8px"></div>
-      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v50.13 · 24nov · fotos a 6 MP (cámara reducida al capturar) · sin tope de 12 · cámara a resolución completa · aviso Outlook/Teams · v50.12 · 23nov · video de hasta 1 min con portada sellada · v50.11 · pendientes arriba y siguiente al enviar · proveedor sin volver a digitar · sesión que se renueva sola · v50.10 · computador sin tope · v50.9 · 23nov · guardar en Fotos (iPhone) · sin tope con conexión rápida · v50.8 · 23nov · lote máximo 12 · v50.7 · 23nov · copia sin sello solo si la foto llega incompleta · v50.6 · fotos a 8 MP y 3 a la vez · v50.5 · enlace «vista previa» · v50.4 · comprobación de que la foto sellada abre · v50.3 · cámara de la app sin re-abrir la foto (Safari iPhone) · v50.2 · foto de «Capturar foto» que no abría en iPhone · vista previa con marca (toca la miniatura) · v50.1 · arrastrar el CSV o el Tablero de eventos (.xlsx, hoja «CSV app») · código del evento (EGE) e importador del evento completo · CSV leído como texto («001» y fechas) · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
+      <div class="mut" style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">BETA · v50.14 · 24nov · memoria de la cámara acotada · respaldo sin las ya subidas · cámara 4:3 · v50.13 · 24nov · fotos a 6 MP (cámara reducida al capturar) · sin tope de 12 · cámara a resolución completa · aviso Outlook/Teams · v50.12 · 23nov · video de hasta 1 min con portada sellada · v50.11 · pendientes arriba y siguiente al enviar · proveedor sin volver a digitar · sesión que se renueva sola · v50.10 · computador sin tope · v50.9 · 23nov · guardar en Fotos (iPhone) · sin tope con conexión rápida · v50.8 · 23nov · lote máximo 12 · v50.7 · 23nov · copia sin sello solo si la foto llega incompleta · v50.6 · fotos a 8 MP y 3 a la vez · v50.5 · enlace «vista previa» · v50.4 · comprobación de que la foto sellada abre · v50.3 · cámara de la app sin re-abrir la foto (Safari iPhone) · v50.2 · foto de «Capturar foto» que no abría en iPhone · vista previa con marca (toca la miniatura) · v50.1 · arrastrar el CSV o el Tablero de eventos (.xlsx, hoja «CSV app») · código del evento (EGE) e importador del evento completo · CSV leído como texto («001» y fechas) · fotos de a una (lotes grandes en iPhone) · mensaje claro si una foto no abre · fotos idénticas bloqueadas por requerimiento · mínimo de fotos para toda la lista · informe: calidad elegible y sin repetidas · soportes en PDF o captura, tal cual el original (Excel → guardar como PDF) · informe sin pie de foto (opcional) · datos externos escapados · soportes comerciales en el informe (varias capturas, valor y observaciones) · mínimo de evidencias por requerimiento (pago a terceros = 2) · roles unificados · tablero admin legible + editar evento directo + fechas en iPhone · corrección masiva de fotos (lugar, fecha, hora) + original sin sello · fotos incompletas · rechazo sin metadatos</div>
     </div>
     <div class="top" style="padding-top:0"><span></span><span class="who"><a class="lnk" id="salir">Cambiar de persona</a></span></div>
   </div>
@@ -2188,8 +2188,8 @@ function registrarVelocidad(bytes, ms){ if(!(bytes>0&&ms>0)) return null; const 
    inicio. Tablets y portátiles táctiles siguen la regla de velocidad. */
 function esPC(){ try{ return navigator.maxTouchPoints===0 && matchMedia("(pointer:fine)").matches && !matchMedia("(any-pointer:coarse)").matches; }catch(_){ return false; } }
 /* v50.13 (24-nov): SIN tope al tomar fotos. El tope de 12 en iPhone nunca se quitaba (Safari no informa WiFi y un envío
-   a 0,26 MB/s nunca llegaba a «rápido»). Cada foto se marca subida por separado y las que fallan quedan para reintentar,
-   así que un lote grande ya no arriesga lo enviado. LOTE_MAX queda solo para el aviso de «Guardar en Fotos» sin señal. */
+   a 0,26 MB/s nunca llegaba a «rápido»). Desde v50.14 cada foto se marca subida apenas sube (e.subida, fuera
+   del respaldo IndexedDB) y las que fallan quedan para reintentar. LOTE_MAX queda solo para el aviso de «Guardar en Fotos» sin señal. */
 function topeLote(){ return Infinity; }
 /* v49.9 (23-nov): respaldo en el carrete del iPhone. Safari no deja escribir en Fotos sin un toque: se abre la hoja de
    compartir con las fotos del lote y la persona elige «Guardar imágenes». Obligatorio sin señal (cada 12 sin guardar) y
@@ -2216,7 +2216,7 @@ function agregar(fileList, meta, metaResp){
     const fuera=arr.length-libres; arr=arr.slice(0,libres);
     setTimeout(()=>alert(`${libres===1?"Se agregó la primera":"Se agregaron las primeras "+libres}. Lote máximo ${LOTE_MAX} fotos. Quedaron ${fuera} por fuera.`),300); }
   if(!ES_IOS && navigator.onLine===false && !admCargaActiva() && batch.length<=LOTE_MAX && batch.length+arr.length>LOTE_MAX)
-    setTimeout(()=>alert(`Sin señal: se guardan en el celular y se envían de a ${LOTE_MAX} cuando vuelva la señal.`),300);   /* v49.8 */
+    setTimeout(()=>alert(`Sin señal: se guardan en el celular y se envían cuando vuelva la señal.`),300);   /* v49.8 */
   let vidsLote=batch.filter(x=>x.tipo==="video").length, avisoVid=false;   /* v50.12 */
   arr.forEach(file=>{
     const video=/^video\//.test(file.type)||/\.(mp4|mov|m4v|3gp|webm|avi|mkv)$/i.test(file.name);
@@ -2228,7 +2228,7 @@ function agregar(fileList, meta, metaResp){
   renderLista();
   Promise.all(ps).then(()=>{
     if(ES_IOS && navigator.onLine===false && batch.filter(e=>e.status==="listo"&&e.blob&&!e.enFotos).length>=LOTE_MAX)   /* v49.9 */
-      pedirGuardarFotos(batch, `<b>Sin señal.</b> Las fotos se envían de a ${LOTE_MAX} cuando vuelva la señal. Guarda una copia por si acaso.`);
+      pedirGuardarFotos(batch, `<b>Sin señal.</b> Las fotos se envían cuando vuelva la señal. Guarda una copia por si acaso.`);
     /* v34: avisos del lote — fotos rechazadas por fecha y galería sin metadatos */
     const rechR=nuevos.filter(e=>e.rechazoRep), rech=nuevos.filter(e=>e.rechazo && !e.rechazoMeta && !e.rechazoRep), rechM=nuevos.filter(e=>e.rechazoMeta), sm=meta?[]:nuevos.filter(e=>!e.rechazo && e.sinMeta); const msg=[];
     if(rechR.length) msg.push((rechR.length===1?"Esta foto NO se cargó: ":"Estas "+rechR.length+" fotos NO se cargaron:\n• ")+rechR.map(e=>e.rechazo).join("\n• ")+".\n\nCada evidencia de un requerimiento debe ser una foto distinta. Si una misma foto muestra varios requerimientos, sí la puedes cargar en cada uno.");
@@ -2253,8 +2253,12 @@ function idbOpen(){ return new Promise(res=>{ try{ const r=indexedDB.open(NS+"es
   r.onsuccess=()=>{ IDB.db=r.result; res(IDB.db); }; r.onerror=()=>res(null);
 }catch(_){ res(null); } }); }
 function claveEvento(){ return cfg?`${slug(cfg.cl)}|${slug(cfg.ev)}`:"NA"; }
-async function guardarLote(){ try{ const db=IDB.db||await idbOpen(); if(!db||!cfg) return;
-  const items=batch.filter(e=>e.status==="listo").map(e=>({id:e.id,itemCodigo:e.itemCodigo,fechaSel:e.fechaSel||"",fechaOrigen:e.fechaOrigen||"",fechaDecl:e.fechaDecl||"",tipo:e.tipo,ext:e.ext,filename:e.filename,consec:e.consec,blob:e.blob,file:e.file,thumb:e.thumb,datos:e.datos,cargada:e.cargada,meta:e.meta,status:"listo"}));
+/* v50.14: el lote ya no tiene tope; reescribirlo entero en cada renderLista crecía al cuadrado. Se agrupa (1,5 s) y no se
+   guardan las evidencias que ya subieron en un envío en curso (e.subida), para no re-enviarlas tras una recarga. */
+let _guardarT=null;
+function guardarLote(){ clearTimeout(_guardarT); _guardarT=setTimeout(guardarLoteYa,1500); }
+async function guardarLoteYa(){ try{ const db=IDB.db||await idbOpen(); if(!db||!cfg) return;
+  const items=batch.filter(e=>e.status==="listo"&&!e.subida).map(e=>({id:e.id,itemCodigo:e.itemCodigo,fechaSel:e.fechaSel||"",fechaOrigen:e.fechaOrigen||"",fechaDecl:e.fechaDecl||"",tipo:e.tipo,ext:e.ext,filename:e.filename,consec:e.consec,blob:e.blob,file:e.file,thumb:e.thumb,datos:e.datos,cargada:e.cargada,meta:e.meta,status:"listo"}));
   const tx=db.transaction("lote","readwrite"); tx.objectStore("lote").put({k:claveEvento(),seq,items});
 }catch(_){} }
 async function cargarLote(){ try{ const db=IDB.db||await idbOpen(); if(!db||!cfg) return;
@@ -2378,6 +2382,7 @@ async function procesar(entry){
        para no subir nunca una evidencia ilegible (riesgo en Safari iPhone con la protección contra huella digital). */
     if(entry.file && entry.file._lienzo && !(await sePuedeAbrir(out.blob))){ entry.blob=null; entry.status="⚠ Este navegador no generó una foto legible. Quítala y usa Chrome para «Capturar foto»"; }
     else entry.status = out.vacio ? "⚠ salió en negro — vuelve a tomarla" : "listo";
+    if(entry.status==="listo" && entry.file && entry.file._lienzo) retenerLienzo(entry.file);   /* v50.14 */
     if(!lugar && ex.lat!=null) programarCompletado();   // se resella sola en cuanto haya dirección
   }catch(err){ entry.status=msgDecode(err); }
   renderLista();
@@ -2435,6 +2440,13 @@ window.cambiarItem=(id,v)=>{ const e=batch.find(x=>x.id===id); if(!e) return;
   if(e.fechaOrigen==="declarada"){ e.fechaDecl=e.fechaSel||e.fechaDecl||""; if(e.datos) e.datos.fecha=e.fechaDecl||""; }
   if(admDeclara(e)){ admAplicar(e); resellar(e).then(renderLista); }   /* v39 */
   renderLista(); if(e.fechaOrigen==="declarada" && fechaEfectiva(e)!==antes && typeof redibujarTodas==="function") redibujarTodas(); };
+/* v50.14 (24-nov, revisión de v50.13): cada captura guardaba su lienzo de 6 MP (~24 MB) mientras estaba en el lote y el
+   lote ya no tiene tope → iPhone sin memoria de canvas (fotos negras, 25-ago). Se retienen solo los 4 más recientes (los
+   que aún pueden re-sellarse al llegar la dirección); los demás se encogen y, si hiciera falta re-sellarlos, decodificar()
+   abre el JPG de la captura. Al subir, el lienzo se libera. */
+const LIENZOS_VIVOS=4; let lienzosVivos=[];
+function soltarLienzo(f){ try{ if(f && f._lienzo){ f._lienzo.width=f._lienzo.height=1; f._lienzo=null; } }catch(_){} }
+function retenerLienzo(f){ lienzosVivos=lienzosVivos.filter(x=>x!==f && x._lienzo); lienzosVivos.push(f); while(lienzosVivos.length>LIENZOS_VIVOS) soltarLienzo(lienzosVivos.shift()); }
 window.quitar=(id)=>{ const e=batch.find(x=>x.id===id); if(e && e.file && e.file._lienzo){ e.file._lienzo.width=e.file._lienzo.height=1; }   /* v50.4: libera el lienzo de la captura */
   batch=batch.filter(x=>x.id!==id); renderLista(); };
 /* v49.5 · vista previa de la foto tal como se enviará (con la marca de agua). */
@@ -2551,6 +2563,7 @@ async function empaquetar(accion, saltarMin){   // accion: "supabase" | "compart
 function marcarSubidas(subidas){
   const cta={}; subidas.forEach(e=>{ if(e.tipo!=="foto") return; const k=claveDe(e.itemCodigo); cta[k]=(cta[k]||0)+1; });
   for(const k in cta) counters[k]=(counters[k]||0)+cta[k]; saveJSON(NS+"counters",counters);
+  subidas.forEach(e=>soltarLienzo(e.file));   /* v50.14 */
   const ids=new Set(subidas.map(e=>e.id)); batch=batch.filter(e=>!ids.has(e.id)); renderLista();
 }
 /* Compartir por WhatsApp/correo (canal humano). Sin await antes de share() -> gesto vivo en Android. */
@@ -2639,7 +2652,7 @@ async function enviarASupabase(listas, exito){
   const pinta=()=>{ const et=`Enviando ${Math.min(hechas+1,N)}/${N}…`; $("sendInfo").textContent=et; $("enviar").textContent=et; };
   pinta();
   const worker=async()=>{ while(sig<N){ const e=listas[sig++];
-    if(await subirEvidencia(e, radicado)) ok++; else fallidos.push(e);
+    if(await subirEvidencia(e, radicado)){ ok++; e.subida=true; guardarLote(); } else fallidos.push(e);   /* v50.14: marcada al subir */
     hechas++; pinta(); } };
   await Promise.all(Array.from({length:Math.min(3,N)},worker));
   if(!fallidos.length){
@@ -2839,10 +2852,10 @@ function pedirUbicacion(){
   });
   return geoPromise; }
 $("camClose").addEventListener("click", cerrarCamara);
-$("camFlip").addEventListener("click", ()=>{ if(grabando) return; facing=facing==="environment"?"user":"environment"; abrirStream(modo==="video"); });
+$("camFlip").addEventListener("click", ()=>{ if(grabando) return; facing=facing==="environment"?"user":"environment"; $("camNativa").classList.add("hide"); abrirStream(modo==="video").then(ok=>{ if(ok&&modo==="foto") avisoResBaja(); }); });   /* v50.14 */
 $("camNativa").addEventListener("click", ()=>{ cerrarCamara(); $("capf").click(); });   /* v50.13 */
 $("camShot").addEventListener("click", ()=>{ if(modo==="foto") capturar(); else if(grabando) detenerGrabacion(); else iniciarGrabacion(); });
-$("modoFoto").addEventListener("click", ()=>{ if(grabando||modo==="foto") return; modo="foto"; setModoUI(); abrirStream(false); });
+$("modoFoto").addEventListener("click", ()=>{ if(grabando||modo==="foto") return; modo="foto"; setModoUI(); abrirStream(false).then(ok=>{ if(ok) avisoResBaja(); }); });   /* v50.14 */
 $("modoVideo").addEventListener("click", ()=>{ if(grabando||modo==="video") return; modo="video"; $("camNativa").classList.add("hide"); setModoUI(); abrirStream(true); });
 function setModoUI(){ $("modoFoto").classList.toggle("on",modo==="foto"); $("modoVideo").classList.toggle("on",modo==="video");
   const b=$("camShot"); if(modo==="foto"){ b.textContent="Capturar"; b.style.background=""; b.style.color=""; $("camhint").textContent="Encuadra la evidencia y captura."; }
@@ -2854,7 +2867,7 @@ async function abrirCamara(){ pedirUbicacion(); if(gpsFresco()) precalentarDirec
 function avisoResBaja(){ const v=$("video"); const chk=()=>{ const W=v.videoWidth,H=v.videoHeight; if(!W||!H) return false;
     if(Math.max(W,H)<1280 && modo==="foto"){ $("camNativa").classList.remove("hide"); $("camhint").textContent=`La cámara de la app da poca resolución (${W}×${H}). Toca «Cámara del teléfono» para una foto nítida.`; } return true; };
   if(!chk()) v.addEventListener("loadedmetadata", chk, {once:true}); }
-async function abrirStream(conAudio){ try{ if(stream)stream.getTracks().forEach(t=>t.stop()); stream=await navigator.mediaDevices.getUserMedia({video:conAudio?{facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:720}}:{facingMode:{ideal:facing},width:{ideal:4096},height:{ideal:4096}},audio:!!conAudio}); $("video").srcObject=stream; return true; }
+async function abrirStream(conAudio){ try{ if(stream)stream.getTracks().forEach(t=>t.stop()); stream=await navigator.mediaDevices.getUserMedia({video:conAudio?{facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:720}}:{facingMode:{ideal:facing},width:{ideal:4032},height:{ideal:3024}},audio:!!conAudio}); $("video").srcObject=stream; return true; }
   catch(_){ if(conAudio){ try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing}},audio:false}); $("video").srcObject=stream; return true; }catch(__){} } return false; } }
 function iniciarGrabacion(){
   if(batch.length>=topeLote()){ alert(MSG_LLENO); return; }   /* v50.12 */
